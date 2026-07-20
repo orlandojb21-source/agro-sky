@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { Logo } from "@/components/ui/Logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function LoginPage() {
   if (modo === "enviado") {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-white px-6 dark:bg-[#0a0f0c]">
-        <Image src="/logo.png" alt="Agro Sky Panamá" width={140} height={140} priority />
+        <Logo width={140} height={140} priority />
         <div className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-green-100 bg-white p-6 text-center shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
           <h1 className="text-lg font-semibold text-green-900 dark:text-green-50">
             Revisa tu correo
@@ -80,7 +80,7 @@ export default function LoginPage() {
   if (modo === "olvide") {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-white px-6 dark:bg-[#0a0f0c]">
-        <Image src="/logo.png" alt="Agro Sky Panamá" width={140} height={140} priority />
+        <Logo width={140} height={140} priority />
         <form
           onSubmit={handleOlvide}
           className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
@@ -131,13 +131,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-white px-6 dark:bg-[#0a0f0c]">
-      <Image
-        src="/logo.png"
-        alt="Agro Sky Panamá"
-        width={140}
-        height={140}
-        priority
-      />
+      <Logo width={140} height={140} priority />
 
       <form
         onSubmit={handleSubmit}

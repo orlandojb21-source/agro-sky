@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { Logo } from "@/components/ui/Logo";
 
 export default function ActualizarPasswordPage() {
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function ActualizarPasswordPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-white px-6 dark:bg-[#0a0f0c]">
-      <Image src="/logo.png" alt="Agro Sky Panamá" width={140} height={140} priority />
+      <Logo width={140} height={140} priority />
 
       <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         {!listo ? (

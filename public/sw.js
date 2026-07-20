@@ -1,10 +1,11 @@
 // Service worker minimo: cachea el shell estatico de la PWA y muestra una
 // pagina de respaldo cuando no hay conexion. Deliberadamente NO intercepta
 // POST/Server Actions -- esas siempre van a red.
-const CACHE_NAME = "agro-sky-shell-v1";
+const CACHE_NAME = "agro-sky-shell-v2";
 const CORE_ASSETS = [
   "/offline",
   "/logo.png",
+  "/logo-claro.png",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
 ];
@@ -38,7 +39,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/icons/") || url.pathname === "/logo.png") {
+  if (
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/logo.png" ||
+    url.pathname === "/logo-claro.png"
+  ) {
     event.respondWith(
       caches.match(request).then((cached) => {
         const network = fetch(request)

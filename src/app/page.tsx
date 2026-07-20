@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { biometricoRegistrado, desbloquearConBiometrico, esMobil } from "@/lib/webauthn";
+import { Logo } from "@/components/ui/Logo";
 
 type Estado = "cargando" | "desbloqueando" | "error";
 
@@ -62,14 +62,7 @@ export default function SplashPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-6 dark:bg-[#0a0f0c]">
-      <Image
-        src="/logo.png"
-        alt="Agro Sky Panamá"
-        width={200}
-        height={200}
-        priority
-        className="animate-splash"
-      />
+      <Logo width={200} height={200} priority className="animate-splash" />
 
       {(estado === "desbloqueando" || estado === "error") && (
         <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border border-green-100 bg-white p-6 text-center shadow-sm dark:border-green-900/40 dark:bg-green-950/10">

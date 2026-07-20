@@ -1,8 +1,8 @@
-import Image from "next/image";
 import { getPerfilActual } from "@/lib/perfil";
 import { SignOutButton } from "@/components/layout/SignOutButton";
 import { Nav } from "@/components/layout/Nav";
 import { BiometricoAviso } from "@/components/layout/BiometricoAviso";
+import { Logo } from "@/components/ui/Logo";
 
 export default async function DashboardLayout({
   children,
@@ -14,7 +14,7 @@ export default async function DashboardLayout({
   if (!perfil) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-6 text-center dark:bg-[#0a0f0c]">
-        <Image src="/logo.png" alt="Agro Sky Panamá" width={140} height={140} priority />
+        <Logo width={140} height={140} priority />
         <h1 className="text-2xl font-semibold text-green-900 dark:text-green-50">
           Cuenta pendiente de activación
         </h1>

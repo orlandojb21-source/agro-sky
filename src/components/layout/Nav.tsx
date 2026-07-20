@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 import { NAV } from "./nav-items";
 import { SECTION_ACCESS, ROL_LABEL, type Rol } from "@/lib/roles";
+import { Logo } from "@/components/ui/Logo";
 
 function EnlaceNav({
   href,
@@ -47,7 +47,7 @@ export function Nav({
       <header className="fixed inset-x-0 top-0 z-20 border-b border-green-200 bg-green-50/95 backdrop-blur dark:border-green-900 dark:bg-green-950/95 sm:sticky sm:border-green-100 sm:bg-white/90 sm:dark:border-green-900/40 sm:dark:bg-[#0a0f0c]/90">
         <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Agro Sky Panamá" width={40} height={40} />
+            <Logo width={40} height={40} />
             <span className="hidden font-semibold text-green-900 dark:text-green-50 sm:inline">
               Agro Sky
             </span>
