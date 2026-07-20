@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CajaSubNav } from "@/components/layout/CajaSubNav";
-import { formatMoney } from "@/lib/format";
-import { calcularSaldoActual, META_CAJA, UMBRAL_ALERTA } from "@/lib/caja";
+import { formatMoney, formatDate } from "@/lib/format";
+import { calcularSaldoActual, DENOMINACIONES, META_CAJA, UMBRAL_ALERTA } from "@/lib/caja";
 
 export default async function CajaMenudaLayout({
   children,
@@ -9,11 +9,35 @@ export default async function CajaMenudaLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const saldo = await calcularSaldoActual(supabase);
+  const [saldo, { data: ultimoArqueo }] = await Promise.all([
+    calcularSaldoActual(supabase),
+    supabase
+      .from("caja_arqueos")
+      .select("fecha, detalle")
+      .order("fecha", { ascending: false })
+      .order("creado_en", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
   const necesitaReposicion = saldo <= UMBRAL_ALERTA;
+  const detalle = (ultimoArqueo?.detalle ?? {}) as Record<string, number>;
 
   return (
     <div className="flex flex-col gap-6">
+      {necesitaReposicion && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Es momento de reponer la caja
+            </p>
+            <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+              El saldo está en o por debajo de {formatMoney(UMBRAL_ALERTA)}.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
@@ -27,25 +51,33 @@ export default async function CajaMenudaLayout({
           </p>
         </div>
 
-        {necesitaReposicion ? (
-          <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
-            <span className="text-2xl">⚠️</span>
-            <div>
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                Es momento de reponer la caja
+        <div className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+            Vista previa del efectivo en caja
+          </p>
+          {ultimoArqueo ? (
+            <>
+              <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
+                Según el arqueo del {formatDate(ultimoArqueo.fecha as string)}
               </p>
-              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                El saldo está en o por debajo de {formatMoney(UMBRAL_ALERTA)}.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <p className="text-sm text-green-800/80 dark:text-green-200/80">
-              La caja tiene saldo suficiente.
+              <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 text-xs">
+                {DENOMINACIONES.map((d) => (
+                  <div key={d.id} className="flex justify-between gap-1">
+                    <span className="text-green-700/70 dark:text-green-300/70">{d.label}</span>
+                    <span className="font-medium text-green-900 dark:text-green-50">
+                      {detalle[d.id] ?? 0}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-green-800/80 dark:text-green-200/80">
+              Todavía no se ha hecho un arqueo. Registra uno para ver aquí cuántos billetes y
+              monedas de cada tipo hay en la caja.
             </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <CajaSubNav />
