@@ -37,7 +37,13 @@ const FILTROS_VACIOS: Filtros = {
 const inputFiltro =
   "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
-export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[] }) {
+export function MovimientosTabla({
+  movimientos,
+  puedeEditar,
+}: {
+  movimientos: MovimientoFila[];
+  puedeEditar: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: Filtros[K]) {
@@ -208,13 +214,15 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                       {formatMoney(m.monto)}
                     </td>
                     <td className="px-3 py-3">
-                      <DeleteButton
-                        action={
-                          m.tipo === "gasto"
-                            ? eliminarGastoAction.bind(null, m.id)
-                            : eliminarReposicionAction.bind(null, m.id)
-                        }
-                      />
+                      {puedeEditar && (
+                        <DeleteButton
+                          action={
+                            m.tipo === "gasto"
+                              ? eliminarGastoAction.bind(null, m.id)
+                              : eliminarReposicionAction.bind(null, m.id)
+                          }
+                        />
+                      )}
                     </td>
                   </tr>
                 ))

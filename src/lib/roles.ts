@@ -35,3 +35,11 @@ export function canAccess(rol: Rol | null | undefined, seccion: Seccion): boolea
   if (!rol) return false;
   return SECTION_ACCESS[seccion].includes(rol);
 }
+
+// Usado para restringir quien puede registrar/eliminar movimientos de Caja
+// Menuda: administrador puede ver la seccion pero no editarla (pedido
+// explicito del usuario, mismo criterio que la exclusion de administrador
+// en Usuarios).
+export function esSoporteOJefe(rol: Rol | null | undefined): boolean {
+  return rol === "soporte" || rol === "jefe";
+}

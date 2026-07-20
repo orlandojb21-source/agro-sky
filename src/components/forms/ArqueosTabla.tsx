@@ -13,7 +13,13 @@ export type ArqueoFila = {
   nota: string | null;
 };
 
-export function ArqueosTabla({ arqueos }: { arqueos: ArqueoFila[] }) {
+export function ArqueosTabla({
+  arqueos,
+  puedeEditar,
+}: {
+  arqueos: ArqueoFila[];
+  puedeEditar: boolean;
+}) {
   return (
     <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
       <div className="overflow-x-auto">
@@ -71,7 +77,7 @@ export function ArqueosTabla({ arqueos }: { arqueos: ArqueoFila[] }) {
                     {a.nota ?? "—"}
                   </td>
                   <td className="px-3 py-3">
-                    <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />
+                    {puedeEditar && <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />}
                   </td>
                 </tr>
               ))

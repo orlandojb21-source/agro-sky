@@ -1,11 +1,13 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { esSoporteOJefe } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { ArqueosTabla, type ArqueoFila } from "@/components/forms/ArqueosTabla";
 
 export default async function ArqueosPage() {
-  await requireSection("caja-menuda");
+  const perfil = await requireSection("caja-menuda");
+  const puedeEditar = esSoporteOJefe(perfil.rol);
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -27,9 +29,11 @@ export default async function ArqueosPage() {
       <PageHeader
         title="Caja Menuda — Arqueos"
         description="Conteo físico del efectivo en la caja, comparado contra el saldo que el sistema esperaba en ese momento."
-        action={<LinkButton href="/caja-menuda/arqueos/nuevo">+ Nuevo arqueo</LinkButton>}
+        action={
+          puedeEditar && <LinkButton href="/caja-menuda/arqueos/nuevo">+ Nuevo arqueo</LinkButton>
+        }
       />
-      <ArqueosTabla arqueos={arqueos} />
+      <ArqueosTabla arqueos={arqueos} puedeEditar={puedeEditar} />
     </div>
   );
 }

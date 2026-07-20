@@ -1,10 +1,13 @@
+import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/session";
+import { esSoporteOJefe } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { calcularSaldoActual } from "@/lib/caja";
 import { ArqueoForm } from "@/components/forms/ArqueoForm";
 
 export default async function NuevoArqueoPage() {
-  await requireSection("caja-menuda");
+  const perfil = await requireSection("caja-menuda");
+  if (!esSoporteOJefe(perfil.rol)) redirect("/unauthorized");
 
   const supabase = await createClient();
   const saldoEsperado = await calcularSaldoActual(supabase);

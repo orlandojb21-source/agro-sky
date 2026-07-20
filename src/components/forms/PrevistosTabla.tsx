@@ -13,7 +13,13 @@ export type PrevistoFila = {
   diferencia: number;
 };
 
-export function PrevistosTabla({ previstos }: { previstos: PrevistoFila[] }) {
+export function PrevistosTabla({
+  previstos,
+  puedeEditar,
+}: {
+  previstos: PrevistoFila[];
+  puedeEditar: boolean;
+}) {
   return (
     <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
       <div className="overflow-x-auto">
@@ -75,7 +81,9 @@ export function PrevistosTabla({ previstos }: { previstos: PrevistoFila[] }) {
                     )}
                   </td>
                   <td className="px-3 py-3">
-                    <DeleteButton action={eliminarPrevistoAction.bind(null, p.id)} />
+                    {puedeEditar && (
+                      <DeleteButton action={eliminarPrevistoAction.bind(null, p.id)} />
+                    )}
                   </td>
                 </tr>
               ))
