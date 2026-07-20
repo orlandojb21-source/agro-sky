@@ -40,22 +40,57 @@ const FILTROS_VACIOS: Filtros = {
   costoMax: "",
 };
 
-function campoFiltro(
-  label: string,
-  value: string,
-  onChange: (v: string) => void,
-  type: "text" | "number" = "text",
-) {
+const inputFiltro =
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
+
+function FiltroTexto({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
   return (
-    <label className="flex flex-col gap-1 text-xs text-green-800 dark:text-green-200">
-      {label}
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder ?? "Filtrar..."}
+      className={inputFiltro}
+    />
+  );
+}
+
+function FiltroRango({
+  min,
+  max,
+  onMinChange,
+  onMaxChange,
+}: {
+  min: string;
+  max: string;
+  onMinChange: (v: string) => void;
+  onMaxChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex gap-1">
       <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-green-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
+        type="number"
+        value={min}
+        onChange={(e) => onMinChange(e.target.value)}
+        placeholder="Mín"
+        className={inputFiltro}
       />
-    </label>
+      <input
+        type="number"
+        value={max}
+        onChange={(e) => onMaxChange(e.target.value)}
+        placeholder="Máx"
+        className={inputFiltro}
+      />
+    </div>
   );
 }
 
@@ -104,83 +139,117 @@ export function ProductoTabla({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {campoFiltro("Número de parte", filtros.numeroParte, (v) => setFiltro("numeroParte", v))}
-          {campoFiltro("Descripción", filtros.descripcion, (v) => setFiltro("descripcion", v))}
-          {campoFiltro("Rack", filtros.rack, (v) => setFiltro("rack", v))}
-          {campoFiltro("Contenedor", filtros.contenedor, (v) => setFiltro("contenedor", v))}
-          {campoFiltro("Cantidad mín.", filtros.cantidadMin, (v) => setFiltro("cantidadMin", v), "number")}
-          {campoFiltro("Cantidad máx.", filtros.cantidadMax, (v) => setFiltro("cantidadMax", v), "number")}
-          {campoFiltro("Costo mín.", filtros.costoMin, (v) => setFiltro("costoMin", v), "number")}
-          {campoFiltro("Costo máx.", filtros.costoMax, (v) => setFiltro("costoMax", v), "number")}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {hayFiltrosActivos && (
-            <button
-              onClick={() => setFiltros(FILTROS_VACIOS)}
-              className="text-sm text-green-700 hover:underline dark:text-green-300"
-            >
-              Limpiar filtros
-            </button>
-          )}
-          <span className="text-xs text-green-700/60 dark:text-green-300/60">
-            {filtrados.length} de {productos.length} productos
-          </span>
-          <div className="ml-auto flex gap-2">
-            <button
-              onClick={() => exportarExcel(filtrados, nombreArchivo)}
-              disabled={filtrados.length === 0}
-              className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-40 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
-            >
-              Exportar Excel
-            </button>
-            <button
-              onClick={() => exportarPDF(filtrados, nombreArchivo, titulo)}
-              disabled={filtrados.length === 0}
-              className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-40 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
-            >
-              Exportar PDF
-            </button>
-          </div>
+      <div className="flex flex-wrap items-center gap-3">
+        {hayFiltrosActivos && (
+          <button
+            onClick={() => setFiltros(FILTROS_VACIOS)}
+            className="text-sm text-green-700 hover:underline dark:text-green-300"
+          >
+            Limpiar filtros
+          </button>
+        )}
+        <span className="text-xs text-green-700/60 dark:text-green-300/60">
+          {filtrados.length} de {productos.length} productos
+        </span>
+        <div className="ml-auto flex gap-2">
+          <button
+            onClick={() => exportarExcel(filtrados, nombreArchivo)}
+            disabled={filtrados.length === 0}
+            className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-40 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
+          >
+            Exportar Excel
+          </button>
+          <button
+            onClick={() => exportarPDF(filtrados, nombreArchivo, titulo)}
+            disabled={filtrados.length === 0}
+            className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-40 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
+          >
+            Exportar PDF
+          </button>
         </div>
       </div>
 
-      {filtrados.length === 0 ? (
-        <p className="rounded-xl border border-green-100 bg-white px-6 py-10 text-center text-sm text-green-700/70 dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
-          {productos.length === 0
-            ? "Todavía no hay productos en esta sección."
-            : "Ningún producto coincide con los filtros."}
-        </p>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                  <th className="px-4 py-3 font-medium">Número de parte</th>
-                  <th className="px-4 py-3 font-medium">Descripción</th>
-                  <th className="px-4 py-3 font-medium">Cantidad</th>
-                  <th className="px-4 py-3 font-medium">Costo</th>
-                  <th className="px-4 py-3 font-medium">Venta</th>
-                  <th className="px-4 py-3 font-medium">Ubicación</th>
-                  <th className="px-4 py-3"></th>
+      <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
+                <th className="px-3 py-2 font-medium">Número de parte</th>
+                <th className="px-3 py-2 font-medium">Descripción</th>
+                <th className="px-3 py-2 font-medium">Cantidad</th>
+                <th className="px-3 py-2 font-medium">Costo</th>
+                <th className="px-3 py-2 font-medium">Venta</th>
+                <th className="px-3 py-2 font-medium">Rack</th>
+                <th className="px-3 py-2 font-medium">Contenedor</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+              <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
+                <th className="px-3 py-2">
+                  <FiltroTexto
+                    value={filtros.numeroParte}
+                    onChange={(v) => setFiltro("numeroParte", v)}
+                  />
+                </th>
+                <th className="px-3 py-2">
+                  <FiltroTexto
+                    value={filtros.descripcion}
+                    onChange={(v) => setFiltro("descripcion", v)}
+                  />
+                </th>
+                <th className="px-3 py-2">
+                  <FiltroRango
+                    min={filtros.cantidadMin}
+                    max={filtros.cantidadMax}
+                    onMinChange={(v) => setFiltro("cantidadMin", v)}
+                    onMaxChange={(v) => setFiltro("cantidadMax", v)}
+                  />
+                </th>
+                <th className="px-3 py-2">
+                  <FiltroRango
+                    min={filtros.costoMin}
+                    max={filtros.costoMax}
+                    onMinChange={(v) => setFiltro("costoMin", v)}
+                    onMaxChange={(v) => setFiltro("costoMax", v)}
+                  />
+                </th>
+                <th className="px-3 py-2"></th>
+                <th className="px-3 py-2">
+                  <FiltroTexto value={filtros.rack} onChange={(v) => setFiltro("rack", v)} />
+                </th>
+                <th className="px-3 py-2">
+                  <FiltroTexto
+                    value={filtros.contenedor}
+                    onChange={(v) => setFiltro("contenedor", v)}
+                  />
+                </th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
+                  >
+                    {productos.length === 0
+                      ? "Todavía no hay productos en esta sección."
+                      : "Ningún producto coincide con los filtros."}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtrados.map((p) => (
+              ) : (
+                filtrados.map((p) => (
                   <tr
                     key={p.id}
                     className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
                   >
-                    <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                    <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                       {p.numeroParte}
                     </td>
-                    <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {p.descripcion}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       {p.cantidad === 0 ? (
                         <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
                           Sin stock
@@ -189,16 +258,19 @@ export function ProductoTabla({
                         p.cantidad
                       )}
                     </td>
-                    <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {formatMoney(p.costo)}
                     </td>
-                    <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {formatMoney(p.venta)}
                     </td>
-                    <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
-                      {p.rack ? `${p.rack} / ${p.contenedor}` : "Sin asignar"}
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {p.rack ?? "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {p.contenedor ?? "—"}
+                    </td>
+                    <td className="px-3 py-3">
                       <div className="flex gap-3">
                         <Link
                           href={`${seccionHref}/${p.id}/editar`}
@@ -212,12 +284,12 @@ export function ProductoTabla({
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }

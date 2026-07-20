@@ -14,6 +14,7 @@ export type Seccion =
   | "caja-menuda"
   | "compras"
   | "ventas"
+  | "balance"
   | "usuarios";
 
 // "soporte" es el rol tecnico (soporte de la app, no de atencion al
@@ -26,6 +27,7 @@ export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   "caja-menuda": ["administrador", "jefe", "soporte"],
   compras: ["administrador", "jefe", "soporte"],
   ventas: ["administrador", "jefe", "soporte"],
+  balance: ["administrador", "jefe", "soporte"],
   usuarios: ["soporte", "jefe"],
 };
 
