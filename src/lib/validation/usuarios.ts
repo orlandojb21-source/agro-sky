@@ -10,7 +10,16 @@ export const usuarioCreateSchema = z.object({
   rol: z.enum(ROLES as [string, ...string[]]),
 });
 
-export const usuarioRolSchema = z.object({
+export const usuarioUpdateSchema = z.object({
   id: z.string().uuid(),
+  nombreCompleto: z.string().trim().min(1, "Nombre requerido"),
+  email: z.string().trim().email("Correo inválido"),
   rol: z.enum(ROLES as [string, ...string[]]),
+});
+
+export const usuarioPasswordSchema = z.object({
+  id: z.string().uuid(),
+  password: z
+    .string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres"),
 });

@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { usuarioCreateSchema, usuarioRolSchema } from "@/lib/validation/usuarios";
+import {
+  usuarioCreateSchema,
+  usuarioUpdateSchema,
+  usuarioPasswordSchema,
+} from "@/lib/validation/usuarios";
 import type { ActionState } from "./types";
 
 export async function crearUsuarioAction(
@@ -52,27 +56,68 @@ export async function crearUsuarioAction(
   redirect("/usuarios");
 }
 
-export async function actualizarRolAction(
+export async function actualizarUsuarioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  // Igual que crearUsuarioAction: usa la service_role key para el correo,
+  // asi que este chequeo de seccion ES el control de acceso real.
   await requireSection("usuarios");
 
-  const parsed = usuarioRolSchema.safeParse(Object.fromEntries(formData));
+  const parsed = usuarioUpdateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { error: perfilError } = await supabase
     .from("perfiles")
-    .update({ rol: parsed.data.rol })
+    .update({
+      nombre_completo: parsed.data.nombreCompleto,
+      rol: parsed.data.rol,
+    })
     .eq("id", parsed.data.id);
 
-  if (error) return { error: "No se pudo actualizar el rol." };
+  if (perfilError) return { error: "No se pudo actualizar el usuario." };
+
+  const admin = createAdminClient();
+  const { error: emailError } = await admin.auth.admin.updateUserById(
+    parsed.data.id,
+    { email: parsed.data.email },
+  );
+
+  if (emailError) {
+    const yaExiste = emailError.message?.toLowerCase().includes("already");
+    return {
+      error: yaExiste
+        ? "Ya existe otro usuario con ese correo."
+        : "El nombre y rol se guardaron, pero no se pudo actualizar el correo.",
+    };
+  }
 
   revalidatePath("/usuarios");
-  return { error: null };
+  redirect("/usuarios");
+}
+
+export async function asignarPasswordAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireSection("usuarios");
+
+  const parsed = usuarioPasswordSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(parsed.data.id, {
+    password: parsed.data.password,
+  });
+
+  if (error) return { error: "No se pudo asignar la contraseña." };
+
+  return { error: null, success: true };
 }
 
 export async function eliminarUsuarioAction(id: string) {
@@ -89,6 +134,7 @@ export type UsuarioConEmail = {
   nombreCompleto: string;
   rol: "administrador" | "jefe" | "soporte";
   email: string;
+  telefono: string | null;
   creadoEn: string;
 };
 
@@ -98,7 +144,7 @@ export async function listarUsuarios(): Promise<UsuarioConEmail[]> {
   const supabase = await createClient();
   const { data: perfiles } = await supabase
     .from("perfiles")
-    .select("id, nombre_completo, rol, creado_en")
+    .select("id, nombre_completo, rol, telefono, creado_en")
     .order("creado_en");
 
   if (!perfiles || perfiles.length === 0) return [];
@@ -117,6 +163,32 @@ export async function listarUsuarios(): Promise<UsuarioConEmail[]> {
     nombreCompleto: perfil.nombre_completo,
     rol: perfil.rol,
     email: correos.get(perfil.id) ?? "—",
+    telefono: perfil.telefono,
     creadoEn: perfil.creado_en,
   }));
+}
+
+export async function obtenerUsuario(id: string): Promise<UsuarioConEmail | null> {
+  await requireSection("usuarios");
+
+  const supabase = await createClient();
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("id, nombre_completo, rol, telefono, creado_en")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!perfil) return null;
+
+  const admin = createAdminClient();
+  const { data } = await admin.auth.admin.getUserById(id);
+
+  return {
+    id: perfil.id,
+    nombreCompleto: perfil.nombre_completo,
+    rol: perfil.rol,
+    email: data.user?.email ?? "—",
+    telefono: perfil.telefono,
+    creadoEn: perfil.creado_en,
+  };
 }

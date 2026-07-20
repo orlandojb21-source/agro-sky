@@ -17,8 +17,8 @@ export type Seccion =
   | "usuarios";
 
 // "soporte" es el rol tecnico (soporte de la app, no de atencion al
-// cliente): tiene acceso total, igual que "administrador". "jefe" por
-// ahora tambien tiene acceso a todo salvo Usuarios. Restringir alguna
+// cliente): tiene acceso total. "usuarios" es exclusiva de soporte y jefe
+// (no administrador, por pedido explicito del usuario). Restringir alguna
 // seccion por rol mas adelante solo requiere ajustar este mapa (mas la
 // politica RLS equivalente en Supabase).
 export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
@@ -26,7 +26,7 @@ export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   "caja-menuda": ["administrador", "jefe", "soporte"],
   compras: ["administrador", "jefe", "soporte"],
   ventas: ["administrador", "jefe", "soporte"],
-  usuarios: ["administrador", "soporte"],
+  usuarios: ["soporte", "jefe"],
 };
 
 export function canAccess(rol: Rol | null | undefined, seccion: Seccion): boolean {
