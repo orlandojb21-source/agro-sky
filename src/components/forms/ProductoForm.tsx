@@ -5,7 +5,7 @@ import {
   crearProductoAction,
   actualizarProductoAction,
 } from "@/lib/actions/productos";
-import { Field } from "@/components/ui/Field";
+import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import type { TipoProducto } from "@/lib/inventario-tipo";
@@ -61,6 +61,7 @@ export function ProductoForm({
   const rack = v?.rack ?? valoresIniciales?.rack ?? "";
   const contenedor = v?.contenedor ?? valoresIniciales?.contenedor ?? "";
   const unidad = v?.unidad ?? valoresIniciales?.unidad ?? "";
+  const tipoSeleccionado = (v?.tipo as TipoProducto | undefined) ?? tipo;
 
   return (
     <form
@@ -69,9 +70,18 @@ export function ProductoForm({
       className="flex max-w-xl flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
     >
       <FormError message={state.error} />
-      <input type="hidden" name="tipo" value={tipo} />
       {esEdicion && (
-        <input type="hidden" name="id" value={valoresIniciales!.id} />
+        <>
+          <input type="hidden" name="tipo" value={tipo} />
+          <input type="hidden" name="id" value={valoresIniciales!.id} />
+        </>
+      )}
+
+      {!esEdicion && (
+        <SelectField label="Sección" name="tipo" defaultValue={tipoSeleccionado}>
+          <option value="nuevo">Nuevo</option>
+          <option value="usado">Usado</option>
+        </SelectField>
       )}
 
       <Field
