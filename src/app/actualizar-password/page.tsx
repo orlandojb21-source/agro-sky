@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 export default function ActualizarPasswordPage() {
   const router = useRouter();
@@ -89,8 +90,7 @@ export default function ActualizarPasswordPage() {
 
             <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
               Nueva contraseña
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -101,8 +101,7 @@ export default function ActualizarPasswordPage() {
 
             <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
               Confirmar contraseña
-              <input
-                type="password"
+              <PasswordInput
                 value={confirmar}
                 onChange={(e) => setConfirmar(e.target.value)}
                 required

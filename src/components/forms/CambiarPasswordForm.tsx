@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { FormError } from "@/components/ui/FormError";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 export function CambiarPasswordForm() {
   const [password, setPassword] = useState("");
@@ -57,8 +58,7 @@ export function CambiarPasswordForm() {
 
       <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
         Nueva contraseña
-        <input
-          type="password"
+        <PasswordInput
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -69,8 +69,7 @@ export function CambiarPasswordForm() {
 
       <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
         Confirmar contraseña
-        <input
-          type="password"
+        <PasswordInput
           value={confirmar}
           onChange={(e) => setConfirmar(e.target.value)}
           required

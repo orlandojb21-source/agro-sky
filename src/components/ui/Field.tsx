@@ -1,3 +1,8 @@
+import { PasswordInput } from "./PasswordInput";
+
+const CLASE_INPUT =
+  "rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+
 export function Field({
   label,
   name,
@@ -20,16 +25,26 @@ export function Field({
   return (
     <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
       {label}
-      <input
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        required={required}
-        step={step}
-        min={min}
-        placeholder={placeholder}
-        className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-      />
+      {type === "password" ? (
+        <PasswordInput
+          name={name}
+          defaultValue={defaultValue}
+          required={required}
+          placeholder={placeholder}
+          className={CLASE_INPUT}
+        />
+      ) : (
+        <input
+          name={name}
+          type={type}
+          defaultValue={defaultValue}
+          required={required}
+          step={step}
+          min={min}
+          placeholder={placeholder}
+          className={CLASE_INPUT}
+        />
+      )}
     </label>
   );
 }
