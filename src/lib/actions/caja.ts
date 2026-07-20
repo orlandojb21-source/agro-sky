@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePerfil } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { gastoSchema, reposicionSchema, previstoSchema, arqueoSchema } from "@/lib/validation/caja";
+import {
+  gastoSchema,
+  reposicionSchema,
+  previstoSchema,
+  vueltoSchema,
+  arqueoSchema,
+} from "@/lib/validation/caja";
 import { DENOMINACIONES, calcularSaldoActual } from "@/lib/caja";
 import type { ActionState } from "./types";
 
@@ -105,11 +111,13 @@ export async function crearPrevistoAction(
     fecha: parsed.data.fecha,
     colaborador: parsed.data.colaborador,
     monto: parsed.data.monto,
+    entregado: parsed.data.entregado,
     registrado_por: perfil.id,
   });
 
   if (error) return { error: mensajeErrorPrevisto(error), values: raw };
 
+  revalidatePath("/caja-menuda");
   revalidatePath("/caja-menuda/previstos");
   redirect("/caja-menuda/previstos");
 }
@@ -119,6 +127,32 @@ export async function eliminarPrevistoAction(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("caja_previstos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el previsto.");
+  revalidatePath("/caja-menuda");
+  revalidatePath("/caja-menuda/previstos");
+}
+
+// Registrar el vuelto es una actualizacion a un previsto ya guardado (no
+// una creacion), asi que sigue la misma regla que eliminar: solo
+// soporte/jefe (RLS lo exige de todas formas, esto es solo para dar un
+// mensaje claro en vez de un error generico de Postgres).
+export async function registrarVueltoAction(id: string, formData: FormData) {
+  await requirePerfil();
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+
+  const parsed = vueltoSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Vuelto inválido");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("caja_previstos")
+    .update({ vuelto: parsed.data.vuelto })
+    .eq("id", id);
+
+  if (error) throw new Error("No se pudo registrar el vuelto.");
+
+  revalidatePath("/caja-menuda");
   revalidatePath("/caja-menuda/previstos");
 }
 

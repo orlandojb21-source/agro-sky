@@ -12,6 +12,7 @@ export function Field({
   step,
   min,
   placeholder,
+  onChange,
 }: {
   label: string;
   name: string;
@@ -21,6 +22,7 @@ export function Field({
   step?: string;
   min?: string | number;
   placeholder?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
@@ -42,6 +44,7 @@ export function Field({
           step={step}
           min={min}
           placeholder={placeholder}
+          onChange={onChange}
           className={CLASE_INPUT}
         />
       )}

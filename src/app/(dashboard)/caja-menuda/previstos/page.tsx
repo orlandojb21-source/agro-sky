@@ -13,7 +13,7 @@ export default async function PrevistosPage() {
   const [{ data: previstos }, { data: gastos }] = await Promise.all([
     supabase
       .from("caja_previstos")
-      .select("id, fecha, colaborador, monto")
+      .select("id, fecha, colaborador, monto, entregado, vuelto")
       .order("fecha", { ascending: false }),
     supabase.from("caja_gastos").select("fecha, colaborador, monto").not("colaborador", "is", null),
   ]);
@@ -28,6 +28,8 @@ export default async function PrevistosPage() {
       fecha: p.fecha as string,
       colaborador: p.colaborador as string,
       previsto: Number(p.monto),
+      entregado: Number(p.entregado),
+      vuelto: p.vuelto === null ? null : Number(p.vuelto),
       real,
       diferencia: real - Number(p.monto),
     };

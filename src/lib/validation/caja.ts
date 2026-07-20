@@ -20,6 +20,11 @@ export const previstoSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
   colaborador: z.string().trim().min(1, "El nombre del colaborador es requerido"),
   monto: z.coerce.number().positive("El monto debe ser mayor a cero"),
+  entregado: z.coerce.number().positive("El monto entregado debe ser mayor a cero"),
+});
+
+export const vueltoSchema = z.object({
+  vuelto: z.coerce.number().min(0, "El vuelto no puede ser negativo"),
 });
 
 const camposCantidadPorDenominacion = Object.fromEntries(
