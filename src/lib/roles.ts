@@ -15,6 +15,7 @@ export type Seccion =
   | "compras"
   | "ventas"
   | "balance"
+  | "reportes"
   | "usuarios";
 
 // "soporte" es el rol tecnico (soporte de la app, no de atencion al
@@ -28,6 +29,7 @@ export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   compras: ["administrador", "jefe", "soporte"],
   ventas: ["administrador", "jefe", "soporte"],
   balance: ["administrador", "jefe", "soporte"],
+  reportes: ["administrador", "jefe", "soporte"],
   usuarios: ["soporte", "jefe"],
 };
 
@@ -36,10 +38,10 @@ export function canAccess(rol: Rol | null | undefined, seccion: Seccion): boolea
   return SECTION_ACCESS[seccion].includes(rol);
 }
 
-// Usado para restringir quien puede registrar/eliminar movimientos de Caja
-// Menuda: administrador puede ver la seccion pero no editarla (pedido
-// explicito del usuario, mismo criterio que la exclusion de administrador
-// en Usuarios).
+// No usado actualmente en ningun lado (Caja Menuda volvio a estar abierta a
+// los 3 roles). Se deja definida para cuando se agregue un rol nuevo mas
+// restringido -- ese es el caso en el que de verdad hace falta distinguir
+// soporte/jefe del resto, no los 3 roles de hoy.
 export function esSoporteOJefe(rol: Rol | null | undefined): boolean {
   return rol === "soporte" || rol === "jefe";
 }
