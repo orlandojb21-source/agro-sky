@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   biometricoDisponible,
   biometricoRegistrado,
@@ -17,6 +19,7 @@ export function BiometricoToggle({
   email: string;
   nombreCompleto: string;
 }) {
+  const router = useRouter();
   const [disponible, setDisponible] = useState(false);
   const [activo, setActivo] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -51,6 +54,13 @@ export function BiometricoToggle({
     setActivo(true);
   }
 
+  async function handleCerrarSesionCompleta() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
+
   if (!listo || !disponible) return null;
 
   return (
@@ -82,6 +92,22 @@ export function BiometricoToggle({
             ? "Desactivar en este dispositivo"
             : "Activar en este dispositivo"}
       </button>
+
+      {activo && (
+        <>
+          <p className="text-xs text-green-700/60 dark:text-green-300/60">
+            Con esto activo, el botón &quot;Cerrar sesión&quot; del menú
+            ahora solo bloquea la app (para que tu huella/rostro pueda
+            volver a abrirla).
+          </p>
+          <button
+            onClick={handleCerrarSesionCompleta}
+            className="self-start text-sm text-red-600 hover:underline dark:text-red-400"
+          >
+            Cerrar sesión por completo en este dispositivo
+          </button>
+        </>
+      )}
     </div>
   );
 }

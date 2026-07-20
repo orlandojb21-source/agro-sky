@@ -2,6 +2,7 @@ import Image from "next/image";
 import { getPerfilActual } from "@/lib/perfil";
 import { SignOutButton } from "@/components/layout/SignOutButton";
 import { Nav } from "@/components/layout/Nav";
+import { BiometricoAviso } from "@/components/layout/BiometricoAviso";
 
 export default async function DashboardLayout({
   children,
@@ -29,8 +30,9 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-green-50/40 dark:bg-[#0a0f0c]">
-      <Nav nombreCompleto={perfil.nombreCompleto} rol={perfil.rol} />
+      <Nav nombreCompleto={perfil.nombreCompleto} rol={perfil.rol} userId={perfil.id} />
       <main className="flex-1 px-4 pt-20 pb-24 sm:px-6 sm:pt-24 sm:pb-8">
+        <BiometricoAviso userId={perfil.id} />
         {children}
       </main>
     </div>

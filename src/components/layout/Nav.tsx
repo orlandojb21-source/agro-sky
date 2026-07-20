@@ -33,9 +33,11 @@ function EnlaceNav({
 export function Nav({
   nombreCompleto,
   rol,
+  userId,
 }: {
   nombreCompleto: string;
   rol: Rol;
+  userId: string;
 }) {
   const pathname = usePathname();
   const items = NAV.filter((item) => SECTION_ACCESS[item.seccion].includes(rol));
@@ -79,7 +81,7 @@ export function Nav({
             >
               Mi perfil
             </Link>
-            <SignOutButton />
+            <SignOutButton userId={userId} />
           </div>
         </div>
       </header>
