@@ -43,11 +43,11 @@ export default async function CajaMenudaLayout({
 
       <div className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
+          <div className="flex flex-col justify-center">
             <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
               Saldo actual de la caja
             </p>
-            <p className="mt-1 text-2xl font-semibold text-green-900 dark:text-green-50">
+            <p className="mt-1 text-3xl font-semibold text-green-900 dark:text-green-50">
               {formatMoney(saldo)}
             </p>
             <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
@@ -56,13 +56,10 @@ export default async function CajaMenudaLayout({
           </div>
 
           <div className="sm:col-span-2 sm:text-right">
-            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-              Vista previa del efectivo en caja
-            </p>
             {ultimoArqueo ? (
               <>
-                <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
-                  Según el arqueo del {formatDateOnly(ultimoArqueo.fecha as string)}
+                <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                  Arqueo del {formatDateOnly(ultimoArqueo.fecha as string)}
                 </p>
 
                 <div className="mt-3 inline-block rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-center dark:border-blue-900/40 dark:bg-blue-950/20">
