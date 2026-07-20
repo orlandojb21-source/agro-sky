@@ -69,7 +69,7 @@ export function ArqueoForm({ fechaHoy, saldoEsperado }: { fechaHoy: string; sald
 
       <div>
         <p className="mb-2 text-sm font-medium text-green-900 dark:text-green-100">Monedas</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {monedas.map((d) => (
             <label key={d.id} className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
               {d.label}

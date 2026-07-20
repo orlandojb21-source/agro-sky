@@ -13,6 +13,8 @@ export const DENOMINACIONES = [
   { id: "b10", valor: 10, label: "$10", tipo: "billete" },
   { id: "b5", valor: 5, label: "$5", tipo: "billete" },
   { id: "b1", valor: 1, label: "$1", tipo: "billete" },
+  { id: "m1", valor: 1, label: "$1 (moneda)", tipo: "moneda" },
+  { id: "m50", valor: 0.5, label: "50¢", tipo: "moneda" },
   { id: "m25", valor: 0.25, label: "25¢", tipo: "moneda" },
   { id: "m10", valor: 0.1, label: "10¢", tipo: "moneda" },
   { id: "m05", valor: 0.05, label: "5¢", tipo: "moneda" },
