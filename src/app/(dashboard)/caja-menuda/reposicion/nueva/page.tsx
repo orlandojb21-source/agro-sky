@@ -9,7 +9,7 @@ export default async function NuevaReposicionPage() {
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">
         Reponer caja
       </h1>
-      <ReposicionForm />
+      <ReposicionForm fechaHoy={new Date().toISOString().slice(0, 10)} />
     </div>
   );
 }

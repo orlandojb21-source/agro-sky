@@ -8,11 +8,7 @@ import { SubmitButton, LinkButton } from "@/components/ui/Button";
 
 const CONCEPTOS_SUGERIDOS = ["Transporte", "Comida", "Combustible", "Hospedaje", "Materiales", "Otro"];
 
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function GastoForm() {
+export function GastoForm({ fechaHoy }: { fechaHoy: string }) {
   const [state, formAction] = useActionState(crearGastoAction, { error: null });
 
   const [prevState, setPrevState] = useState(state);
@@ -36,7 +32,7 @@ export function GastoForm() {
         label="Fecha"
         name="fecha"
         type="date"
-        defaultValue={v?.fecha ?? hoyISO()}
+        defaultValue={v?.fecha ?? fechaHoy}
         required
       />
       <Field

@@ -6,11 +6,7 @@ import { Field } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function ReposicionForm() {
+export function ReposicionForm({ fechaHoy }: { fechaHoy: string }) {
   const [state, formAction] = useActionState(crearReposicionAction, { error: null });
 
   const [prevState, setPrevState] = useState(state);
@@ -34,7 +30,7 @@ export function ReposicionForm() {
         label="Fecha"
         name="fecha"
         type="date"
-        defaultValue={v?.fecha ?? hoyISO()}
+        defaultValue={v?.fecha ?? fechaHoy}
         required
       />
       <Field
