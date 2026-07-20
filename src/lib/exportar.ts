@@ -9,7 +9,7 @@ export type FilaExportable = {
   cantidad: number;
   costo: number;
   venta: number;
-  rack: string | null;
+  fila: string | null;
   contenedor: string | null;
   unidad: string | null;
 };
@@ -38,7 +38,7 @@ export async function exportarExcel(filas: FilaExportable[], nombreArchivo: stri
   hoja.columns = [
     { header: "Número de parte", key: "numeroParte", width: 20 },
     { header: "Descripción", key: "descripcion", width: 35 },
-    { header: "Rack", key: "rack", width: 12 },
+    { header: "Fila", key: "fila", width: 12 },
     { header: "Contenedor", key: "contenedor", width: 14 },
     { header: "Unidad", key: "unidad", width: 14 },
     { header: "Cantidad", key: "cantidad", width: 12 },
@@ -52,7 +52,7 @@ export async function exportarExcel(filas: FilaExportable[], nombreArchivo: stri
     hoja.addRow({
       numeroParte: celdaSegura(f.numeroParte),
       descripcion: celdaSegura(f.descripcion),
-      rack: celdaSegura(f.rack ?? ""),
+      fila: celdaSegura(f.fila ?? ""),
       contenedor: celdaSegura(f.contenedor ?? ""),
       unidad: celdaSegura(f.unidad ?? ""),
       cantidad: f.cantidad,
@@ -82,7 +82,7 @@ export function exportarPDF(filas: FilaExportable[], nombreArchivo: string, titu
       [
         "Número de parte",
         "Descripción",
-        "Rack",
+        "Fila",
         "Contenedor",
         "Unidad",
         "Cantidad",
@@ -94,7 +94,7 @@ export function exportarPDF(filas: FilaExportable[], nombreArchivo: string, titu
     body: filas.map((f) => [
       f.numeroParte,
       f.descripcion,
-      f.rack ?? "",
+      f.fila ?? "",
       f.contenedor ?? "",
       f.unidad ?? "",
       String(f.cantidad),

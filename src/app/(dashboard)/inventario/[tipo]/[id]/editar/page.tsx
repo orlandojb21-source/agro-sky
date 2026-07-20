@@ -16,7 +16,7 @@ export default async function EditarProductoPage({
   const supabase = await createClient();
   const { data: producto } = await supabase
     .from("productos")
-    .select("id, numero_parte, descripcion, cantidad, costo, venta, rack, contenedor, unidad, tipo")
+    .select("id, numero_parte, descripcion, cantidad, costo, venta, fila, contenedor, unidad, tipo")
     .eq("id", id)
     .eq("tipo", tipo)
     .maybeSingle();
@@ -38,7 +38,7 @@ export default async function EditarProductoPage({
           cantidad: producto.cantidad,
           costo: Number(producto.costo),
           venta: Number(producto.venta),
-          rack: producto.rack,
+          fila: producto.fila,
           contenedor: producto.contenedor,
           unidad: producto.unidad,
         }}

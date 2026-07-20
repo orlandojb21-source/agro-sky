@@ -8,7 +8,7 @@ export default async function InventarioLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data } = await supabase.from("productos").select("costo, cantidad, rack, contenedor");
+  const { data } = await supabase.from("productos").select("costo, cantidad, fila, contenedor");
   const productos = data ?? [];
 
   const valorTotal = productos.reduce(
@@ -17,12 +17,12 @@ export default async function InventarioLayout({
   );
   const articulosTotal = productos.reduce((suma, p) => suma + (p.cantidad as number), 0);
 
-  // Un contenedor real es la combinacion rack+contenedor: el mismo numero
-  // de contenedor puede repetirse en racks distintos, pero es otro lugar.
+  // Un contenedor real es la combinacion fila+contenedor: el mismo numero
+  // de contenedor puede repetirse en filas distintas, pero es otro lugar.
   const contenedoresUnicos = new Set(
     productos
-      .filter((p) => p.rack && p.contenedor)
-      .map((p) => `${p.rack}__${p.contenedor}`),
+      .filter((p) => p.fila && p.contenedor)
+      .map((p) => `${p.fila}__${p.contenedor}`),
   );
 
   return (

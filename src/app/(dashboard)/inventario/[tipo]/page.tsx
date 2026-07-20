@@ -17,7 +17,7 @@ export default async function InventarioSeccionPage({
   const supabase = await createClient();
   const { data } = await supabase
     .from("productos")
-    .select("id, numero_parte, descripcion, cantidad, costo, venta, rack, contenedor, unidad")
+    .select("id, numero_parte, descripcion, cantidad, costo, venta, fila, contenedor, unidad")
     .eq("tipo", tipo)
     .order("numero_parte");
 
@@ -28,7 +28,7 @@ export default async function InventarioSeccionPage({
     cantidad: p.cantidad as number,
     costo: Number(p.costo),
     venta: Number(p.venta),
-    rack: p.rack as string | null,
+    fila: p.fila as string | null,
     contenedor: p.contenedor as string | null,
     unidad: p.unidad as string | null,
   }));

@@ -17,7 +17,7 @@ type ValoresProducto = {
   cantidad: number;
   costo: number;
   venta: number;
-  rack: string | null;
+  fila: string | null;
   contenedor: string | null;
   unidad: string | null;
 };
@@ -58,7 +58,7 @@ export function ProductoForm({
   const cantidad = v?.cantidad ?? valoresIniciales?.cantidad ?? 0;
   const costo = v?.costo ?? valoresIniciales?.costo ?? 0;
   const venta = v?.venta ?? valoresIniciales?.venta ?? 0;
-  const rack = v?.rack ?? valoresIniciales?.rack ?? "";
+  const fila = v?.fila ?? valoresIniciales?.fila ?? "";
   const contenedor = v?.contenedor ?? valoresIniciales?.contenedor ?? "";
   const unidad = v?.unidad ?? valoresIniciales?.unidad ?? "";
   const tipoSeleccionado = (v?.tipo as TipoProducto | undefined) ?? tipo;
@@ -99,9 +99,9 @@ export function ProductoForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field
-          label="Rack"
-          name="rack"
-          defaultValue={rack}
+          label="Fila"
+          name="fila"
+          defaultValue={fila}
           placeholder="Ej: 2"
         />
         <Field

@@ -14,7 +14,7 @@ export type ProductoFila = {
   cantidad: number;
   costo: number;
   venta: number;
-  rack: string | null;
+  fila: string | null;
   contenedor: string | null;
   unidad: string | null;
 };
@@ -22,7 +22,7 @@ export type ProductoFila = {
 type Filtros = {
   numeroParte: string;
   descripcion: string;
-  rack: string;
+  fila: string;
   contenedor: string;
   unidad: string;
   cantidadMin: string;
@@ -34,7 +34,7 @@ type Filtros = {
 const FILTROS_VACIOS: Filtros = {
   numeroParte: "",
   descripcion: "",
-  rack: "",
+  fila: "",
   contenedor: "",
   unidad: "",
   cantidadMin: "",
@@ -122,8 +122,8 @@ export function ProductoTabla({
       const descripcion = filtros.descripcion.trim().toLowerCase();
       if (descripcion && !p.descripcion.toLowerCase().includes(descripcion)) return false;
 
-      const rack = filtros.rack.trim().toLowerCase();
-      if (rack && !(p.rack ?? "").toLowerCase().includes(rack)) return false;
+      const fila = filtros.fila.trim().toLowerCase();
+      if (fila && !(p.fila ?? "").toLowerCase().includes(fila)) return false;
 
       const contenedor = filtros.contenedor.trim().toLowerCase();
       if (contenedor && !(p.contenedor ?? "").toLowerCase().includes(contenedor)) return false;
@@ -182,7 +182,7 @@ export function ProductoTabla({
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Número de parte</th>
                 <th className="px-3 py-2 font-medium">Descripción</th>
-                <th className="px-3 py-2 font-medium">Rack</th>
+                <th className="px-3 py-2 font-medium">Fila</th>
                 <th className="px-3 py-2 font-medium">Contenedor</th>
                 <th className="px-3 py-2 font-medium">Unidad</th>
                 <th className="px-3 py-2 font-medium">Cantidad</th>
@@ -205,7 +205,7 @@ export function ProductoTabla({
                   />
                 </th>
                 <th className="px-3 py-2">
-                  <FiltroTexto value={filtros.rack} onChange={(v) => setFiltro("rack", v)} />
+                  <FiltroTexto value={filtros.fila} onChange={(v) => setFiltro("fila", v)} />
                 </th>
                 <th className="px-3 py-2">
                   <FiltroTexto
@@ -262,7 +262,7 @@ export function ProductoTabla({
                       {p.descripcion}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {p.rack ?? "—"}
+                      {p.fila ?? "—"}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {p.contenedor ?? "—"}
