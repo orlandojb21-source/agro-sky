@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PerfilForm } from "@/components/forms/PerfilForm";
 import { CambiarPasswordForm } from "@/components/forms/CambiarPasswordForm";
+import { BiometricoToggle } from "@/components/forms/BiometricoToggle";
 
 export default async function MiPerfilPage() {
   const perfil = await requirePerfil();
@@ -22,6 +23,11 @@ export default async function MiPerfilPage() {
         telefono={data?.telefono ?? null}
       />
       <CambiarPasswordForm />
+      <BiometricoToggle
+        userId={perfil.id}
+        email={perfil.email}
+        nombreCompleto={perfil.nombreCompleto}
+      />
     </div>
   );
 }
