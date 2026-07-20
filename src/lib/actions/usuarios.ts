@@ -125,7 +125,8 @@ export async function eliminarUsuarioAction(id: string) {
   if (perfilActual.id === id) return; // no puedes eliminar tu propia cuenta
 
   const admin = createAdminClient();
-  await admin.auth.admin.deleteUser(id); // perfiles se borra en cascada (FK)
+  const { error } = await admin.auth.admin.deleteUser(id); // perfiles se borra en cascada (FK)
+  if (error) throw new Error("No se pudo eliminar el usuario.");
   revalidatePath("/usuarios");
 }
 

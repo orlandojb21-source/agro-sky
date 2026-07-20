@@ -13,6 +13,14 @@ export type FilaExportable = {
   contenedor: string | null;
 };
 
+// Evita inyeccion de formulas en Excel: si un texto libre (descripcion,
+// numero de parte, etc.) empieza con =, +, - o @, Excel podria interpretarlo
+// como formula al abrir el archivo. Anteponer una comilla simple lo fuerza a
+// tratarse como texto plano, sin cambiar lo que el usuario ve en la celda.
+function celdaSegura(valor: string): string {
+  return /^[=+\-@]/.test(valor) ? `'${valor}` : valor;
+}
+
 function descargarArchivo(blob: Blob, nombreArchivo: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -39,13 +47,13 @@ export async function exportarExcel(filas: FilaExportable[], nombreArchivo: stri
 
   for (const f of filas) {
     hoja.addRow({
-      numeroParte: f.numeroParte,
-      descripcion: f.descripcion,
+      numeroParte: celdaSegura(f.numeroParte),
+      descripcion: celdaSegura(f.descripcion),
       cantidad: f.cantidad,
       costo: f.costo,
       venta: f.venta,
-      rack: f.rack ?? "",
-      contenedor: f.contenedor ?? "",
+      rack: celdaSegura(f.rack ?? ""),
+      contenedor: celdaSegura(f.contenedor ?? ""),
     });
   }
 
