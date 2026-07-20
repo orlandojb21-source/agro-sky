@@ -16,9 +16,20 @@ export default function SplashPage() {
   useEffect(() => {
     const supabase = createClient();
     const timer = setTimeout(async () => {
-      const {
+      let {
         data: { session },
       } = await supabase.auth.getSession();
+
+      // En iOS, abrir la app instalada desde el icono a veces lee las
+      // cookies de sesion antes de que el sistema termine de restaurarlas
+      // (bug conocido de WebKit, no de esta app). Un segundo intento
+      // corto resuelve ese caso sin costo perceptible para el resto.
+      if (!session) {
+        await new Promise((r) => setTimeout(r, 500));
+        ({
+          data: { session },
+        } = await supabase.auth.getSession());
+      }
 
       if (!session) {
         router.replace("/login");

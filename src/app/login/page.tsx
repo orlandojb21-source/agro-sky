@@ -6,10 +6,19 @@ import { createClient } from "@/lib/supabase/client";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Logo } from "@/components/ui/Logo";
 
+// Recuerda el ultimo correo usado en este dispositivo para precargarlo si
+// la sesion se pierde (iOS a veces borra las cookies de sesion de apps
+// instaladas en la pantalla de inicio, un problema conocido del sistema,
+// no de esta app: https://bugs.webkit.org/show_bug.cgi?id=272325). No es
+// un dato sensible, solo ahorra tener que volver a escribir el correo.
+const ULTIMO_CORREO_KEY = "agro-sky-ultimo-correo";
+
 export default function LoginPage() {
   const router = useRouter();
   const [modo, setModo] = useState<"login" | "olvide" | "enviado">("login");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() =>
+    typeof window === "undefined" ? "" : localStorage.getItem(ULTIMO_CORREO_KEY) ?? "",
+  );
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -31,6 +40,7 @@ export default function LoginPage() {
       return;
     }
 
+    localStorage.setItem(ULTIMO_CORREO_KEY, email);
     router.replace("/inventario/nuevos");
     router.refresh();
   }
