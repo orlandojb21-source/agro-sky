@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { eliminarProductoAction } from "@/lib/actions/productos";
 import { formatMoney } from "@/lib/format";
+import { exportarExcel, exportarPDF } from "@/lib/exportar";
 
 export type ProductoFila = {
   id: string;
@@ -17,42 +18,140 @@ export type ProductoFila = {
   contenedor: string | null;
 };
 
+type Filtros = {
+  numeroParte: string;
+  descripcion: string;
+  rack: string;
+  contenedor: string;
+  cantidadMin: string;
+  cantidadMax: string;
+  costoMin: string;
+  costoMax: string;
+};
+
+const FILTROS_VACIOS: Filtros = {
+  numeroParte: "",
+  descripcion: "",
+  rack: "",
+  contenedor: "",
+  cantidadMin: "",
+  cantidadMax: "",
+  costoMin: "",
+  costoMax: "",
+};
+
+function campoFiltro(
+  label: string,
+  value: string,
+  onChange: (v: string) => void,
+  type: "text" | "number" = "text",
+) {
+  return (
+    <label className="flex flex-col gap-1 text-xs text-green-800 dark:text-green-200">
+      {label}
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-lg border border-green-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
+      />
+    </label>
+  );
+}
+
 export function ProductoTabla({
   productos,
   seccion,
   seccionHref,
+  titulo,
 }: {
   productos: ProductoFila[];
   seccion: string;
   seccionHref: string;
+  titulo: string;
 }) {
-  const [busqueda, setBusqueda] = useState("");
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
+
+  function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
+    setFiltros((f) => ({ ...f, [campo]: valor }));
+  }
 
   const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return productos;
-    return productos.filter(
-      (p) =>
-        p.numeroParte.toLowerCase().includes(q) ||
-        p.descripcion.toLowerCase().includes(q),
-    );
-  }, [productos, busqueda]);
+    return productos.filter((p) => {
+      const numeroParte = filtros.numeroParte.trim().toLowerCase();
+      if (numeroParte && !p.numeroParte.toLowerCase().includes(numeroParte)) return false;
+
+      const descripcion = filtros.descripcion.trim().toLowerCase();
+      if (descripcion && !p.descripcion.toLowerCase().includes(descripcion)) return false;
+
+      const rack = filtros.rack.trim().toLowerCase();
+      if (rack && !(p.rack ?? "").toLowerCase().includes(rack)) return false;
+
+      const contenedor = filtros.contenedor.trim().toLowerCase();
+      if (contenedor && !(p.contenedor ?? "").toLowerCase().includes(contenedor)) return false;
+
+      if (filtros.cantidadMin !== "" && p.cantidad < Number(filtros.cantidadMin)) return false;
+      if (filtros.cantidadMax !== "" && p.cantidad > Number(filtros.cantidadMax)) return false;
+      if (filtros.costoMin !== "" && p.costo < Number(filtros.costoMin)) return false;
+      if (filtros.costoMax !== "" && p.costo > Number(filtros.costoMax)) return false;
+
+      return true;
+    });
+  }, [productos, filtros]);
+
+  const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
+  const nombreArchivo = `agro-sky-inventario-${seccion}`;
 
   return (
     <div className="flex flex-col gap-4">
-      <input
-        type="search"
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        placeholder="Buscar por número de parte o descripción..."
-        className="w-full max-w-sm rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-      />
+      <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {campoFiltro("Número de parte", filtros.numeroParte, (v) => setFiltro("numeroParte", v))}
+          {campoFiltro("Descripción", filtros.descripcion, (v) => setFiltro("descripcion", v))}
+          {campoFiltro("Rack", filtros.rack, (v) => setFiltro("rack", v))}
+          {campoFiltro("Contenedor", filtros.contenedor, (v) => setFiltro("contenedor", v))}
+          {campoFiltro("Cantidad mín.", filtros.cantidadMin, (v) => setFiltro("cantidadMin", v), "number")}
+          {campoFiltro("Cantidad máx.", filtros.cantidadMax, (v) => setFiltro("cantidadMax", v), "number")}
+          {campoFiltro("Costo mín.", filtros.costoMin, (v) => setFiltro("costoMin", v), "number")}
+          {campoFiltro("Costo máx.", filtros.costoMax, (v) => setFiltro("costoMax", v), "number")}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {hayFiltrosActivos && (
+            <button
+              onClick={() => setFiltros(FILTROS_VACIOS)}
+              className="text-sm text-green-700 hover:underline dark:text-green-300"
+            >
+              Limpiar filtros
+            </button>
+          )}
+          <span className="text-xs text-green-700/60 dark:text-green-300/60">
+            {filtrados.length} de {productos.length} productos
+          </span>
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => exportarExcel(filtrados, nombreArchivo)}
+              disabled={filtrados.length === 0}
+              className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-40 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
+            >
+              Exportar Excel
+            </button>
+            <button
+              onClick={() => exportarPDF(filtrados, nombreArchivo, titulo)}
+              disabled={filtrados.length === 0}
+              className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-40 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
+            >
+              Exportar PDF
+            </button>
+          </div>
+        </div>
+      </div>
 
       {filtrados.length === 0 ? (
         <p className="rounded-xl border border-green-100 bg-white px-6 py-10 text-center text-sm text-green-700/70 dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
           {productos.length === 0
             ? "Todavía no hay productos en esta sección."
-            : "Ningún producto coincide con la búsqueda."}
+            : "Ningún producto coincide con los filtros."}
         </p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">

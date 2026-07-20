@@ -14,7 +14,8 @@ export const productoCreateSchema = z.object({
     .number()
     .min(0, "El precio de venta no puede ser negativo")
     .default(0),
-  contenedorId: z.string().trim().optional().default(""),
+  rack: z.string().trim().optional().default(""),
+  contenedor: z.string().trim().optional().default(""),
 });
 
 export const productoUpdateSchema = productoCreateSchema.extend({

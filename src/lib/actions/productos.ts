@@ -41,7 +41,8 @@ export async function crearProductoAction(
     cantidad: parsed.data.cantidad,
     costo: parsed.data.costo,
     venta: parsed.data.venta,
-    contenedor_id: parsed.data.contenedorId || null,
+    rack: parsed.data.rack || null,
+    contenedor: parsed.data.contenedor || null,
     creado_por: perfil.id,
     actualizado_por: perfil.id,
   });
@@ -77,7 +78,8 @@ export async function actualizarProductoAction(
       cantidad: parsed.data.cantidad,
       costo: parsed.data.costo,
       venta: parsed.data.venta,
-      contenedor_id: parsed.data.contenedorId || null,
+      rack: parsed.data.rack || null,
+      contenedor: parsed.data.contenedor || null,
       actualizado_por: perfil.id,
     })
     .eq("id", parsed.data.id);

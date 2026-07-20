@@ -17,36 +17,28 @@ export default async function InventarioSeccionPage({
   const supabase = await createClient();
   const { data } = await supabase
     .from("productos")
-    .select(
-      "id, numero_parte, descripcion, cantidad, costo, venta, contenedores(nombre, racks(nombre))",
-    )
+    .select("id, numero_parte, descripcion, cantidad, costo, venta, rack, contenedor")
     .eq("tipo", tipo)
     .order("numero_parte");
 
-  const productos: ProductoFila[] = (data ?? []).map((p) => {
-    const contenedor = p.contenedores as unknown as {
-      nombre: string;
-      racks: { nombre: string } | null;
-    } | null;
-
-    return {
-      id: p.id as string,
-      numeroParte: p.numero_parte as string,
-      descripcion: p.descripcion as string,
-      cantidad: p.cantidad as number,
-      costo: Number(p.costo),
-      venta: Number(p.venta),
-      rack: contenedor?.racks?.nombre ?? null,
-      contenedor: contenedor?.nombre ?? null,
-    };
-  });
+  const productos: ProductoFila[] = (data ?? []).map((p) => ({
+    id: p.id as string,
+    numeroParte: p.numero_parte as string,
+    descripcion: p.descripcion as string,
+    cantidad: p.cantidad as number,
+    costo: Number(p.costo),
+    venta: Number(p.venta),
+    rack: p.rack as string | null,
+    contenedor: p.contenedor as string | null,
+  }));
 
   const seccionHref = `/inventario/${segmento}`;
+  const titulo = `Inventario — ${etiquetaDeTipo(tipo)}`;
 
   return (
     <div>
       <PageHeader
-        title={`Inventario — ${etiquetaDeTipo(tipo)}`}
+        title={titulo}
         action={
           <LinkButton href={`${seccionHref}/nuevo`}>
             + Nuevo producto
@@ -57,6 +49,7 @@ export default async function InventarioSeccionPage({
         productos={productos}
         seccion={segmento}
         seccionHref={seccionHref}
+        titulo={titulo}
       />
     </div>
   );

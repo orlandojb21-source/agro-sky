@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { tipoDesdeSegmento, etiquetaDeTipo } from "@/lib/inventario-tipo";
-import { obtenerRacksConContenedores } from "@/lib/data/racks";
 import { ProductoForm } from "@/components/forms/ProductoForm";
 
 export default async function EditarProductoPage({
@@ -15,17 +14,12 @@ export default async function EditarProductoPage({
   const tipo = tipoDesdeSegmento(segmento);
 
   const supabase = await createClient();
-  const [{ data: producto }, racks] = await Promise.all([
-    supabase
-      .from("productos")
-      .select(
-        "id, numero_parte, descripcion, cantidad, costo, venta, contenedor_id, tipo",
-      )
-      .eq("id", id)
-      .eq("tipo", tipo)
-      .maybeSingle(),
-    obtenerRacksConContenedores(),
-  ]);
+  const { data: producto } = await supabase
+    .from("productos")
+    .select("id, numero_parte, descripcion, cantidad, costo, venta, rack, contenedor, tipo")
+    .eq("id", id)
+    .eq("tipo", tipo)
+    .maybeSingle();
 
   if (!producto) notFound();
 
@@ -37,7 +31,6 @@ export default async function EditarProductoPage({
       <ProductoForm
         tipo={tipo}
         seccionHref={`/inventario/${segmento}`}
-        racks={racks}
         valoresIniciales={{
           id: producto.id,
           numeroParte: producto.numero_parte,
@@ -45,7 +38,8 @@ export default async function EditarProductoPage({
           cantidad: producto.cantidad,
           costo: Number(producto.costo),
           venta: Number(producto.venta),
-          contenedorId: producto.contenedor_id,
+          rack: producto.rack,
+          contenedor: producto.contenedor,
         }}
       />
     </div>

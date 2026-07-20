@@ -5,11 +5,10 @@ import {
   crearProductoAction,
   actualizarProductoAction,
 } from "@/lib/actions/productos";
-import { Field, SelectField } from "@/components/ui/Field";
+import { Field } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import type { TipoProducto } from "@/lib/inventario-tipo";
-import type { RackConContenedores } from "@/lib/data/racks";
 
 type ValoresProducto = {
   id?: string;
@@ -18,18 +17,17 @@ type ValoresProducto = {
   cantidad: number;
   costo: number;
   venta: number;
-  contenedorId: string | null;
+  rack: string | null;
+  contenedor: string | null;
 };
 
 export function ProductoForm({
   tipo,
   seccionHref,
-  racks,
   valoresIniciales,
 }: {
   tipo: TipoProducto;
   seccionHref: string;
-  racks: RackConContenedores[];
   valoresIniciales?: ValoresProducto;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -59,7 +57,8 @@ export function ProductoForm({
   const cantidad = v?.cantidad ?? valoresIniciales?.cantidad ?? 0;
   const costo = v?.costo ?? valoresIniciales?.costo ?? 0;
   const venta = v?.venta ?? valoresIniciales?.venta ?? 0;
-  const contenedorId = v?.contenedorId ?? valoresIniciales?.contenedorId ?? "";
+  const rack = v?.rack ?? valoresIniciales?.rack ?? "";
+  const contenedor = v?.contenedor ?? valoresIniciales?.contenedor ?? "";
 
   return (
     <form
@@ -115,22 +114,20 @@ export function ProductoForm({
         />
       </div>
 
-      <SelectField
-        label="Ubicación (rack / contenedor)"
-        name="contenedorId"
-        defaultValue={contenedorId}
-      >
-        <option value="">Sin asignar</option>
-        {racks.map((rack) => (
-          <optgroup key={rack.id} label={rack.nombre}>
-            {rack.contenedores.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </SelectField>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label="Rack"
+          name="rack"
+          defaultValue={rack}
+          placeholder="Ej: 2"
+        />
+        <Field
+          label="Contenedor"
+          name="contenedor"
+          defaultValue={contenedor}
+          placeholder="Ej: 22"
+        />
+      </div>
 
       <div className="flex gap-3">
         <SubmitButton>Guardar</SubmitButton>
