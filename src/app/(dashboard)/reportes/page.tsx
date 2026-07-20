@@ -46,7 +46,7 @@ export default async function ReportesPage() {
   return (
     <div>
       <PageHeader
-        title="Reportes"
+        title="Reportes de Caja Menuda"
         description="Exporta los movimientos de Caja Menuda por período. Cuando Compras y Ventas estén listos, aquí también se podrán exportar Ingresos, Egresos y Ganancias."
       />
       <ReportesFiltro movimientos={movimientos} />

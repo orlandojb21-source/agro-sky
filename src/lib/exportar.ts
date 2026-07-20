@@ -109,6 +109,39 @@ export function exportarPDF(filas: FilaExportable[], nombreArchivo: string, titu
   doc.save(`${nombreArchivo}.pdf`);
 }
 
+// logo-claro.png es la version con elementos oscuros pensada para fondos
+// claros (ver Logo.tsx) -- un PDF siempre se ve/imprime sobre blanco, asi
+// que es la version correcta aqui (logo.png tiene partes blancas invisibles
+// sobre blanco). El archivo original es 6348x7672px; jsPDF incrusta la
+// imagen a su resolucion real sin importar el tamaño de despliegue que se
+// le pida, asi que insertarlo directo genera un PDF de mas de 100MB.
+// Se reescala en un canvas a un tamaño razonable para pantalla/impresion
+// antes de convertirlo a base64.
+const LOGO_ASPECTO = 6348 / 7672;
+const LOGO_ANCHO_PX = 300;
+
+async function cargarLogoBase64(): Promise<string | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("No se pudo cargar el logo"));
+      el.src = "/logo-claro.png";
+    });
+
+    const altoPx = Math.round(LOGO_ANCHO_PX / LOGO_ASPECTO);
+    const canvas = document.createElement("canvas");
+    canvas.width = LOGO_ANCHO_PX;
+    canvas.height = altoPx;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, LOGO_ANCHO_PX, altoPx);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
 export type MovimientoExportable = {
   fecha: string;
   tipo: "gasto" | "reposicion";
@@ -162,17 +195,28 @@ export async function exportarMovimientosExcel(filas: MovimientoExportable[], no
   );
 }
 
-export function exportarMovimientosPDF(
+export async function exportarMovimientosPDF(
   filas: MovimientoExportable[],
   nombreArchivo: string,
   titulo: string,
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+
+  let siguienteY = 15;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 22;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", (anchoPagina - logoAncho) / 2, 8, logoAncho, logoAlto);
+    siguienteY = 8 + logoAlto + 8;
+  }
+
   doc.setFontSize(14);
-  doc.text(titulo, 14, 15);
+  doc.text(titulo, anchoPagina / 2, siguienteY, { align: "center" });
 
   autoTable(doc, {
-    startY: 20,
+    startY: siguienteY + 6,
     head: [
       [
         "Fecha",
