@@ -7,7 +7,7 @@ import { PrevistosTabla, type PrevistoFila } from "@/components/forms/PrevistosT
 
 export default async function PrevistosPage() {
   const perfil = await requireSection("caja-menuda");
-  const puedeEditar = esSoporteOJefe(perfil.rol);
+  const puedeEliminar = esSoporteOJefe(perfil.rol);
 
   const supabase = await createClient();
   const [{ data: previstos }, { data: gastos }] = await Promise.all([
@@ -38,13 +38,9 @@ export default async function PrevistosPage() {
       <PageHeader
         title="Caja Menuda — Previstos"
         description="Presupuesto diario de viáticos por colaborador, comparado contra lo realmente gastado (según los gastos registrados con ese mismo colaborador y fecha)."
-        action={
-          puedeEditar && (
-            <LinkButton href="/caja-menuda/previstos/nuevo">+ Asignar previsto</LinkButton>
-          )
-        }
+        action={<LinkButton href="/caja-menuda/previstos/nuevo">+ Asignar previsto</LinkButton>}
       />
-      <PrevistosTabla previstos={filas} puedeEditar={puedeEditar} />
+      <PrevistosTabla previstos={filas} puedeEliminar={puedeEliminar} />
     </div>
   );
 }

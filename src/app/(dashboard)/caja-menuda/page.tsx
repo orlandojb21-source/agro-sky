@@ -7,7 +7,7 @@ import { MovimientosTabla, type MovimientoFila } from "@/components/forms/Movimi
 
 export default async function CajaMenudaPage() {
   const perfil = await requireSection("caja-menuda");
-  const puedeEditar = esSoporteOJefe(perfil.rol);
+  const puedeEliminar = esSoporteOJefe(perfil.rol);
 
   const supabase = await createClient();
   const [{ data: gastos }, { data: reposiciones }] = await Promise.all([
@@ -49,17 +49,15 @@ export default async function CajaMenudaPage() {
       <PageHeader
         title="Caja Menuda — Movimientos"
         action={
-          puedeEditar && (
-            <div className="flex gap-2">
-              <LinkButton href="/caja-menuda/reposicion/nueva" variant="secondary">
-                + Reponer caja
-              </LinkButton>
-              <LinkButton href="/caja-menuda/gasto/nuevo">+ Registrar gasto</LinkButton>
-            </div>
-          )
+          <div className="flex gap-2">
+            <LinkButton href="/caja-menuda/reposicion/nueva" variant="secondary">
+              + Reponer caja
+            </LinkButton>
+            <LinkButton href="/caja-menuda/gasto/nuevo">+ Registrar gasto</LinkButton>
+          </div>
         }
       />
-      <MovimientosTabla movimientos={movimientos} puedeEditar={puedeEditar} />
+      <MovimientosTabla movimientos={movimientos} puedeEliminar={puedeEliminar} />
     </div>
   );
 }

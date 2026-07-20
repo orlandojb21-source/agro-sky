@@ -39,10 +39,10 @@ const inputFiltro =
 
 export function MovimientosTabla({
   movimientos,
-  puedeEditar,
+  puedeEliminar,
 }: {
   movimientos: MovimientoFila[];
-  puedeEditar: boolean;
+  puedeEliminar: boolean;
 }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
@@ -214,7 +214,7 @@ export function MovimientosTabla({
                       {formatMoney(m.monto)}
                     </td>
                     <td className="px-3 py-3">
-                      {puedeEditar && (
+                      {puedeEliminar && (
                         <DeleteButton
                           action={
                             m.tipo === "gasto"

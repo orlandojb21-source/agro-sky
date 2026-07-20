@@ -1,11 +1,8 @@
-import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/session";
-import { esSoporteOJefe } from "@/lib/roles";
 import { PrevistoForm } from "@/components/forms/PrevistoForm";
 
 export default async function NuevoPrevistoPage() {
-  const perfil = await requireSection("caja-menuda");
-  if (!esSoporteOJefe(perfil.rol)) redirect("/unauthorized");
+  await requireSection("caja-menuda");
 
   return (
     <div>

@@ -15,10 +15,10 @@ export type ArqueoFila = {
 
 export function ArqueosTabla({
   arqueos,
-  puedeEditar,
+  puedeEliminar,
 }: {
   arqueos: ArqueoFila[];
-  puedeEditar: boolean;
+  puedeEliminar: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
@@ -77,7 +77,7 @@ export function ArqueosTabla({
                     {a.nota ?? "—"}
                   </td>
                   <td className="px-3 py-3">
-                    {puedeEditar && <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />}
+                    {puedeEliminar && <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />}
                   </td>
                 </tr>
               ))
