@@ -28,7 +28,17 @@ function base64urlABuffer(base64url: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+// Restringido a celulares a proposito: en Windows, tener Windows Hello
+// configurado (aunque sea solo un PIN, sin huella real) hace que el
+// navegador ofrezca "autenticador de plataforma" tambien en computadoras,
+// y el usuario no quiere el candado biometrico ahi, solo en el celular.
+export function esMobil(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent);
+}
+
 export async function biometricoDisponible(): Promise<boolean> {
+  if (!esMobil()) return false;
   if (typeof window === "undefined" || !window.PublicKeyCredential) return false;
   try {
     return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();

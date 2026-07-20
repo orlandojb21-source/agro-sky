@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { biometricoRegistrado, desbloquearConBiometrico } from "@/lib/webauthn";
+import { biometricoRegistrado, desbloquearConBiometrico, esMobil } from "@/lib/webauthn";
 
 type Estado = "cargando" | "desbloqueando" | "error";
 
@@ -25,7 +25,7 @@ export default function SplashPage() {
         return;
       }
 
-      if (!biometricoRegistrado(session.user.id)) {
+      if (!esMobil() || !biometricoRegistrado(session.user.id)) {
         router.replace("/inventario/nuevos");
         return;
       }
