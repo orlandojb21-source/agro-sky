@@ -1,19 +1,17 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { esSoporteOJefe } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { MovimientosTabla, type MovimientoFila } from "@/components/forms/MovimientosTabla";
 
 export default async function CajaMenudaPage() {
-  const perfil = await requireSection("caja-menuda");
-  const puedeEliminar = esSoporteOJefe(perfil.rol);
+  await requireSection("caja-menuda");
 
   const supabase = await createClient();
   const [{ data: gastos }, { data: reposiciones }] = await Promise.all([
     supabase
       .from("caja_gastos")
-      .select("id, fecha, nombre, concepto, monto, colaborador, nota")
+      .select("id, fecha, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota")
       .order("fecha", { ascending: false }),
     supabase
       .from("caja_reposiciones")
@@ -26,10 +24,13 @@ export default async function CajaMenudaPage() {
       id: g.id as string,
       tipo: "gasto" as const,
       fecha: g.fecha as string,
-      monto: Number(g.monto),
+      monto: g.monto === null ? null : Number(g.monto),
       nombre: g.nombre as string | null,
       concepto: g.concepto as string | null,
       colaborador: g.colaborador as string | null,
+      previsto: g.previsto === null ? null : Number(g.previsto),
+      entregado: g.entregado === null ? null : Number(g.entregado),
+      vuelto: g.vuelto === null ? null : Number(g.vuelto),
       nota: g.nota as string | null,
     })),
     ...(reposiciones ?? []).map((r) => ({
@@ -40,6 +41,9 @@ export default async function CajaMenudaPage() {
       nombre: null,
       concepto: null,
       colaborador: null,
+      previsto: null,
+      entregado: null,
+      vuelto: null,
       nota: r.nota as string | null,
     })),
   ].sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
@@ -53,11 +57,11 @@ export default async function CajaMenudaPage() {
             <LinkButton href="/caja-menuda/reposicion/nueva" variant="secondary">
               + Reponer caja
             </LinkButton>
-            <LinkButton href="/caja-menuda/gasto/nuevo">+ Registrar gasto</LinkButton>
+            <LinkButton href="/caja-menuda/movimiento/nuevo">+ Registrar movimiento</LinkButton>
           </div>
         }
       />
-      <MovimientosTabla movimientos={movimientos} puedeEliminar={puedeEliminar} />
+      <MovimientosTabla movimientos={movimientos} />
     </div>
   );
 }

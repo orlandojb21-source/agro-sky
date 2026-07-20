@@ -1,18 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
-import { eliminarGastoAction, eliminarReposicionAction } from "@/lib/actions/caja";
-import { formatMoney, formatDate } from "@/lib/format";
+import {
+  eliminarGastoAction,
+  eliminarReposicionAction,
+  registrarVueltoAction,
+} from "@/lib/actions/caja";
+import { formatMoney, formatDateOnly } from "@/lib/format";
 
 export type MovimientoFila = {
   id: string;
   tipo: "gasto" | "reposicion";
   fecha: string;
-  monto: number;
+  monto: number | null;
   nombre: string | null;
   concepto: string | null;
   colaborador: string | null;
+  previsto: number | null;
+  entregado: number | null;
+  vuelto: number | null;
   nota: string | null;
 };
 
@@ -37,13 +45,12 @@ const FILTROS_VACIOS: Filtros = {
 const inputFiltro =
   "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
-export function MovimientosTabla({
-  movimientos,
-  puedeEliminar,
-}: {
-  movimientos: MovimientoFila[];
-  puedeEliminar: boolean;
-}) {
+function salidaEfectiva(m: MovimientoFila): number {
+  if (m.tipo === "reposicion") return m.monto ?? 0;
+  return m.entregado ?? m.monto ?? 0;
+}
+
+export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[] }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: Filtros[K]) {
@@ -65,8 +72,9 @@ export function MovimientosTabla({
 
       if (filtros.fechaDesde && m.fecha < filtros.fechaDesde) return false;
       if (filtros.fechaHasta && m.fecha > filtros.fechaHasta) return false;
-      if (filtros.montoMin !== "" && m.monto < Number(filtros.montoMin)) return false;
-      if (filtros.montoMax !== "" && m.monto > Number(filtros.montoMax)) return false;
+      const monto = salidaEfectiva(m);
+      if (filtros.montoMin !== "" && monto < Number(filtros.montoMin)) return false;
+      if (filtros.montoMax !== "" && monto > Number(filtros.montoMax)) return false;
 
       return true;
     });
@@ -92,7 +100,7 @@ export function MovimientosTabla({
 
       <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[1300px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
@@ -100,6 +108,9 @@ export function MovimientosTabla({
                 <th className="px-3 py-2 font-medium">Nombre / Nota</th>
                 <th className="px-3 py-2 font-medium">Concepto</th>
                 <th className="px-3 py-2 font-medium">Colaborador</th>
+                <th className="px-3 py-2 font-medium">Previsto</th>
+                <th className="px-3 py-2 font-medium">Entregado</th>
+                <th className="px-3 py-2 font-medium">Vuelto</th>
                 <th className="px-3 py-2 font-medium">Monto</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -131,7 +142,7 @@ export function MovimientosTabla({
                     <option value="reposicion">Reposición</option>
                   </select>
                 </th>
-                <th className="px-3 py-2" colSpan={2}>
+                <th className="px-3 py-2" colSpan={3}>
                   <input
                     type="text"
                     value={filtros.texto}
@@ -140,7 +151,7 @@ export function MovimientosTabla({
                     className={inputFiltro}
                   />
                 </th>
-                <th className="px-3 py-2"></th>
+                <th className="px-3 py-2" colSpan={2}></th>
                 <th className="px-3 py-2">
                   <div className="flex gap-1">
                     <input
@@ -166,7 +177,7 @@ export function MovimientosTabla({
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={10}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {movimientos.length === 0
@@ -181,7 +192,7 @@ export function MovimientosTabla({
                     className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
                   >
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {formatDate(m.fecha)}
+                      {formatDateOnly(m.fecha)}
                     </td>
                     <td className="px-3 py-3">
                       {m.tipo === "gasto" ? (
@@ -203,6 +214,42 @@ export function MovimientosTabla({
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {m.colaborador ?? "—"}
                     </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {m.previsto !== null ? formatMoney(m.previsto) : "—"}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {m.entregado !== null ? formatMoney(m.entregado) : "—"}
+                    </td>
+                    <td className="px-3 py-3">
+                      {m.vuelto !== null ? (
+                        <span className="text-green-800/80 dark:text-green-200/80">
+                          {formatMoney(m.vuelto)}
+                        </span>
+                      ) : m.entregado !== null ? (
+                        <form
+                          action={registrarVueltoAction.bind(null, m.id)}
+                          className="flex items-center gap-1"
+                        >
+                          <input
+                            type="number"
+                            name="vuelto"
+                            min={0}
+                            step="0.01"
+                            required
+                            placeholder="0.00"
+                            className="w-20 rounded-md border border-green-200 bg-white px-2 py-1 text-xs text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50"
+                          />
+                          <button
+                            type="submit"
+                            className="text-xs text-green-700 hover:underline dark:text-green-300"
+                          >
+                            Registrar
+                          </button>
+                        </form>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td
                       className={
                         m.tipo === "gasto"
@@ -211,10 +258,20 @@ export function MovimientosTabla({
                       }
                     >
                       {m.tipo === "gasto" ? "−" : "+"}
-                      {formatMoney(m.monto)}
+                      {formatMoney(salidaEfectiva(m))}
                     </td>
                     <td className="px-3 py-3">
-                      {puedeEliminar && (
+                      <div className="flex gap-3">
+                        <Link
+                          href={
+                            m.tipo === "gasto"
+                              ? `/caja-menuda/movimiento/${m.id}/editar`
+                              : `/caja-menuda/reposicion/${m.id}/editar`
+                          }
+                          className="text-sm text-green-700 hover:underline dark:text-green-300"
+                        >
+                          Editar
+                        </Link>
                         <DeleteButton
                           action={
                             m.tipo === "gasto"
@@ -222,7 +279,7 @@ export function MovimientosTabla({
                               : eliminarReposicionAction.bind(null, m.id)
                           }
                         />
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -30,36 +30,33 @@ export const UMBRAL_ALERTA = 150;
 // entre el layout (para mostrarlo) y el arqueo (para guardar una foto del
 // saldo esperado en el momento en que se cuenta el efectivo fisico).
 //
-// Los previstos entregan efectivo real (a veces mas del previsto, por no
-// haber cambio exacto: ej. se necesitan $14 pero se entrega un billete de
-// $20) asi que "entregado" sale de la caja igual que un gasto, y "vuelto"
-// (el cambio que el colaborador devuelve, si aplica) vuelve a entrar igual
-// que una reposicion.
+// Un movimiento (caja_gastos) puede ser un gasto simple (monto) o una
+// entrega de previsto/viaticos (entregado, a veces mayor al previsto por
+// no haber cambio exacto: ej. se necesitan $14 pero se entrega un billete
+// de $20). Lo que realmente sale de la caja es "entregado" si esta
+// presente, si no "monto". "vuelto" (el cambio devuelto, si aplica)
+// siempre vuelve a entrar.
 export async function calcularSaldoActual(
   supabase: SupabaseServerClient,
 ): Promise<number> {
-  const [{ data: reposiciones }, { data: gastos }, { data: previstos }] = await Promise.all([
+  const [{ data: reposiciones }, { data: gastos }] = await Promise.all([
     supabase.from("caja_reposiciones").select("monto"),
-    supabase.from("caja_gastos").select("monto"),
-    supabase.from("caja_previstos").select("entregado, vuelto"),
+    supabase.from("caja_gastos").select("monto, entregado, vuelto"),
   ]);
 
   const totalRepuesto = (reposiciones ?? []).reduce(
     (suma: number, r: { monto: number }) => suma + Number(r.monto),
     0,
   );
-  const totalGastado = (gastos ?? []).reduce(
-    (suma: number, g: { monto: number }) => suma + Number(g.monto),
+  const totalSalida = (gastos ?? []).reduce(
+    (suma: number, g: { monto: number | null; entregado: number | null }) =>
+      suma + Number(g.entregado ?? g.monto ?? 0),
     0,
   );
-  const totalEntregado = (previstos ?? []).reduce(
-    (suma: number, p: { entregado: number }) => suma + Number(p.entregado),
-    0,
-  );
-  const totalVuelto = (previstos ?? []).reduce(
-    (suma: number, p: { vuelto: number | null }) => suma + Number(p.vuelto ?? 0),
+  const totalVuelto = (gastos ?? []).reduce(
+    (suma: number, g: { vuelto: number | null }) => suma + Number(g.vuelto ?? 0),
     0,
   );
 
-  return totalRepuesto - totalGastado - totalEntregado + totalVuelto;
+  return totalRepuesto - totalSalida + totalVuelto;
 }

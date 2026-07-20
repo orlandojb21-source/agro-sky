@@ -2,7 +2,7 @@
 
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { eliminarArqueoAction } from "@/lib/actions/caja";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDateOnly } from "@/lib/format";
 
 export type ArqueoFila = {
   id: string;
@@ -13,13 +13,7 @@ export type ArqueoFila = {
   nota: string | null;
 };
 
-export function ArqueosTabla({
-  arqueos,
-  puedeEliminar,
-}: {
-  arqueos: ArqueoFila[];
-  puedeEliminar: boolean;
-}) {
+export function ArqueosTabla({ arqueos }: { arqueos: ArqueoFila[] }) {
   return (
     <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
       <div className="overflow-x-auto">
@@ -51,7 +45,7 @@ export function ArqueosTabla({
                   className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
                 >
                   <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                    {formatDate(a.fecha)}
+                    {formatDateOnly(a.fecha)}
                   </td>
                   <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                     {formatMoney(a.totalContado)}
@@ -77,7 +71,7 @@ export function ArqueosTabla({
                     {a.nota ?? "—"}
                   </td>
                   <td className="px-3 py-3">
-                    {puedeEliminar && <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />}
+                    <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />
                   </td>
                 </tr>
               ))

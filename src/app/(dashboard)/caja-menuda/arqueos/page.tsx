@@ -1,13 +1,11 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { esSoporteOJefe } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { ArqueosTabla, type ArqueoFila } from "@/components/forms/ArqueosTabla";
 
 export default async function ArqueosPage() {
-  const perfil = await requireSection("caja-menuda");
-  const puedeEliminar = esSoporteOJefe(perfil.rol);
+  await requireSection("caja-menuda");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -31,7 +29,7 @@ export default async function ArqueosPage() {
         description="Conteo físico del efectivo en la caja, comparado contra el saldo que el sistema esperaba en ese momento."
         action={<LinkButton href="/caja-menuda/arqueos/nuevo">+ Nuevo arqueo</LinkButton>}
       />
-      <ArqueosTabla arqueos={arqueos} puedeEliminar={puedeEliminar} />
+      <ArqueosTabla arqueos={arqueos} />
     </div>
   );
 }
