@@ -62,14 +62,23 @@ export function Nav({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="hidden text-right text-sm leading-tight sm:block">
+            <Link
+              href="/mi-perfil"
+              className="hidden text-right text-sm leading-tight hover:opacity-80 sm:block"
+            >
               <span className="block font-medium text-green-900 dark:text-green-50">
                 {nombreCompleto}
               </span>
               <span className="block text-xs text-green-700/70 dark:text-green-300/70">
                 {ROL_LABEL[rol]}
               </span>
-            </span>
+            </Link>
+            <Link
+              href="/mi-perfil"
+              className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 dark:border-green-800 dark:text-green-100 dark:hover:bg-green-950/40 sm:hidden"
+            >
+              Mi perfil
+            </Link>
             <SignOutButton />
           </div>
         </div>
