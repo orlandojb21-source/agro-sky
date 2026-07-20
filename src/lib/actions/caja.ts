@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePerfil } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { gastoSchema, reposicionSchema, previstoSchema } from "@/lib/validation/caja";
+import { gastoSchema, reposicionSchema, previstoSchema, arqueoSchema } from "@/lib/validation/caja";
+import { DENOMINACIONES, calcularSaldoActual } from "@/lib/caja";
 import type { ActionState } from "./types";
 
 export async function crearGastoAction(
@@ -119,4 +120,53 @@ export async function eliminarPrevistoAction(id: string) {
   const { error } = await supabase.from("caja_previstos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el previsto.");
   revalidatePath("/caja-menuda/previstos");
+}
+
+export async function crearArqueoAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const perfil = await requirePerfil();
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+
+  const parsed = arqueoSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  const detalle: Record<string, number> = {};
+  let totalContado = 0;
+  for (const d of DENOMINACIONES) {
+    const cantidad = Math.trunc(Number(raw[`cantidad_${d.id}`] || 0));
+    detalle[d.id] = cantidad;
+    totalContado += cantidad * d.valor;
+  }
+  totalContado = Math.round(totalContado * 100) / 100;
+
+  const supabase = await createClient();
+  const saldoEsperado = await calcularSaldoActual(supabase);
+  const diferencia = Math.round((totalContado - saldoEsperado) * 100) / 100;
+
+  const { error } = await supabase.from("caja_arqueos").insert({
+    fecha: parsed.data.fecha,
+    detalle,
+    total_contado: totalContado,
+    saldo_esperado: saldoEsperado,
+    diferencia,
+    nota: parsed.data.nota || null,
+    registrado_por: perfil.id,
+  });
+
+  if (error) return { error: "No se pudo guardar el arqueo. Intenta de nuevo.", values: raw };
+
+  revalidatePath("/caja-menuda/arqueos");
+  redirect("/caja-menuda/arqueos");
+}
+
+export async function eliminarArqueoAction(id: string) {
+  await requirePerfil();
+  const supabase = await createClient();
+  const { error } = await supabase.from("caja_arqueos").delete().eq("id", id);
+  if (error) throw new Error("No se pudo eliminar el arqueo.");
+  revalidatePath("/caja-menuda/arqueos");
 }

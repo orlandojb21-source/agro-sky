@@ -1,9 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CajaSubNav } from "@/components/layout/CajaSubNav";
 import { formatMoney } from "@/lib/format";
-
-const META_CAJA = 500;
-const UMBRAL_ALERTA = 150;
+import { calcularSaldoActual, META_CAJA, UMBRAL_ALERTA } from "@/lib/caja";
 
 export default async function CajaMenudaLayout({
   children,
@@ -11,14 +9,7 @@ export default async function CajaMenudaLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const [{ data: reposiciones }, { data: gastos }] = await Promise.all([
-    supabase.from("caja_reposiciones").select("monto"),
-    supabase.from("caja_gastos").select("monto"),
-  ]);
-
-  const totalRepuesto = (reposiciones ?? []).reduce((suma, r) => suma + Number(r.monto), 0);
-  const totalGastado = (gastos ?? []).reduce((suma, g) => suma + Number(g.monto), 0);
-  const saldo = totalRepuesto - totalGastado;
+  const saldo = await calcularSaldoActual(supabase);
   const necesitaReposicion = saldo <= UMBRAL_ALERTA;
 
   return (
