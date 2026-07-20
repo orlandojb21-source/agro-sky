@@ -16,6 +16,7 @@ export const productoCreateSchema = z.object({
     .default(0),
   rack: z.string().trim().optional().default(""),
   contenedor: z.string().trim().optional().default(""),
+  unidad: z.string().trim().optional().default(""),
 });
 
 export const productoUpdateSchema = productoCreateSchema.extend({

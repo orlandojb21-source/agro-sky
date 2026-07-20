@@ -11,6 +11,7 @@ export type FilaExportable = {
   venta: number;
   rack: string | null;
   contenedor: string | null;
+  unidad: string | null;
 };
 
 // Evita inyeccion de formulas en Excel: si un texto libre (descripcion,
@@ -37,11 +38,13 @@ export async function exportarExcel(filas: FilaExportable[], nombreArchivo: stri
   hoja.columns = [
     { header: "Número de parte", key: "numeroParte", width: 20 },
     { header: "Descripción", key: "descripcion", width: 35 },
-    { header: "Cantidad", key: "cantidad", width: 12 },
-    { header: "Costo", key: "costo", width: 12 },
-    { header: "Venta", key: "venta", width: 12 },
     { header: "Rack", key: "rack", width: 12 },
     { header: "Contenedor", key: "contenedor", width: 14 },
+    { header: "Unidad", key: "unidad", width: 14 },
+    { header: "Cantidad", key: "cantidad", width: 12 },
+    { header: "Costo", key: "costo", width: 12 },
+    { header: "Valor de Inventario", key: "valorInventario", width: 18 },
+    { header: "Venta", key: "venta", width: 12 },
   ];
   hoja.getRow(1).font = { bold: true };
 
@@ -49,11 +52,13 @@ export async function exportarExcel(filas: FilaExportable[], nombreArchivo: stri
     hoja.addRow({
       numeroParte: celdaSegura(f.numeroParte),
       descripcion: celdaSegura(f.descripcion),
-      cantidad: f.cantidad,
-      costo: f.costo,
-      venta: f.venta,
       rack: celdaSegura(f.rack ?? ""),
       contenedor: celdaSegura(f.contenedor ?? ""),
+      unidad: celdaSegura(f.unidad ?? ""),
+      cantidad: f.cantidad,
+      costo: f.costo,
+      valorInventario: f.costo * f.cantidad,
+      venta: f.venta,
     });
   }
 
@@ -73,15 +78,29 @@ export function exportarPDF(filas: FilaExportable[], nombreArchivo: string, titu
 
   autoTable(doc, {
     startY: 20,
-    head: [["Número de parte", "Descripción", "Cantidad", "Costo", "Venta", "Rack", "Contenedor"]],
+    head: [
+      [
+        "Número de parte",
+        "Descripción",
+        "Rack",
+        "Contenedor",
+        "Unidad",
+        "Cantidad",
+        "Costo",
+        "Valor de Inventario",
+        "Venta",
+      ],
+    ],
     body: filas.map((f) => [
       f.numeroParte,
       f.descripcion,
-      String(f.cantidad),
-      formatMoney(f.costo),
-      formatMoney(f.venta),
       f.rack ?? "",
       f.contenedor ?? "",
+      f.unidad ?? "",
+      String(f.cantidad),
+      formatMoney(f.costo),
+      formatMoney(f.costo * f.cantidad),
+      formatMoney(f.venta),
     ]),
     styles: { fontSize: 9 },
     headStyles: { fillColor: [21, 128, 61] },

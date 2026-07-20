@@ -17,7 +17,7 @@ export default async function InventarioSeccionPage({
   const supabase = await createClient();
   const { data } = await supabase
     .from("productos")
-    .select("id, numero_parte, descripcion, cantidad, costo, venta, rack, contenedor")
+    .select("id, numero_parte, descripcion, cantidad, costo, venta, rack, contenedor, unidad")
     .eq("tipo", tipo)
     .order("numero_parte");
 
@@ -30,6 +30,7 @@ export default async function InventarioSeccionPage({
     venta: Number(p.venta),
     rack: p.rack as string | null,
     contenedor: p.contenedor as string | null,
+    unidad: p.unidad as string | null,
   }));
 
   const seccionHref = `/inventario/${segmento}`;

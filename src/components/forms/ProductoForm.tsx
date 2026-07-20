@@ -19,6 +19,7 @@ type ValoresProducto = {
   venta: number;
   rack: string | null;
   contenedor: string | null;
+  unidad: string | null;
 };
 
 export function ProductoForm({
@@ -59,6 +60,7 @@ export function ProductoForm({
   const venta = v?.venta ?? valoresIniciales?.venta ?? 0;
   const rack = v?.rack ?? valoresIniciales?.rack ?? "";
   const contenedor = v?.contenedor ?? valoresIniciales?.contenedor ?? "";
+  const unidad = v?.unidad ?? valoresIniciales?.unidad ?? "";
 
   return (
     <form
@@ -87,6 +89,27 @@ export function ProductoForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field
+          label="Rack"
+          name="rack"
+          defaultValue={rack}
+          placeholder="Ej: 2"
+        />
+        <Field
+          label="Contenedor"
+          name="contenedor"
+          defaultValue={contenedor}
+          placeholder="Ej: 22"
+        />
+        <Field
+          label="Unidad"
+          name="unidad"
+          defaultValue={unidad}
+          placeholder="Ej: unidad, caja, kg"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Field
           label="Cantidad"
           name="cantidad"
           type="number"
@@ -111,21 +134,6 @@ export function ProductoForm({
           step="0.01"
           defaultValue={venta}
           required
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field
-          label="Rack"
-          name="rack"
-          defaultValue={rack}
-          placeholder="Ej: 2"
-        />
-        <Field
-          label="Contenedor"
-          name="contenedor"
-          defaultValue={contenedor}
-          placeholder="Ej: 22"
         />
       </div>
 

@@ -43,6 +43,7 @@ export async function crearProductoAction(
     venta: parsed.data.venta,
     rack: parsed.data.rack || null,
     contenedor: parsed.data.contenedor || null,
+    unidad: parsed.data.unidad || null,
     creado_por: perfil.id,
     actualizado_por: perfil.id,
   });
@@ -80,6 +81,7 @@ export async function actualizarProductoAction(
       venta: parsed.data.venta,
       rack: parsed.data.rack || null,
       contenedor: parsed.data.contenedor || null,
+      unidad: parsed.data.unidad || null,
       actualizado_por: perfil.id,
     })
     .eq("id", parsed.data.id);
