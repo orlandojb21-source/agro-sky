@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  BarChart,
+  Bar,
+  Cell,
+  LabelList,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import {
   exportarMovimientosExcel,
   exportarMovimientosPDF,
@@ -191,6 +201,12 @@ export function BalanceDashboard({ movimientos }: { movimientos: MovimientoExpor
                   <YAxis tickFormatter={(v: number) => formatMoney(v)} width={90} />
                   <Tooltip formatter={(value) => formatMoney(Number(value))} />
                   <Bar dataKey="monto">
+                    <LabelList
+                      dataKey="monto"
+                      position="top"
+                      formatter={(value) => formatMoney(Number(value))}
+                      style={{ fontWeight: 600 }}
+                    />
                     {datosGrafica.map((d) => (
                       <Cell key={d.nombre} fill={d.color} />
                     ))}
