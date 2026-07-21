@@ -71,7 +71,8 @@ export default async function CajaMenudaLayout({
                   </p>
                 </div>
 
-                <div className="mt-3 overflow-x-auto">
+                {/* Escritorio: tabla ancha con Monedas/Billetes agrupados */}
+                <div className="mt-3 hidden overflow-x-auto sm:block">
                   <table className="ml-auto min-w-[700px] text-center text-xs">
                     <thead>
                       <tr>
@@ -112,6 +113,21 @@ export default async function CajaMenudaLayout({
                       </tr>
                     </tbody>
                   </table>
+                </div>
+
+                {/* Movil: cuadricula compacta en vez de una tabla ancha */}
+                <div className="mt-3 grid grid-cols-3 gap-2 sm:hidden">
+                  {[...MONEDAS, ...BILLETES].map((d) => (
+                    <div
+                      key={d.id}
+                      className="rounded-lg border border-green-100 bg-green-50/60 px-2 py-1.5 text-center dark:border-green-900/40 dark:bg-green-950/20"
+                    >
+                      <p className="text-xs text-green-700/70 dark:text-green-300/70">{d.label}</p>
+                      <p className="text-sm font-medium text-green-900 dark:text-green-50">
+                        {formatMoney((detalle[d.id] ?? 0) * d.valor)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </>
             ) : (

@@ -27,7 +27,7 @@ export default async function InventarioLayout({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Valor total del inventario
@@ -44,7 +44,7 @@ export default async function InventarioLayout({
             {articulosTotal}
           </p>
         </div>
-        <div className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <div className="col-span-2 rounded-xl border border-green-100 bg-white p-4 shadow-sm sm:col-span-1 dark:border-green-900/40 dark:bg-green-950/10">
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Cantidad de contenedores
           </p>

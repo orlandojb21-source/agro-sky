@@ -45,13 +45,39 @@ const FILTROS_VACIOS: Filtros = {
 const inputFiltro =
   "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
+const inputFiltroMovil =
+  "w-full rounded-lg border border-green-200 bg-white px-3 py-2 text-sm text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
+
+const etiquetaFiltroMovil =
+  "flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70";
+
 function salidaEfectiva(m: MovimientoFila): number {
   if (m.tipo === "reposicion") return m.monto ?? 0;
   return m.entregado ?? m.monto ?? 0;
 }
 
+function RegistrarVuelto({ id }: { id: string }) {
+  return (
+    <form action={registrarVueltoAction.bind(null, id)} className="flex items-center gap-1">
+      <input
+        type="number"
+        name="vuelto"
+        min={0}
+        step="0.01"
+        required
+        placeholder="0.00"
+        className="w-20 rounded-md border border-green-200 bg-white px-2 py-1 text-xs text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50"
+      />
+      <button type="submit" className="text-xs text-green-700 hover:underline dark:text-green-300">
+        Registrar
+      </button>
+    </form>
+  );
+}
+
 export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[] }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: Filtros[K]) {
     setFiltros((f) => ({ ...f, [campo]: valor }));
@@ -85,6 +111,12 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => setFiltrosAbiertos((v) => !v)}
+          className="rounded-full border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40 sm:hidden"
+        >
+          {filtrosAbiertos ? "Ocultar filtros" : "Filtrar"}
+        </button>
         {hayFiltrosActivos && (
           <button
             onClick={() => setFiltros(FILTROS_VACIOS)}
@@ -98,7 +130,77 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+      {/* Filtros en movil: panel colapsable (en escritorio viven en el
+          encabezado de la tabla, mas abajo). */}
+      {filtrosAbiertos && (
+        <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-4 shadow-sm sm:hidden dark:border-green-900/40 dark:bg-green-950/10">
+          <div className="grid grid-cols-2 gap-3">
+            <label className={etiquetaFiltroMovil}>
+              Desde
+              <input
+                type="date"
+                value={filtros.fechaDesde}
+                onChange={(e) => setFiltro("fechaDesde", e.target.value)}
+                className={inputFiltroMovil}
+              />
+            </label>
+            <label className={etiquetaFiltroMovil}>
+              Hasta
+              <input
+                type="date"
+                value={filtros.fechaHasta}
+                onChange={(e) => setFiltro("fechaHasta", e.target.value)}
+                className={inputFiltroMovil}
+              />
+            </label>
+          </div>
+          <label className={etiquetaFiltroMovil}>
+            Tipo
+            <select
+              value={filtros.tipo}
+              onChange={(e) => setFiltro("tipo", e.target.value as Filtros["tipo"])}
+              className={inputFiltroMovil}
+            >
+              <option value="">Todos</option>
+              <option value="gasto">Gasto</option>
+              <option value="reposicion">Reposición</option>
+            </select>
+          </label>
+          <label className={etiquetaFiltroMovil}>
+            Buscar
+            <input
+              type="text"
+              value={filtros.texto}
+              onChange={(e) => setFiltro("texto", e.target.value)}
+              placeholder="Nombre, concepto, colaborador..."
+              className={inputFiltroMovil}
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className={etiquetaFiltroMovil}>
+              Monto mín
+              <input
+                type="number"
+                value={filtros.montoMin}
+                onChange={(e) => setFiltro("montoMin", e.target.value)}
+                className={inputFiltroMovil}
+              />
+            </label>
+            <label className={etiquetaFiltroMovil}>
+              Monto máx
+              <input
+                type="number"
+                value={filtros.montoMax}
+                onChange={(e) => setFiltro("montoMax", e.target.value)}
+                className={inputFiltroMovil}
+              />
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Vista de escritorio: tabla con filtros integrados en el encabezado */}
+      <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1300px] text-left text-sm">
             <thead>
@@ -226,26 +328,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                           {formatMoney(m.vuelto)}
                         </span>
                       ) : m.entregado !== null ? (
-                        <form
-                          action={registrarVueltoAction.bind(null, m.id)}
-                          className="flex items-center gap-1"
-                        >
-                          <input
-                            type="number"
-                            name="vuelto"
-                            min={0}
-                            step="0.01"
-                            required
-                            placeholder="0.00"
-                            className="w-20 rounded-md border border-green-200 bg-white px-2 py-1 text-xs text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50"
-                          />
-                          <button
-                            type="submit"
-                            className="text-xs text-green-700 hover:underline dark:text-green-300"
-                          >
-                            Registrar
-                          </button>
-                        </form>
+                        <RegistrarVuelto id={m.id} />
                       ) : (
                         "—"
                       )}
@@ -287,6 +370,132 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Vista de movil: una tarjeta por movimiento en vez de una tabla ancha */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {filtrados.length === 0 ? (
+          <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
+            {movimientos.length === 0
+              ? "Todavía no hay movimientos registrados."
+              : "Ningún movimiento coincide con los filtros."}
+          </div>
+        ) : (
+          filtrados.map((m) => (
+            <div
+              key={`${m.tipo}-${m.id}`}
+              className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs text-green-700/60 dark:text-green-300/60">
+                    {formatDateOnly(m.fecha)}
+                  </p>
+                  <p className="font-medium text-green-900 dark:text-green-50">
+                    {m.nombre ?? m.nota ?? "—"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  {m.tipo === "gasto" ? (
+                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">
+                      Gasto
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+                      Reposición
+                    </span>
+                  )}
+                  <p
+                    className={
+                      m.tipo === "gasto"
+                        ? "font-medium text-red-700 dark:text-red-400"
+                        : "font-medium text-green-700 dark:text-green-400"
+                    }
+                  >
+                    {m.tipo === "gasto" ? "−" : "+"}
+                    {formatMoney(salidaEfectiva(m))}
+                  </p>
+                </div>
+              </div>
+
+              {(m.concepto || m.colaborador || m.previsto !== null || m.entregado !== null) && (
+                <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                  {m.concepto && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                        Concepto
+                      </p>
+                      <p className="text-green-900 dark:text-green-50">{m.concepto}</p>
+                    </div>
+                  )}
+                  {m.colaborador && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                        Colaborador
+                      </p>
+                      <p className="text-green-900 dark:text-green-50">{m.colaborador}</p>
+                    </div>
+                  )}
+                  {m.previsto !== null && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                        Previsto
+                      </p>
+                      <p className="text-green-900 dark:text-green-50">
+                        {formatMoney(m.previsto)}
+                      </p>
+                    </div>
+                  )}
+                  {m.entregado !== null && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                        Entregado
+                      </p>
+                      <p className="text-green-900 dark:text-green-50">
+                        {formatMoney(m.entregado)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {m.entregado !== null && (
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-green-50 pt-3 dark:border-green-900/30">
+                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                    Vuelto
+                  </p>
+                  {m.vuelto !== null ? (
+                    <span className="text-sm text-green-900 dark:text-green-50">
+                      {formatMoney(m.vuelto)}
+                    </span>
+                  ) : (
+                    <RegistrarVuelto id={m.id} />
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+                <Link
+                  href={
+                    m.tipo === "gasto"
+                      ? `/caja-menuda/movimiento/${m.id}/editar`
+                      : `/caja-menuda/reposicion/${m.id}/editar`
+                  }
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Editar
+                </Link>
+                <DeleteButton
+                  action={
+                    m.tipo === "gasto"
+                      ? eliminarGastoAction.bind(null, m.id)
+                      : eliminarReposicionAction.bind(null, m.id)
+                  }
+                />
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
