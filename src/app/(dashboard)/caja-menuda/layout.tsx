@@ -43,7 +43,7 @@ export default async function CajaMenudaLayout({
 
       <div className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex flex-col justify-center">
+          <div className="flex flex-col items-center justify-center text-center">
             <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
               Saldo actual de la caja
             </p>
@@ -55,7 +55,7 @@ export default async function CajaMenudaLayout({
             </p>
           </div>
 
-          <div className="sm:col-span-2 sm:text-right">
+          <div className="text-center sm:col-span-2">
             {ultimoArqueo ? (
               <>
                 <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
@@ -73,7 +73,7 @@ export default async function CajaMenudaLayout({
 
                 {/* Escritorio: tabla ancha con Monedas/Billetes agrupados */}
                 <div className="mt-3 hidden overflow-x-auto sm:block">
-                  <table className="ml-auto min-w-[700px] text-center text-xs">
+                  <table className="mx-auto min-w-[700px] text-center text-xs">
                     <thead>
                       <tr>
                         <th
