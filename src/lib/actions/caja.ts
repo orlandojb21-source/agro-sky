@@ -12,7 +12,7 @@ import {
   vueltoSchema,
   arqueoSchema,
 } from "@/lib/validation/caja";
-import { DENOMINACIONES, calcularSaldoActual } from "@/lib/caja";
+import { DENOMINACIONES, calcularSaldoActual, detalleDesdeFormData } from "@/lib/caja";
 import type { ActionState } from "./types";
 
 export async function crearGastoAction(
@@ -27,16 +27,23 @@ export async function crearGastoAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
+  const monto = detalleDesdeFormData(raw, "monto");
+  const entregado = detalleDesdeFormData(raw, "entregado");
+  const vuelto = detalleDesdeFormData(raw, "vuelto");
+
   const supabase = await createClient();
   const { error } = await supabase.from("caja_gastos").insert({
     fecha: parsed.data.fecha,
     nombre: parsed.data.nombre || null,
     concepto: parsed.data.concepto || null,
-    monto: parsed.data.monto,
+    monto: monto?.total ?? null,
+    monto_detalle: monto?.detalle ?? null,
     colaborador: parsed.data.colaborador || null,
     previsto: parsed.data.previsto,
-    entregado: parsed.data.entregado,
-    vuelto: parsed.data.vuelto,
+    entregado: entregado?.total ?? null,
+    entregado_detalle: entregado?.detalle ?? null,
+    vuelto: vuelto?.total ?? null,
+    vuelto_detalle: vuelto?.detalle ?? null,
     nota: parsed.data.nota || null,
     registrado_por: perfil.id,
   });
@@ -59,6 +66,10 @@ export async function editarGastoAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
+  const monto = detalleDesdeFormData(raw, "monto");
+  const entregado = detalleDesdeFormData(raw, "entregado");
+  const vuelto = detalleDesdeFormData(raw, "vuelto");
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("caja_gastos")
@@ -66,11 +77,14 @@ export async function editarGastoAction(
       fecha: parsed.data.fecha,
       nombre: parsed.data.nombre || null,
       concepto: parsed.data.concepto || null,
-      monto: parsed.data.monto,
+      monto: monto?.total ?? null,
+      monto_detalle: monto?.detalle ?? null,
       colaborador: parsed.data.colaborador || null,
       previsto: parsed.data.previsto,
-      entregado: parsed.data.entregado,
-      vuelto: parsed.data.vuelto,
+      entregado: entregado?.total ?? null,
+      entregado_detalle: entregado?.detalle ?? null,
+      vuelto: vuelto?.total ?? null,
+      vuelto_detalle: vuelto?.detalle ?? null,
       nota: parsed.data.nota || null,
     })
     .eq("id", parsed.data.id);
@@ -102,10 +116,12 @@ export async function registrarVueltoAction(id: string, formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message ?? "Vuelto inválido");
   }
 
+  const vuelto = detalleDesdeFormData(raw, "vuelto");
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("caja_gastos")
-    .update({ vuelto: parsed.data.vuelto })
+    .update({ vuelto: vuelto?.total ?? null, vuelto_detalle: vuelto?.detalle ?? null })
     .eq("id", id);
 
   if (error) throw new Error("No se pudo registrar el vuelto.");
@@ -125,10 +141,16 @@ export async function crearReposicionAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
+  const monto = detalleDesdeFormData(raw, "monto");
+  if (!monto) {
+    return { error: "Marca al menos un billete o moneda repuesto.", values: raw };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("caja_reposiciones").insert({
     fecha: parsed.data.fecha,
-    monto: parsed.data.monto,
+    monto: monto.total,
+    monto_detalle: monto.detalle,
     nota: parsed.data.nota || null,
     registrado_por: perfil.id,
   });
@@ -151,12 +173,18 @@ export async function editarReposicionAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
+  const monto = detalleDesdeFormData(raw, "monto");
+  if (!monto) {
+    return { error: "Marca al menos un billete o moneda repuesto.", values: raw };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("caja_reposiciones")
     .update({
       fecha: parsed.data.fecha,
-      monto: parsed.data.monto,
+      monto: monto.total,
+      monto_detalle: monto.detalle,
       nota: parsed.data.nota || null,
     })
     .eq("id", parsed.data.id);

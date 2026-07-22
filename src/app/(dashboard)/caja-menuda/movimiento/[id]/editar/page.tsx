@@ -14,7 +14,9 @@ export default async function EditarMovimientoPage({
   const supabase = await createClient();
   const { data: gasto } = await supabase
     .from("caja_gastos")
-    .select("id, fecha, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota")
+    .select(
+      "id, fecha, nombre, concepto, monto_detalle, colaborador, previsto, entregado_detalle, vuelto_detalle, nota",
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -32,11 +34,11 @@ export default async function EditarMovimientoPage({
           fecha: gasto.fecha,
           nombre: gasto.nombre,
           concepto: gasto.concepto,
-          monto: gasto.monto === null ? null : Number(gasto.monto),
+          montoDetalle: gasto.monto_detalle as Record<string, number> | null,
           colaborador: gasto.colaborador,
           previsto: gasto.previsto === null ? null : Number(gasto.previsto),
-          entregado: gasto.entregado === null ? null : Number(gasto.entregado),
-          vuelto: gasto.vuelto === null ? null : Number(gasto.vuelto),
+          entregadoDetalle: gasto.entregado_detalle as Record<string, number> | null,
+          vueltoDetalle: gasto.vuelto_detalle as Record<string, number> | null,
           nota: gasto.nota,
         }}
       />

@@ -5,13 +5,22 @@ import { crearReposicionAction, editarReposicionAction } from "@/lib/actions/caj
 import { Field } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
+import { DenominacionGrid } from "@/components/forms/DenominacionGrid";
 
 type ValoresReposicion = {
   id?: string;
   fecha: string;
-  monto: number;
+  montoDetalle: Record<string, number> | null;
   nota: string | null;
 };
+
+function detalleAValoresIniciales(
+  prefijo: string,
+  detalle: Record<string, number> | null | undefined,
+): Record<string, number> {
+  if (!detalle) return {};
+  return Object.fromEntries(Object.entries(detalle).map(([id, cantidad]) => [`${prefijo}_${id}`, cantidad]));
+}
 
 export function ReposicionForm({
   fechaHoy,
@@ -34,6 +43,7 @@ export function ReposicionForm({
   }
 
   const v = state.values;
+  const montoIniciales = v ?? detalleAValoresIniciales("monto", valoresIniciales?.montoDetalle);
 
   return (
     <form
@@ -51,15 +61,14 @@ export function ReposicionForm({
         defaultValue={v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy}
         required
       />
-      <Field
-        label="Monto repuesto (USD)"
-        name="monto"
-        type="number"
-        min={0}
-        step="0.01"
-        defaultValue={v?.monto ?? valoresIniciales?.monto}
-        required
-      />
+
+      <div>
+        <p className="mb-2 text-sm text-green-900 dark:text-green-100">
+          Monto repuesto (billetes y monedas)
+        </p>
+        <DenominacionGrid prefijo="monto" valoresIniciales={montoIniciales} />
+      </div>
+
       <Field
         label="Nota (opcional)"
         name="nota"

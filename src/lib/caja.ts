@@ -60,3 +60,85 @@ export async function calcularSaldoActual(
 
   return totalRepuesto - totalSalida + totalVuelto;
 }
+
+export type VistaPrevia = {
+  fechaArqueo: string | null;
+  detalle: Record<string, number>;
+};
+
+// Efectivo estimado en caja, por denominacion: parte del ultimo arqueo (o
+// de cero si nunca se ha hecho uno) y le resta/suma los billetes y monedas
+// de cada movimiento registrado DESPUES de ese arqueo. Los movimientos sin
+// desglose por denominacion (de antes de que existiera este campo) se
+// ignoran aqui -- no hay como saber que billetes usaron, asi que no ajustan
+// la vista previa, aunque su monto en dolares si siga contando para
+// calcularSaldoActual().
+export async function calcularVistaPreviaActual(
+  supabase: SupabaseServerClient,
+): Promise<VistaPrevia> {
+  const { data: ultimoArqueo } = await supabase
+    .from("caja_arqueos")
+    .select("fecha, detalle, creado_en")
+    .order("fecha", { ascending: false })
+    .order("creado_en", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const detalle: Record<string, number> = {};
+  for (const d of DENOMINACIONES) {
+    detalle[d.id] = Number((ultimoArqueo?.detalle as Record<string, number> | null)?.[d.id] ?? 0);
+  }
+
+  const desdeCreadoEn = (ultimoArqueo?.creado_en as string | undefined) ?? "1970-01-01T00:00:00Z";
+
+  const [{ data: gastos }, { data: reposiciones }] = await Promise.all([
+    supabase
+      .from("caja_gastos")
+      .select("monto_detalle, entregado_detalle, vuelto_detalle")
+      .gt("creado_en", desdeCreadoEn),
+    supabase.from("caja_reposiciones").select("monto_detalle").gt("creado_en", desdeCreadoEn),
+  ]);
+
+  function aplicar(det: Record<string, number> | null | undefined, signo: 1 | -1) {
+    if (!det) return;
+    for (const d of DENOMINACIONES) {
+      const cantidad = Number(det[d.id] ?? 0);
+      if (cantidad) detalle[d.id] += signo * cantidad;
+    }
+  }
+
+  for (const g of gastos ?? []) {
+    aplicar(g.monto_detalle as Record<string, number> | null, -1);
+    aplicar(g.entregado_detalle as Record<string, number> | null, -1);
+    aplicar(g.vuelto_detalle as Record<string, number> | null, 1);
+  }
+  for (const r of reposiciones ?? []) {
+    aplicar(r.monto_detalle as Record<string, number> | null, 1);
+  }
+
+  return { fechaArqueo: (ultimoArqueo?.fecha as string | undefined) ?? null, detalle };
+}
+
+// Reconstruye, a partir de los campos "{prefijo}_{id}" del formulario (ej.
+// "monto_b20"), cuantos billetes/monedas se marcaron y el total en dolares
+// equivalente. Devuelve null si no se marco ninguna cantidad -- mismo
+// significado que un campo de monto dejado en blanco (no se guarda nada
+// para ese monto).
+export function detalleDesdeFormData(
+  raw: Record<string, string>,
+  prefijo: string,
+): { detalle: Record<string, number>; total: number } | null {
+  const detalle: Record<string, number> = {};
+  let total = 0;
+  let algunaCantidad = false;
+
+  for (const d of DENOMINACIONES) {
+    const cantidad = Math.max(0, Math.trunc(Number(raw[`${prefijo}_${d.id}`]) || 0));
+    detalle[d.id] = cantidad;
+    if (cantidad > 0) algunaCantidad = true;
+    total += cantidad * d.valor;
+  }
+
+  if (!algunaCantidad) return null;
+  return { detalle, total: Math.round(total * 100) / 100 };
+}

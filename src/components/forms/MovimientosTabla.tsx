@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { DenominacionGrid } from "@/components/forms/DenominacionGrid";
 import {
   eliminarGastoAction,
   eliminarReposicionAction,
@@ -57,20 +58,40 @@ function salidaEfectiva(m: MovimientoFila): number {
 }
 
 function RegistrarVuelto({ id }: { id: string }) {
-  return (
-    <form action={registrarVueltoAction.bind(null, id)} className="flex items-center gap-1">
-      <input
-        type="number"
-        name="vuelto"
-        min={0}
-        step="0.01"
-        required
-        placeholder="0.00"
-        className="w-20 rounded-md border border-green-200 bg-white px-2 py-1 text-xs text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50"
-      />
-      <button type="submit" className="text-xs text-green-700 hover:underline dark:text-green-300">
-        Registrar
+  const [abierto, setAbierto] = useState(false);
+
+  if (!abierto) {
+    return (
+      <button
+        onClick={() => setAbierto(true)}
+        className="text-xs text-green-700 hover:underline dark:text-green-300"
+      >
+        Registrar vuelto
       </button>
+    );
+  }
+
+  return (
+    <form
+      action={registrarVueltoAction.bind(null, id)}
+      className="flex w-full max-w-[260px] flex-col gap-2 rounded-lg border border-green-200 bg-green-50/60 p-2 dark:border-green-800 dark:bg-green-950/20"
+    >
+      <DenominacionGrid prefijo="vuelto" compacto />
+      <div className="flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          className="text-xs text-green-700/70 hover:underline dark:text-green-300/70"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="text-xs font-medium text-green-700 hover:underline dark:text-green-300"
+        >
+          Guardar
+        </button>
+      </div>
     </form>
   );
 }
@@ -460,7 +481,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
               )}
 
               {m.entregado !== null && (
-                <div className="mt-3 flex items-center justify-between gap-2 border-t border-green-50 pt-3 dark:border-green-900/30">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-green-50 pt-3 dark:border-green-900/30">
                   <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
                     Vuelto
                   </p>
