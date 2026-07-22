@@ -428,7 +428,10 @@ export function ProductoTabla({
         </div>
       </div>
 
-      {/* Vista de movil: una tarjeta por producto en vez de una tabla ancha */}
+      {/* Vista de movil: una tarjeta compacta por producto (solo código y
+          descripción); un toque la despliega con el resto del detalle --
+          si no, la lista se vuelve muy larga a medida que se agregan
+          productos. */}
       <div className="flex flex-col gap-3 sm:hidden">
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
@@ -438,84 +441,116 @@ export function ProductoTabla({
           </div>
         ) : (
           filtrados.map((p) => (
-            <div
+            <TarjetaProductoMovil
               key={p.id}
-              className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-green-900 dark:text-green-50">{p.numeroParte}</p>
-                  <p className="text-sm text-green-800/80 dark:text-green-200/80">
-                    {p.descripcion}
-                  </p>
-                </div>
-                {p.cantidad === 0 && (
-                  <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-                    Sin stock
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Fila
-                  </p>
-                  <p className="text-green-900 dark:text-green-50">{p.fila ?? "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Contenedor
-                  </p>
-                  <p className="text-green-900 dark:text-green-50">{p.contenedor ?? "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Unidad
-                  </p>
-                  <p className="text-green-900 dark:text-green-50">{p.unidad ?? "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Cantidad
-                  </p>
-                  <p className="text-green-900 dark:text-green-50">{p.cantidad}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Costo
-                  </p>
-                  <p className="text-green-900 dark:text-green-50">{formatMoney(p.costo)}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Valor de Inventario
-                  </p>
-                  <p className="text-green-900 dark:text-green-50">
-                    {formatMoney(p.costo * p.cantidad)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Venta
-                  </p>
-                  <p className="text-green-900 dark:text-green-50">{formatMoney(p.venta)}</p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                <Link
-                  href={`${seccionHref}/${p.id}/editar`}
-                  className="text-sm text-green-700 hover:underline dark:text-green-300"
-                >
-                  Editar
-                </Link>
-                <DeleteButton action={eliminarProductoAction.bind(null, p.id, seccion)} />
-              </div>
-            </div>
+              producto={p}
+              seccion={seccion}
+              seccionHref={seccionHref}
+            />
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+function TarjetaProductoMovil({
+  producto: p,
+  seccion,
+  seccionHref,
+}: {
+  producto: ProductoFila;
+  seccion: string;
+  seccionHref: string;
+}) {
+  const [abierto, setAbierto] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="flex w-full items-start justify-between gap-2 text-left"
+      >
+        <div>
+          <p className="font-medium text-green-900 dark:text-green-50">{p.numeroParte}</p>
+          <p className="text-sm text-green-800/80 dark:text-green-200/80">{p.descripcion}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {p.cantidad === 0 && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+              Sin stock
+            </span>
+          )}
+          <span
+            className={`text-green-700/60 transition-transform dark:text-green-300/60 ${abierto ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          >
+            ▾
+          </span>
+        </div>
+      </button>
+
+      {abierto && (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                Fila
+              </p>
+              <p className="text-green-900 dark:text-green-50">{p.fila ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                Contenedor
+              </p>
+              <p className="text-green-900 dark:text-green-50">{p.contenedor ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                Unidad
+              </p>
+              <p className="text-green-900 dark:text-green-50">{p.unidad ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                Cantidad
+              </p>
+              <p className="text-green-900 dark:text-green-50">{p.cantidad}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                Costo
+              </p>
+              <p className="text-green-900 dark:text-green-50">{formatMoney(p.costo)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                Valor de Inventario
+              </p>
+              <p className="text-green-900 dark:text-green-50">
+                {formatMoney(p.costo * p.cantidad)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                Venta
+              </p>
+              <p className="text-green-900 dark:text-green-50">{formatMoney(p.venta)}</p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+            <Link
+              href={`${seccionHref}/${p.id}/editar`}
+              className="text-sm text-green-700 hover:underline dark:text-green-300"
+            >
+              Editar
+            </Link>
+            <DeleteButton action={eliminarProductoAction.bind(null, p.id, seccion)} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
