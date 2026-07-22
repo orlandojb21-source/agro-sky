@@ -142,6 +142,68 @@ async function cargarLogoBase64(): Promise<string | null> {
   }
 }
 
+export type ServicioExportable = {
+  nombre: string;
+  descripcion: string | null;
+  costo: number | null;
+  precio: number | null;
+};
+
+export async function exportarServiciosExcel(filas: ServicioExportable[], nombreArchivo: string) {
+  const workbook = new ExcelJS.Workbook();
+  const hoja = workbook.addWorksheet("Servicios");
+
+  hoja.columns = [
+    { header: "Nombre", key: "nombre", width: 30 },
+    { header: "Descripción", key: "descripcion", width: 40 },
+    { header: "Costo referencial", key: "costo", width: 18 },
+    { header: "Precio referencial", key: "precio", width: 18 },
+  ];
+  hoja.getRow(1).font = { bold: true };
+
+  for (const f of filas) {
+    hoja.addRow({
+      nombre: celdaSegura(f.nombre),
+      descripcion: celdaSegura(f.descripcion ?? ""),
+      costo: f.costo ?? "",
+      precio: f.precio ?? "",
+    });
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  descargarArchivo(
+    new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    `${nombreArchivo}.xlsx`,
+  );
+}
+
+export function exportarServiciosPDF(
+  filas: ServicioExportable[],
+  nombreArchivo: string,
+  titulo: string,
+) {
+  const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFontSize(14);
+  doc.text(titulo, 14, 15);
+
+  autoTable(doc, {
+    startY: 20,
+    head: [["Nombre", "Descripción", "Costo referencial", "Precio referencial"]],
+    body: filas.map((f) => [
+      f.nombre,
+      f.descripcion ?? "",
+      f.costo !== null ? formatMoney(f.costo) : "",
+      f.precio !== null ? formatMoney(f.precio) : "",
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [21, 128, 61] },
+  });
+
+  doc.save(`${nombreArchivo}.pdf`);
+}
+
 export type MovimientoExportable = {
   fecha: string;
   tipo: "gasto" | "reposicion";
