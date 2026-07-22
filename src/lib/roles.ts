@@ -13,6 +13,7 @@ export type Seccion =
   | "inventario"
   | "caja-menuda"
   | "compras"
+  | "planilla"
   | "ventas"
   | "balance"
   | "usuarios";
@@ -26,6 +27,7 @@ export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   inventario: ["administrador", "jefe", "soporte"],
   "caja-menuda": ["administrador", "jefe", "soporte"],
   compras: ["administrador", "jefe", "soporte"],
+  planilla: ["administrador", "jefe", "soporte"],
   ventas: ["administrador", "jefe", "soporte"],
   balance: ["administrador", "jefe", "soporte"],
   usuarios: ["soporte", "jefe"],
