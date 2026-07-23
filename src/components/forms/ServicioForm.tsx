@@ -43,7 +43,7 @@ export function ServicioForm({ valoresIniciales }: { valoresIniciales?: ValoresS
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
       <Field
-        label="Nombre"
+        label="Código"
         name="nombre"
         defaultValue={v?.nombre ?? valoresIniciales?.nombre ?? undefined}
         required

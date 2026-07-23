@@ -110,7 +110,7 @@ export function ServicioTabla({ servicios }: { servicios: ServicioFila[] }) {
               type="text"
               value={filtros.texto}
               onChange={(e) => setFiltro("texto", e.target.value)}
-              placeholder="Nombre, descripción..."
+              placeholder="Código, descripción..."
               className={inputFiltroMovil}
             />
           </label>
@@ -142,7 +142,7 @@ export function ServicioTabla({ servicios }: { servicios: ServicioFila[] }) {
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-3 py-2 font-medium">Nombre</th>
+                <th className="px-3 py-2 font-medium">Código</th>
                 <th className="px-3 py-2 font-medium">Descripción</th>
                 <th className="px-3 py-2 font-medium">Costo referencial</th>
                 <th className="px-3 py-2 font-medium">Precio referencial</th>

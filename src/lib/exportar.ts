@@ -154,7 +154,7 @@ export async function exportarServiciosExcel(filas: ServicioExportable[], nombre
   const hoja = workbook.addWorksheet("Servicios");
 
   hoja.columns = [
-    { header: "Nombre", key: "nombre", width: 30 },
+    { header: "Código", key: "nombre", width: 30 },
     { header: "Descripción", key: "descripcion", width: 40 },
     { header: "Costo referencial", key: "costo", width: 18 },
     { header: "Precio referencial", key: "precio", width: 18 },
@@ -190,7 +190,7 @@ export function exportarServiciosPDF(
 
   autoTable(doc, {
     startY: 20,
-    head: [["Nombre", "Descripción", "Costo referencial", "Precio referencial"]],
+    head: [["Código", "Descripción", "Costo referencial", "Precio referencial"]],
     body: filas.map((f) => [
       f.nombre,
       f.descripcion ?? "",
