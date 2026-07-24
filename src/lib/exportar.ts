@@ -204,6 +204,123 @@ export function exportarServiciosPDF(
   doc.save(`${nombreArchivo}.pdf`);
 }
 
+// Datos fijos de la empresa para la factura, tal como los dio el cliente
+// (boceto a mano con el formato exacto que quiere).
+const AGRO_SKY_INFO = {
+  nombre: "AGRO SKY",
+  telefono: "6574-1019",
+  correo: "agrosky.pty@gmail.com",
+  direccion: "Chitré, Panamá",
+};
+
+export type FacturaItemExportable = {
+  codigo: string;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+};
+
+export type FacturaExportable = {
+  numeroFactura: number;
+  fecha: string;
+  clienteNombre: string;
+  clienteTelefono: string | null;
+  clienteDireccion: string | null;
+  items: FacturaItemExportable[];
+  subtotalGravado: number;
+  subtotalExento: number;
+  itbms: number;
+  total: number;
+};
+
+// Factura en formato carta vertical, con el logo y los datos de Agro Sky
+// arriba a la derecha (como letterhead) y el numero de factura + datos del
+// cliente arriba a la izquierda -- mismo layout que el boceto que dio el
+// cliente como referencia.
+export async function exportarFacturaPDF(factura: FacturaExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Factura No. ${String(factura.numeroFactura).padStart(4, "0")}`, 14, 20);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let yCliente = 30;
+  for (const linea of [
+    `Fecha: ${formatDateOnly(factura.fecha)}`,
+    `Nombre del Cliente: ${factura.clienteNombre}`,
+    `Número de Teléfono: ${factura.clienteTelefono ?? "—"}`,
+    `Dirección: ${factura.clienteDireccion ?? "—"}`,
+  ]) {
+    doc.text(linea, 14, yCliente);
+    yCliente += 6;
+  }
+
+  const startY = Math.max(yCliente, yEmpresa) + 6;
+
+  autoTable(doc, {
+    startY,
+    head: [["Código", "Descripción", "Cantidad", "P/U", "P/Total"]],
+    body: factura.items.map((it) => [
+      it.codigo,
+      it.descripcion,
+      String(it.cantidad),
+      formatMoney(it.precioUnitario),
+      formatMoney(it.subtotal),
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [21, 128, 61] },
+  });
+
+  const tablaFinalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+
+  const anchoResumen = 75;
+  const xEtiqueta = margenDerecho - anchoResumen;
+  let yResumen = tablaFinalY + 8;
+  doc.setFontSize(10);
+  for (const [etiqueta, valor, negrita] of [
+    ["Subtotal gravado", formatMoney(factura.subtotalGravado), false],
+    ["Subtotal exento", formatMoney(factura.subtotalExento), false],
+    ["ITBMS (7%)", formatMoney(factura.itbms), false],
+    ["Total", formatMoney(factura.total), true],
+  ] as const) {
+    doc.setFont("helvetica", negrita ? "bold" : "normal");
+    doc.text(etiqueta, xEtiqueta, yResumen);
+    doc.text(valor, margenDerecho, yResumen, { align: "right" });
+    yResumen += 6;
+  }
+
+  doc.save(`agro-sky-factura-${String(factura.numeroFactura).padStart(4, "0")}.pdf`);
+}
+
 export type MovimientoExportable = {
   fecha: string;
   tipo: "gasto" | "reposicion";

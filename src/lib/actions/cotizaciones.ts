@@ -25,6 +25,8 @@ export async function crearCotizacionAction(
     fecha: raw.fecha,
     clienteNombre: raw.clienteNombre,
     clienteDocumento: raw.clienteDocumento,
+    clienteTelefono: raw.clienteTelefono,
+    clienteDireccion: raw.clienteDireccion,
     nota: raw.nota,
     items,
   });
@@ -38,11 +40,14 @@ export async function crearCotizacionAction(
     p_fecha: parsed.data.fecha,
     p_cliente_nombre: parsed.data.clienteNombre,
     p_cliente_documento: parsed.data.clienteDocumento || null,
+    p_cliente_telefono: parsed.data.clienteTelefono || null,
+    p_cliente_direccion: parsed.data.clienteDireccion || null,
     p_nota: parsed.data.nota || null,
     p_items: parsed.data.items.map((item) => ({
       tipo: item.tipo,
       producto_id: item.productoId,
       servicio_id: item.servicioId,
+      codigo: item.codigo,
       descripcion: item.descripcion,
       cantidad: item.cantidad,
       precio_unitario: item.precioUnitario,

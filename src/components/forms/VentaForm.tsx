@@ -34,6 +34,7 @@ type ItemVenta = {
   tipo: Tipo;
   productoId: string | null;
   servicioId: string | null;
+  codigo: string;
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
@@ -123,16 +124,14 @@ export function VentaForm({
     const precioUnitario = Number(precioDraft);
     if (!cantidad || cantidad <= 0 || Number.isNaN(precioUnitario) || precioUnitario < 0) return;
 
+    const codigo =
+      tipoDraft === "servicio"
+        ? (itemSeleccionado as CatalogoServicio).nombre
+        : (itemSeleccionado as CatalogoProducto).numeroParte;
     const descripcion =
       tipoDraft === "servicio"
-        ? (() => {
-            const s = itemSeleccionado as CatalogoServicio;
-            return s.descripcion ? `${s.nombre} — ${s.descripcion}` : s.nombre;
-          })()
-        : (() => {
-            const p = itemSeleccionado as CatalogoProducto;
-            return `${p.numeroParte} — ${p.descripcion}`;
-          })();
+        ? ((itemSeleccionado as CatalogoServicio).descripcion ?? "")
+        : (itemSeleccionado as CatalogoProducto).descripcion;
 
     setItems((prev) => [
       ...prev,
@@ -140,6 +139,7 @@ export function VentaForm({
         tipo: tipoDraft,
         productoId: tipoDraft === "servicio" ? null : itemSeleccionado.id,
         servicioId: tipoDraft === "servicio" ? itemSeleccionado.id : null,
+        codigo,
         descripcion,
         cantidad,
         precioUnitario,
@@ -181,6 +181,16 @@ export function VentaForm({
           label="Cédula/RUC (opcional)"
           name="clienteDocumento"
           defaultValue={v?.clienteDocumento ?? undefined}
+        />
+        <Field
+          label="Número de teléfono (opcional)"
+          name="clienteTelefono"
+          defaultValue={v?.clienteTelefono ?? undefined}
+        />
+        <Field
+          label="Dirección (opcional)"
+          name="clienteDireccion"
+          defaultValue={v?.clienteDireccion ?? undefined}
         />
         <Field label="Nota (opcional)" name="nota" defaultValue={v?.nota ?? undefined} />
       </div>
@@ -277,9 +287,10 @@ export function VentaForm({
 
         {items.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead>
                 <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-2 py-2 font-medium">Código</th>
                   <th className="px-2 py-2 font-medium">Descripción</th>
                   <th className="px-2 py-2 font-medium">Sección</th>
                   <th className="px-2 py-2 font-medium">Cant.</th>
@@ -295,7 +306,10 @@ export function VentaForm({
                     key={i}
                     className="border-b border-green-50 last:border-0 dark:border-green-900/30"
                   >
-                    <td className="px-2 py-2 text-green-900 dark:text-green-50">{it.descripcion}</td>
+                    <td className="px-2 py-2 text-green-900 dark:text-green-50">{it.codigo}</td>
+                    <td className="px-2 py-2 text-green-800/80 dark:text-green-200/80">
+                      {it.descripcion || "—"}
+                    </td>
                     <td className="px-2 py-2 capitalize text-green-800/80 dark:text-green-200/80">
                       {it.tipo}
                     </td>

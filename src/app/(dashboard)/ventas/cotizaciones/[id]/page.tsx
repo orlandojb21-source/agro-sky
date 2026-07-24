@@ -24,13 +24,13 @@ export default async function DetalleCotizacionPage({
     supabase
       .from("cotizaciones")
       .select(
-        "id, fecha, cliente_nombre, cliente_documento, nota, subtotal_gravado, subtotal_exento, itbms, total, estado, venta_id",
+        "id, fecha, cliente_nombre, cliente_documento, cliente_telefono, cliente_direccion, nota, subtotal_gravado, subtotal_exento, itbms, total, estado, venta_id",
       )
       .eq("id", id)
       .maybeSingle(),
     supabase
       .from("cotizacion_items")
-      .select("id, tipo, descripcion, cantidad, precio_unitario, aplica_itbms, subtotal")
+      .select("id, tipo, codigo, descripcion, cantidad, precio_unitario, aplica_itbms, subtotal")
       .eq("cotizacion_id", id)
       .order("id"),
   ]);
@@ -89,6 +89,26 @@ export default async function DetalleCotizacionPage({
             </p>
           </div>
         ) : null}
+        {cotizacion.cliente_telefono ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              Número de teléfono
+            </p>
+            <p className="text-green-900 dark:text-green-50">
+              {cotizacion.cliente_telefono as string}
+            </p>
+          </div>
+        ) : null}
+        {cotizacion.cliente_direccion ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              Dirección
+            </p>
+            <p className="text-green-900 dark:text-green-50">
+              {cotizacion.cliente_direccion as string}
+            </p>
+          </div>
+        ) : null}
         {cotizacion.nota ? (
           <div className="sm:col-span-2">
             <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
@@ -101,9 +121,10 @@ export default async function DetalleCotizacionPage({
 
       <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
+                <th className="px-3 py-2 font-medium">Código</th>
                 <th className="px-3 py-2 font-medium">Descripción</th>
                 <th className="px-3 py-2 font-medium">Sección</th>
                 <th className="px-3 py-2 font-medium">Cant.</th>
@@ -119,7 +140,10 @@ export default async function DetalleCotizacionPage({
                   className="border-b border-green-50 last:border-0 dark:border-green-900/30"
                 >
                   <td className="px-3 py-3 text-green-900 dark:text-green-50">
-                    {it.descripcion as string}
+                    {(it.codigo as string | null) ?? "—"}
+                  </td>
+                  <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                    {(it.descripcion as string) || "—"}
                   </td>
                   <td className="px-3 py-3 capitalize text-green-800/80 dark:text-green-200/80">
                     {it.tipo as string}

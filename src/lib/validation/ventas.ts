@@ -8,7 +8,8 @@ export const ventaItemSchema = z
     tipo: z.enum(["nuevo", "usado", "servicio"]),
     productoId: z.string().uuid().nullable(),
     servicioId: z.string().uuid().nullable(),
-    descripcion: z.string().trim().min(1, "Descripción requerida"),
+    codigo: z.string().trim().min(1, "Código requerido"),
+    descripcion: z.string().trim().optional().default(""),
     cantidad: z.number().positive("La cantidad debe ser mayor a cero"),
     precioUnitario: z.number().min(0, "El precio no puede ser negativo"),
   })
@@ -24,6 +25,8 @@ export const ventaSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
   clienteNombre: z.string().trim().min(1, "Nombre del cliente requerido"),
   clienteDocumento: z.string().trim().optional().default(""),
+  clienteTelefono: z.string().trim().optional().default(""),
+  clienteDireccion: z.string().trim().optional().default(""),
   nota: z.string().trim().optional().default(""),
   items: z.array(ventaItemSchema).min(1, "Agrega al menos un producto o servicio"),
 });

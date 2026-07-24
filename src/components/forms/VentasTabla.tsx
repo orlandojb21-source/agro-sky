@@ -8,6 +8,7 @@ import { formatMoney, formatDateOnly } from "@/lib/format";
 
 export type VentaFila = {
   id: string;
+  numeroFactura: number;
   fecha: string;
   clienteNombre: string;
   subtotalGravado: number;
@@ -68,6 +69,7 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
+                <th className="px-3 py-2 font-medium">Factura</th>
                 <th className="px-3 py-2 font-medium">Fecha</th>
                 <th className="px-3 py-2 font-medium">Cliente</th>
                 <th className="px-3 py-2 font-medium">Subtotal gravado</th>
@@ -77,6 +79,7 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                 <th className="px-3 py-2"></th>
               </tr>
               <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
+                <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">
                   <div className="flex gap-1">
                     <input
@@ -109,7 +112,7 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
               {filtradas.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {ventas.length === 0
@@ -123,6 +126,9 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                     key={v.id}
                     className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
                   >
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {String(v.numeroFactura).padStart(4, "0")}
+                    </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {formatDateOnly(v.fecha)}
                     </td>
@@ -180,7 +186,7 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
-                    {formatDateOnly(v.fecha)}
+                    Factura {String(v.numeroFactura).padStart(4, "0")} — {formatDateOnly(v.fecha)}
                   </p>
                   <p className="font-medium text-green-900 dark:text-green-50">{v.clienteNombre}</p>
                 </div>

@@ -8,6 +8,8 @@ export const cotizacionSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
   clienteNombre: z.string().trim().min(1, "Nombre del cliente requerido"),
   clienteDocumento: z.string().trim().optional().default(""),
+  clienteTelefono: z.string().trim().optional().default(""),
+  clienteDireccion: z.string().trim().optional().default(""),
   nota: z.string().trim().optional().default(""),
   items: z.array(ventaItemSchema).min(1, "Agrega al menos un producto o servicio"),
 });
