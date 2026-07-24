@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { crearVentaAction } from "@/lib/actions/ventas";
+import { crearCotizacionAction } from "@/lib/actions/cotizaciones";
 import { Field } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -43,13 +44,18 @@ export function VentaForm({
   productosNuevos,
   productosUsados,
   servicios,
+  modo = "venta",
 }: {
   fechaHoy: string;
   productosNuevos: CatalogoProducto[];
   productosUsados: CatalogoProducto[];
   servicios: CatalogoServicio[];
+  modo?: "venta" | "cotizacion";
 }) {
-  const [state, formAction] = useActionState(crearVentaAction, { error: null });
+  const [state, formAction] = useActionState(
+    modo === "cotizacion" ? crearCotizacionAction : crearVentaAction,
+    { error: null },
+  );
 
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
@@ -340,8 +346,11 @@ export function VentaForm({
       </div>
 
       <div className="flex gap-3">
-        <SubmitButton>Guardar venta</SubmitButton>
-        <LinkButton href="/ventas" variant="secondary">
+        <SubmitButton>{modo === "cotizacion" ? "Guardar cotización" : "Guardar venta"}</SubmitButton>
+        <LinkButton
+          href={modo === "cotizacion" ? "/ventas/cotizaciones" : "/ventas"}
+          variant="secondary"
+        >
           Cancelar
         </LinkButton>
       </div>
