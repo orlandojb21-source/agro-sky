@@ -1,20 +1,30 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { BalanceDashboard } from "@/components/forms/BalanceDashboard";
+import {
+  BalanceDashboard,
+  type VentaBalance,
+  type PagoPlanillaBalance,
+} from "@/components/forms/BalanceDashboard";
 import type { MovimientoExportable } from "@/lib/exportar";
 
 export default async function BalancePage() {
   await requireSection("balance");
 
   const supabase = await createClient();
-  const [{ data: gastos }, { data: reposiciones }] = await Promise.all([
-    supabase
-      .from("caja_gastos")
-      .select("fecha, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota")
-      .order("fecha", { ascending: false }),
-    supabase.from("caja_reposiciones").select("fecha, monto, nota").order("fecha", { ascending: false }),
-  ]);
+  const [{ data: gastos }, { data: reposiciones }, { data: ventasData }, { data: pagosData }] =
+    await Promise.all([
+      supabase
+        .from("caja_gastos")
+        .select("fecha, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota")
+        .order("fecha", { ascending: false }),
+      supabase.from("caja_reposiciones").select("fecha, monto, nota").order("fecha", { ascending: false }),
+      supabase
+        .from("ventas")
+        .select("fecha, subtotal_gravado, subtotal_exento, itbms")
+        .order("fecha", { ascending: false }),
+      supabase.from("planilla_pagos").select("fecha, colaborador, monto").order("fecha", { ascending: false }),
+    ]);
 
   const movimientos: MovimientoExportable[] = [
     ...(gastos ?? []).map((g) => ({
@@ -43,13 +53,25 @@ export default async function BalancePage() {
     })),
   ];
 
+  const ventas: VentaBalance[] = (ventasData ?? []).map((v) => ({
+    fecha: v.fecha as string,
+    ingreso: Number(v.subtotal_gravado) + Number(v.subtotal_exento),
+    itbms: Number(v.itbms),
+  }));
+
+  const pagosPlanilla: PagoPlanillaBalance[] = (pagosData ?? []).map((p) => ({
+    fecha: p.fecha as string,
+    colaborador: p.colaborador as string,
+    monto: Number(p.monto),
+  }));
+
   return (
     <div>
       <PageHeader
         title="Balance"
-        description="Cuando Compras y Ventas estén listos, sus gráficas de Ingresos, Egresos y Ganancias también aparecerán aquí."
+        description="Todo el dinero que entra y sale de Agro Sky: Ventas, Caja Menuda y Planilla. Cuando Compras esté listo, también aparecerá aquí."
       />
-      <BalanceDashboard movimientos={movimientos} />
+      <BalanceDashboard movimientos={movimientos} ventas={ventas} pagosPlanilla={pagosPlanilla} />
     </div>
   );
 }
