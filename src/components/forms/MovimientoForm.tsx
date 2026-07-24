@@ -2,10 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { crearGastoAction, editarGastoAction } from "@/lib/actions/caja";
-import { Field } from "@/components/ui/Field";
+import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import { DenominacionGrid } from "@/components/forms/DenominacionGrid";
+import { CATEGORIAS_GASTO } from "@/lib/categorias";
 
 const CONCEPTOS_SUGERIDOS = ["Transporte", "Comida", "Combustible", "Hospedaje", "Materiales", "Otro"];
 
@@ -15,6 +16,7 @@ const CLASE_INPUT =
 type ValoresMovimiento = {
   id?: string;
   fecha: string;
+  categoria: string | null;
   nombre: string | null;
   concepto: string | null;
   montoDetalle: Record<string, number> | null;
@@ -78,6 +80,19 @@ export function MovimientoForm({
         defaultValue={v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy}
         required
       />
+      <SelectField
+        label="Categoría"
+        name="categoria"
+        defaultValue={v?.categoria ?? valoresIniciales?.categoria ?? undefined}
+        required
+      >
+        <option value="">Selecciona...</option>
+        {CATEGORIAS_GASTO.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </SelectField>
 
       <p className="text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
         Gasto (opcional)

@@ -324,6 +324,7 @@ export async function exportarFacturaPDF(factura: FacturaExportable) {
 export type MovimientoExportable = {
   fecha: string;
   tipo: "gasto" | "reposicion";
+  categoria: string | null;
   nombre: string | null;
   concepto: string | null;
   colaborador: string | null;
@@ -341,6 +342,7 @@ export async function exportarMovimientosExcel(filas: MovimientoExportable[], no
   hoja.columns = [
     { header: "Fecha", key: "fecha", width: 14 },
     { header: "Tipo", key: "tipo", width: 12 },
+    { header: "Categoría", key: "categoria", width: 18 },
     { header: "Nombre / Nota", key: "nombre", width: 25 },
     { header: "Concepto", key: "concepto", width: 18 },
     { header: "Colaborador", key: "colaborador", width: 18 },
@@ -355,6 +357,7 @@ export async function exportarMovimientosExcel(filas: MovimientoExportable[], no
     hoja.addRow({
       fecha: formatDateOnly(f.fecha),
       tipo: f.tipo === "gasto" ? "Gasto" : "Reposición",
+      categoria: celdaSegura(f.categoria ?? ""),
       nombre: celdaSegura(f.nombre ?? f.nota ?? ""),
       concepto: celdaSegura(f.concepto ?? ""),
       colaborador: celdaSegura(f.colaborador ?? ""),
@@ -400,6 +403,7 @@ export async function exportarMovimientosPDF(
       [
         "Fecha",
         "Tipo",
+        "Categoría",
         "Nombre / Nota",
         "Concepto",
         "Colaborador",
@@ -412,6 +416,7 @@ export async function exportarMovimientosPDF(
     body: filas.map((f) => [
       formatDateOnly(f.fecha),
       f.tipo === "gasto" ? "Gasto" : "Reposición",
+      f.categoria ?? "",
       f.nombre ?? f.nota ?? "",
       f.concepto ?? "",
       f.colaborador ?? "",

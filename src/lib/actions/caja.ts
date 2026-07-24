@@ -34,6 +34,7 @@ export async function crearGastoAction(
   const supabase = await createClient();
   const { error } = await supabase.from("caja_gastos").insert({
     fecha: parsed.data.fecha,
+    categoria: parsed.data.categoria,
     nombre: parsed.data.nombre || null,
     concepto: parsed.data.concepto || null,
     monto: monto?.total ?? null,
@@ -75,6 +76,7 @@ export async function editarGastoAction(
     .from("caja_gastos")
     .update({
       fecha: parsed.data.fecha,
+      categoria: parsed.data.categoria,
       nombre: parsed.data.nombre || null,
       concepto: parsed.data.concepto || null,
       monto: monto?.total ?? null,

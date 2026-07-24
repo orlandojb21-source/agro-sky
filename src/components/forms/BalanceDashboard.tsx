@@ -19,6 +19,9 @@ import {
 } from "@/lib/exportar";
 import { formatMoney } from "@/lib/format";
 import { COLABORADORES } from "@/lib/planilla";
+import { CATEGORIAS_GASTO } from "@/lib/categorias";
+
+const COLORES_CATEGORIA = ["#dc2626", "#ea580c", "#ca8a04", "#65a30d", "#0891b2", "#7c3aed"];
 
 type Periodo = "semana" | "mes" | "año" | "vida" | "rango";
 
@@ -104,6 +107,7 @@ export function BalanceDashboard({
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
 
   const { fechaDesde, fechaHasta, listo } = useMemo(() => {
     const hoy = new Date();
@@ -176,6 +180,24 @@ export function BalanceDashboard({
     nombre: c,
     monto: pagosFiltrados.filter((p) => p.colaborador === c).reduce((suma, p) => suma + p.monto, 0),
   }));
+
+  // Gastos por categoria: suma de Caja Menuda (por su propia categoria) +
+  // Planilla (siempre cuenta entero como "Planilla", ya que todo pago de
+  // planilla es esa categoria por definicion).
+  const totalesPorCategoria = CATEGORIAS_GASTO.map((c, i) => {
+    const deCaja = movimientosFiltrados
+      .filter((m) => m.tipo === "gasto" && m.categoria === c)
+      .reduce((suma, m) => suma + m.monto, 0);
+    const dePlanilla = c === "Planilla" ? totalPlanilla : 0;
+    return { categoria: c, monto: deCaja + dePlanilla, color: COLORES_CATEGORIA[i % COLORES_CATEGORIA.length] };
+  });
+  const totalSinCategoria = movimientosFiltrados
+    .filter((m) => m.tipo === "gasto" && !m.categoria)
+    .reduce((suma, m) => suma + m.monto, 0);
+  const categoriasConDatos = totalesPorCategoria.filter((c) => c.monto > 0);
+  const hayGastosCategorizados = categoriasConDatos.length > 0 || totalSinCategoria > 0;
+  const montoCategoriaSeleccionada =
+    totalesPorCategoria.find((c) => c.categoria === categoriaFiltro)?.monto ?? 0;
 
   const hayDatosCaja = listo && movimientosFiltrados.length > 0;
   const hayAlgunDato =
@@ -290,6 +312,64 @@ export function BalanceDashboard({
                 ? ` ITBMS cobrado en ventas de este período (no incluido arriba, se le debe al gobierno): ${formatMoney(totalItbms)}.`
                 : ""}
             </p>
+          </div>
+
+          <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">
+                Gastos por categoría
+              </h2>
+              <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+                Categoría
+                <select
+                  value={categoriaFiltro}
+                  onChange={(e) => setCategoriaFiltro(e.target.value)}
+                  className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
+                >
+                  <option value="">Todas</option>
+                  {CATEGORIAS_GASTO.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {categoriaFiltro === "" ? (
+              !hayGastosCategorizados ? (
+                <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
+                  No hay gastos categorizados para este período.
+                </p>
+              ) : (
+                <>
+                  <div className="mt-4">
+                    <GraficaDosBarras
+                      datos={categoriasConDatos.map((c) => ({
+                        nombre: c.categoria,
+                        monto: c.monto,
+                        color: c.color,
+                      }))}
+                    />
+                  </div>
+                  {totalSinCategoria > 0 && (
+                    <p className="mt-3 text-xs text-green-700/60 dark:text-green-300/60">
+                      Además, {formatMoney(totalSinCategoria)} en gastos de Caja Menuda sin
+                      categoría (registrados antes de que existiera este campo).
+                    </p>
+                  )}
+                </>
+              )
+            ) : (
+              <div className="mt-6">
+                <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                  {categoriaFiltro}
+                </p>
+                <p className="text-2xl font-semibold text-red-700 dark:text-red-400">
+                  {formatMoney(montoCategoriaSeleccionada)}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">

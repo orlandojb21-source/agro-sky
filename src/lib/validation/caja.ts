@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DENOMINACIONES } from "@/lib/caja";
+import { CATEGORIAS_GASTO } from "@/lib/categorias";
 
 // Convierte un campo de texto opcional de un <input type="number"> en
 // number|null: vacio -> null (no se llenó), en vez de que z.coerce.number()
@@ -35,6 +36,7 @@ function camposCantidadPorDenominacion(prefijo: string) {
 // entregado, asi que se queda como un monto simple en dolares.
 export const gastoSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
+  categoria: z.enum(CATEGORIAS_GASTO, { message: "Selecciona una categoría" }),
   nombre: z.string().trim().optional().default(""),
   concepto: z.string().trim().optional().default(""),
   colaborador: z.string().trim().optional().default(""),

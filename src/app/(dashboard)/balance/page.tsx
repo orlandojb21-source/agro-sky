@@ -16,7 +16,9 @@ export default async function BalancePage() {
     await Promise.all([
       supabase
         .from("caja_gastos")
-        .select("fecha, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota")
+        .select(
+          "fecha, categoria, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
+        )
         .order("fecha", { ascending: false }),
       supabase.from("caja_reposiciones").select("fecha, monto, nota").order("fecha", { ascending: false }),
       supabase
@@ -30,6 +32,7 @@ export default async function BalancePage() {
     ...(gastos ?? []).map((g) => ({
       fecha: g.fecha as string,
       tipo: "gasto" as const,
+      categoria: g.categoria as string | null,
       nombre: g.nombre as string | null,
       concepto: g.concepto as string | null,
       colaborador: g.colaborador as string | null,
@@ -42,6 +45,7 @@ export default async function BalancePage() {
     ...(reposiciones ?? []).map((r) => ({
       fecha: r.fecha as string,
       tipo: "reposicion" as const,
+      categoria: null,
       nombre: null,
       concepto: null,
       colaborador: null,

@@ -10,11 +10,13 @@ import {
   registrarVueltoAction,
 } from "@/lib/actions/caja";
 import { formatMoney, formatDateOnly } from "@/lib/format";
+import { CATEGORIAS_GASTO } from "@/lib/categorias";
 
 export type MovimientoFila = {
   id: string;
   tipo: "gasto" | "reposicion";
   fecha: string;
+  categoria: string | null;
   monto: number | null;
   nombre: string | null;
   concepto: string | null;
@@ -27,6 +29,7 @@ export type MovimientoFila = {
 
 type Filtros = {
   tipo: "" | "gasto" | "reposicion";
+  categoria: string;
   texto: string;
   fechaDesde: string;
   fechaHasta: string;
@@ -36,6 +39,7 @@ type Filtros = {
 
 const FILTROS_VACIOS: Filtros = {
   tipo: "",
+  categoria: "",
   texto: "",
   fechaDesde: "",
   fechaHasta: "",
@@ -107,6 +111,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
   const filtrados = useMemo(() => {
     return movimientos.filter((m) => {
       if (filtros.tipo && m.tipo !== filtros.tipo) return false;
+      if (filtros.categoria && m.categoria !== filtros.categoria) return false;
 
       const texto = filtros.texto.trim().toLowerCase();
       if (texto) {
@@ -188,6 +193,21 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
             </select>
           </label>
           <label className={etiquetaFiltroMovil}>
+            Categoría
+            <select
+              value={filtros.categoria}
+              onChange={(e) => setFiltro("categoria", e.target.value)}
+              className={inputFiltroMovil}
+            >
+              <option value="">Todas</option>
+              {CATEGORIAS_GASTO.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={etiquetaFiltroMovil}>
             Buscar
             <input
               type="text"
@@ -228,6 +248,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
                 <th className="px-3 py-2 font-medium">Tipo</th>
+                <th className="px-3 py-2 font-medium">Categoría</th>
                 <th className="px-3 py-2 font-medium">Nombre / Nota</th>
                 <th className="px-3 py-2 font-medium">Concepto</th>
                 <th className="px-3 py-2 font-medium">Colaborador</th>
@@ -265,6 +286,20 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                     <option value="reposicion">Reposición</option>
                   </select>
                 </th>
+                <th className="px-3 py-2">
+                  <select
+                    value={filtros.categoria}
+                    onChange={(e) => setFiltro("categoria", e.target.value)}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todas</option>
+                    {CATEGORIAS_GASTO.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </th>
                 <th className="px-3 py-2" colSpan={3}>
                   <input
                     type="text"
@@ -300,7 +335,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {movimientos.length === 0
@@ -327,6 +362,9 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                           Reposición
                         </span>
                       )}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {m.categoria ?? "—"}
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                       {m.nombre ?? m.nota ?? "—"}
@@ -411,6 +449,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                 <div>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
                     {formatDateOnly(m.fecha)}
+                    {m.categoria ? ` — ${m.categoria}` : ""}
                   </p>
                   <p className="font-medium text-green-900 dark:text-green-50">
                     {m.nombre ?? m.nota ?? "—"}

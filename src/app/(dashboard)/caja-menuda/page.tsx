@@ -11,7 +11,9 @@ export default async function CajaMenudaPage() {
   const [{ data: gastos }, { data: reposiciones }] = await Promise.all([
     supabase
       .from("caja_gastos")
-      .select("id, fecha, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota")
+      .select(
+        "id, fecha, categoria, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
+      )
       .order("fecha", { ascending: false }),
     supabase
       .from("caja_reposiciones")
@@ -24,6 +26,7 @@ export default async function CajaMenudaPage() {
       id: g.id as string,
       tipo: "gasto" as const,
       fecha: g.fecha as string,
+      categoria: g.categoria as string | null,
       monto: g.monto === null ? null : Number(g.monto),
       nombre: g.nombre as string | null,
       concepto: g.concepto as string | null,
@@ -37,6 +40,7 @@ export default async function CajaMenudaPage() {
       id: r.id as string,
       tipo: "reposicion" as const,
       fecha: r.fecha as string,
+      categoria: null,
       monto: Number(r.monto),
       nombre: null,
       concepto: null,
