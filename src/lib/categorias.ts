@@ -12,6 +12,13 @@ export const CATEGORIAS_GASTO = [
   "Taller",
   "Alquiler",
   "Generadores",
+  "Comida Proyecto",
+  "Comida",
+  "Hielo",
+  "Bidones",
+  "Diésel",
+  "Combustible Extra",
+  "Gastos Extras",
   "Otro",
 ] as const;
 
