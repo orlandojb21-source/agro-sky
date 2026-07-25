@@ -143,16 +143,11 @@ export async function crearReposicionAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
-  const monto = detalleDesdeFormData(raw, "monto");
-  if (!monto) {
-    return { error: "Marca al menos un billete o moneda repuesto.", values: raw };
-  }
-
   const supabase = await createClient();
   const { error } = await supabase.from("caja_reposiciones").insert({
     fecha: parsed.data.fecha,
-    monto: monto.total,
-    monto_detalle: monto.detalle,
+    monto: parsed.data.monto,
+    monto_detalle: null,
     nota: parsed.data.nota || null,
     registrado_por: perfil.id,
   });
@@ -175,18 +170,13 @@ export async function editarReposicionAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
-  const monto = detalleDesdeFormData(raw, "monto");
-  if (!monto) {
-    return { error: "Marca al menos un billete o moneda repuesto.", values: raw };
-  }
-
   const supabase = await createClient();
   const { error } = await supabase
     .from("caja_reposiciones")
     .update({
       fecha: parsed.data.fecha,
-      monto: monto.total,
-      monto_detalle: monto.detalle,
+      monto: parsed.data.monto,
+      monto_detalle: null,
       nota: parsed.data.nota || null,
     })
     .eq("id", parsed.data.id);

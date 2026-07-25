@@ -51,10 +51,15 @@ export const gastoEditSchema = gastoSchema.extend({
   id: z.string().uuid(),
 });
 
+// A diferencia de un gasto (donde importa saber exactamente que billetes
+// salen de la caja), una reposicion solo necesita el total -- el desglose
+// por billete/moneda de lo que hay en caja lo determina el arqueo, no cada
+// reposicion. Por eso aqui es un monto simple, no una grilla de
+// denominaciones (ver lib/actions/caja.ts).
 export const reposicionSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
+  monto: z.coerce.number().positive("El monto debe ser mayor a cero"),
   nota: z.string().trim().optional().default(""),
-  ...camposCantidadPorDenominacion("monto"),
 });
 
 export const reposicionEditSchema = reposicionSchema.extend({

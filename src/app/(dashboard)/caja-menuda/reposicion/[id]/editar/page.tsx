@@ -14,7 +14,7 @@ export default async function EditarReposicionPage({
   const supabase = await createClient();
   const { data: reposicion } = await supabase
     .from("caja_reposiciones")
-    .select("id, fecha, monto_detalle, nota")
+    .select("id, fecha, monto, nota")
     .eq("id", id)
     .maybeSingle();
 
@@ -30,7 +30,7 @@ export default async function EditarReposicionPage({
         valoresIniciales={{
           id: reposicion.id,
           fecha: reposicion.fecha,
-          montoDetalle: reposicion.monto_detalle as Record<string, number> | null,
+          monto: Number(reposicion.monto),
           nota: reposicion.nota,
         }}
       />
