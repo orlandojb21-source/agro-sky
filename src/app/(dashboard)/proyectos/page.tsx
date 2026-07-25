@@ -65,11 +65,7 @@ export default async function ProyectosPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Proyectos"
-        description="Informe semanal de costos y ganancia por trabajo. No son ventas ni facturas -- es solo un análisis interno."
-        action={<LinkButton href="/proyectos/nuevo">+ Nuevo informe</LinkButton>}
-      />
+      <PageHeader title="Proyectos" action={<LinkButton href="/proyectos/nuevo">+ Nuevo informe</LinkButton>} />
       <ProyectoInformesTabla informes={informes} />
     </div>
   );
