@@ -172,7 +172,12 @@ export function BalanceDashboard({
   const totalItbms = ventasFiltradas.reduce((suma, v) => suma + v.itbms, 0);
   const totalPlanilla = pagosFiltrados.reduce((suma, p) => suma + p.monto, 0);
 
-  const totalIngresos = totalReposiciones + totalVentas;
+  // Reponer la caja menuda no es un ingreso de la empresa -- es plata que
+  // la empresa ya tenia (banco, ventas, capital del dueno) movida a otro
+  // "bolsillo" interno para gastos del dia a dia. Contarla como ingreso
+  // duplicaria esa plata en el resumen general (ver Ventas como el ingreso
+  // real y Gastos/Planilla como el egreso real).
+  const totalIngresos = totalVentas;
   const totalEgresos = totalGastosCaja + totalPlanilla;
   const gananciaNeta = totalIngresos - totalEgresos;
 
@@ -306,8 +311,9 @@ export function BalanceDashboard({
             </div>
 
             <p className="mt-3 text-xs text-green-700/60 dark:text-green-300/60">
-              Ingresos = Ventas (sin ITBMS) + Reposiciones de Caja Menuda. Egresos = Gastos de Caja
-              Menuda + Planilla.
+              Ingresos = Ventas (sin ITBMS). Egresos = Gastos de Caja Menuda + Planilla. Las
+              reposiciones de Caja Menuda no cuentan aquí porque no son dinero nuevo, es solo un
+              traslado a esa caja (se ven aparte, más abajo).
               {totalItbms > 0
                 ? ` ITBMS cobrado en ventas de este período (no incluido arriba, se le debe al gobierno): ${formatMoney(totalItbms)}.`
                 : ""}
