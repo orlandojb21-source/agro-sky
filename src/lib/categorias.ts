@@ -9,6 +9,9 @@ export const CATEGORIAS_GASTO = [
   "Insumos de Oficina",
   "Insumos de Limpieza",
   "Planilla",
+  "Taller",
+  "Alquiler",
+  "Generadores",
   "Otro",
 ] as const;
 

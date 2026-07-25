@@ -7,5 +7,6 @@ export const NAV: { seccion: Seccion; href: string; label: string }[] = [
   { seccion: "planilla", href: "/planilla", label: "Planilla" },
   { seccion: "ventas", href: "/ventas", label: "Ventas" },
   { seccion: "balance", href: "/balance", label: "Balance" },
+  { seccion: "proyectos", href: "/proyectos", label: "Proyectos" },
   { seccion: "usuarios", href: "/usuarios", label: "Usuarios" },
 ];
