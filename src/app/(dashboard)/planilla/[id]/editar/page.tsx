@@ -12,13 +12,18 @@ export default async function EditarPagoPlanillaPage({
   await requireSection("planilla");
 
   const supabase = await createClient();
-  const { data: pago } = await supabase
-    .from("planilla_pagos")
-    .select("id, colaborador, fecha, descripcion, monto")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: pago }, { data: colaboradoresData }] = await Promise.all([
+    supabase
+      .from("planilla_pagos")
+      .select("id, colaborador, fecha, descripcion, monto")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase.from("colaboradores").select("nombre").order("nombre"),
+  ]);
 
   if (!pago) notFound();
+
+  const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
 
   return (
     <div>
@@ -27,6 +32,7 @@ export default async function EditarPagoPlanillaPage({
       </h1>
       <PagoPlanillaForm
         fechaHoy={pago.fecha}
+        colaboradores={colaboradores}
         valoresIniciales={{
           id: pago.id,
           colaborador: pago.colaborador,

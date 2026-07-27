@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { eliminarPagoAction } from "@/lib/actions/planilla";
-import { COLABORADORES } from "@/lib/planilla";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 
 export type PagoFila = {
@@ -41,6 +40,15 @@ const etiquetaFiltroMovil =
 export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+
+  // El filtro por colaborador se arma con los nombres que realmente
+  // aparecen en los pagos cargados -- no depende de la lista administrable
+  // de colaboradores, asi que sigue funcionando igual aunque alguien borre
+  // un colaborador con pagos historicos.
+  const nombresColaboradores = useMemo(
+    () => Array.from(new Set(pagos.map((p) => p.colaborador))).sort((a, b) => a.localeCompare(b)),
+    [pagos],
+  );
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
     setFiltros((f) => ({ ...f, [campo]: valor }));
@@ -96,7 +104,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
               className={inputFiltroMovil}
             >
               <option value="">Todos</option>
-              {COLABORADORES.map((c) => (
+              {nombresColaboradores.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -171,7 +179,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                     className={inputFiltro}
                   >
                     <option value="">Todos</option>
-                    {COLABORADORES.map((c) => (
+                    {nombresColaboradores.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>

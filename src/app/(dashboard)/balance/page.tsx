@@ -12,7 +12,7 @@ export default async function BalancePage() {
   await requireSection("balance");
 
   const supabase = await createClient();
-  const [{ data: gastos }, { data: reposiciones }, { data: ventasData }, { data: pagosData }] =
+  const [{ data: gastos }, { data: reposiciones }, { data: ventasData }, { data: pagosData }, { data: colaboradoresData }] =
     await Promise.all([
       supabase
         .from("caja_gastos")
@@ -26,6 +26,7 @@ export default async function BalancePage() {
         .select("fecha, subtotal_gravado, subtotal_exento, itbms")
         .order("fecha", { ascending: false }),
       supabase.from("planilla_pagos").select("fecha, colaborador, monto").order("fecha", { ascending: false }),
+      supabase.from("colaboradores").select("nombre").order("nombre"),
     ]);
 
   const movimientos: MovimientoExportable[] = [
@@ -39,7 +40,11 @@ export default async function BalancePage() {
       previsto: g.previsto === null ? null : Number(g.previsto),
       entregado: g.entregado === null ? null : Number(g.entregado),
       vuelto: g.vuelto === null ? null : Number(g.vuelto),
-      monto: Number(g.entregado ?? g.monto ?? 0),
+      // El gasto real es lo entregado menos el vuelto que regreso (ej: se
+      // entrega un billete de $20 para un gasto de $14, vuelven $6 -- el
+      // gasto real es $14, no los $20 entregados). Sin esto, "Egresos" en
+      // Balance quedaba inflado por el total del vuelto sin registrar.
+      monto: Number(g.entregado ?? g.monto ?? 0) - Number(g.vuelto ?? 0),
       nota: g.nota as string | null,
     })),
     ...(reposiciones ?? []).map((r) => ({
@@ -69,13 +74,20 @@ export default async function BalancePage() {
     monto: Number(p.monto),
   }));
 
+  const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
+
   return (
     <div>
       <PageHeader
         title="Balance"
         description="Todo el dinero que entra y sale de Agro Sky: Ventas, Caja Menuda y Planilla. Cuando Compras esté listo, también aparecerá aquí."
       />
-      <BalanceDashboard movimientos={movimientos} ventas={ventas} pagosPlanilla={pagosPlanilla} />
+      <BalanceDashboard
+        movimientos={movimientos}
+        ventas={ventas}
+        pagosPlanilla={pagosPlanilla}
+        colaboradores={colaboradores}
+      />
     </div>
   );
 }

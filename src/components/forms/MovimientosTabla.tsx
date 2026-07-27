@@ -58,7 +58,11 @@ const etiquetaFiltroMovil =
 
 function salidaEfectiva(m: MovimientoFila): number {
   if (m.tipo === "reposicion") return m.monto ?? 0;
-  return m.entregado ?? m.monto ?? 0;
+  // El gasto real es lo entregado menos el vuelto que regreso (ej: se
+  // entrega un billete de $20 para un gasto de $14, vuelven $6 -- lo que
+  // realmente se gasto es $14). Sin restar el vuelto, la columna Monto
+  // mostraba el entregado en bruto, no lo que de verdad salio de la caja.
+  return (m.entregado ?? m.monto ?? 0) - (m.vuelto ?? 0);
 }
 
 function RegistrarVuelto({ id }: { id: string }) {

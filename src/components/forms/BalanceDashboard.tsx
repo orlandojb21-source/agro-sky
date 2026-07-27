@@ -18,7 +18,6 @@ import {
   type MovimientoExportable,
 } from "@/lib/exportar";
 import { formatMoney } from "@/lib/format";
-import { COLABORADORES } from "@/lib/planilla";
 import { CATEGORIAS_GASTO } from "@/lib/categorias";
 
 const COLORES_CATEGORIA = ["#dc2626", "#ea580c", "#ca8a04", "#65a30d", "#0891b2", "#7c3aed"];
@@ -99,10 +98,12 @@ export function BalanceDashboard({
   movimientos,
   ventas,
   pagosPlanilla,
+  colaboradores,
 }: {
   movimientos: MovimientoExportable[];
   ventas: VentaBalance[];
   pagosPlanilla: PagoPlanillaBalance[];
+  colaboradores: string[];
 }) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [desde, setDesde] = useState("");
@@ -181,7 +182,7 @@ export function BalanceDashboard({
   const totalEgresos = totalGastosCaja + totalPlanilla;
   const gananciaNeta = totalIngresos - totalEgresos;
 
-  const totalesPorColaborador = COLABORADORES.map((c) => ({
+  const totalesPorColaborador = colaboradores.map((c) => ({
     nombre: c,
     monto: pagosFiltrados.filter((p) => p.colaborador === c).reduce((suma, p) => suma + p.monto, 0),
   }));

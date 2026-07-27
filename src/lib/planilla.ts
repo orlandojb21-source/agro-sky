@@ -2,19 +2,6 @@ import type { createClient } from "@/lib/supabase/server";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-// Colaboradores de planilla: pagados por dia trabajado, sin cuenta de
-// acceso a la app -- son solo el nombre a quien se le paga. Lista fija por
-// ahora (confirmado con el usuario); si el equipo cambia mas adelante se
-// ajusta aqui y en la migracion 0016 (el check de la columna "colaborador").
-export const COLABORADORES = [
-  "Rafael Monterrey",
-  "David Benavides",
-  "Alberto Villalaz",
-  "Julio Lobo",
-] as const;
-
-export type Colaborador = (typeof COLABORADORES)[number];
-
 // Panama esta siempre en UTC-5 (no tiene horario de verano). El servidor
 // puede correr en cualquier zona horaria (ej. UTC en Vercel), asi que en
 // vez de usar los getters locales de Date (que dependerian de esa zona),
@@ -34,7 +21,7 @@ function aISO(anio: number, mes: number, dia: number): string {
 export type TotalesMes = {
   fechaDesde: string;
   fechaHasta: string;
-  porColaborador: Record<Colaborador, number>;
+  porColaborador: Record<string, number>;
   total: number;
 };
 
@@ -42,8 +29,12 @@ export type TotalesMes = {
 // por colaborador -- la suma quincenal/mensual completa para reportes
 // queda para mas adelante, ya que los datos (fecha + monto por fila) ya
 // quedan guardados para calcularla sin cambios al esquema.
+//
+// "nombresColaboradores" viene de la tabla colaboradores (administrable
+// desde /planilla/colaboradores) en vez de una lista fija en el codigo.
 export async function calcularTotalesMesActual(
   supabase: SupabaseServerClient,
+  nombresColaboradores: string[],
 ): Promise<TotalesMes> {
   const { anio, mes } = hoyEnPanama();
   const fechaDesde = aISO(anio, mes, 1);
@@ -56,13 +47,13 @@ export async function calcularTotalesMesActual(
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
 
-  const porColaborador = Object.fromEntries(
-    COLABORADORES.map((c) => [c, 0]),
-  ) as Record<Colaborador, number>;
+  const porColaborador: Record<string, number> = Object.fromEntries(
+    nombresColaboradores.map((c) => [c, 0]),
+  );
 
   let total = 0;
   for (const fila of data ?? []) {
-    const nombre = fila.colaborador as Colaborador;
+    const nombre = fila.colaborador as string;
     const monto = Number(fila.monto);
     if (nombre in porColaborador) porColaborador[nombre] += monto;
     total += monto;

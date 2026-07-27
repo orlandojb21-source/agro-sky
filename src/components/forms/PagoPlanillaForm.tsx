@@ -2,7 +2,6 @@
 
 import { useActionState, useState } from "react";
 import { crearPagoAction, editarPagoAction } from "@/lib/actions/planilla";
-import { COLABORADORES } from "@/lib/planilla";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -17,9 +16,11 @@ type ValoresPago = {
 
 export function PagoPlanillaForm({
   fechaHoy,
+  colaboradores,
   valoresIniciales,
 }: {
   fechaHoy: string;
+  colaboradores: string[];
   valoresIniciales?: ValoresPago;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -37,6 +38,14 @@ export function PagoPlanillaForm({
 
   const v = state.values;
 
+  // Si se edita un pago de un colaborador que ya se eliminó de la lista
+  // administrable, se agrega igual como opción para no cambiarle el
+  // colaborador sin querer al abrir el formulario.
+  const opciones =
+    valoresIniciales?.colaborador && !colaboradores.includes(valoresIniciales.colaborador)
+      ? [valoresIniciales.colaborador, ...colaboradores]
+      : colaboradores;
+
   return (
     <form
       key={remountKey}
@@ -46,18 +55,27 @@ export function PagoPlanillaForm({
       <FormError message={state.error} />
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
-      <SelectField
-        label="Colaborador"
-        name="colaborador"
-        defaultValue={v?.colaborador ?? valoresIniciales?.colaborador ?? COLABORADORES[0]}
-        required
-      >
-        {COLABORADORES.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </SelectField>
+      {opciones.length === 0 ? (
+        <p className="text-sm text-green-700/70 dark:text-green-300/70">
+          Todavía no hay colaboradores registrados.{" "}
+          <LinkButton href="/planilla/colaboradores" variant="secondary">
+            Agregar colaborador
+          </LinkButton>
+        </p>
+      ) : (
+        <SelectField
+          label="Colaborador"
+          name="colaborador"
+          defaultValue={v?.colaborador ?? valoresIniciales?.colaborador ?? opciones[0]}
+          required
+        >
+          {opciones.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </SelectField>
+      )}
 
       <Field
         label="Fecha"
