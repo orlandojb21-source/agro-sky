@@ -12,10 +12,31 @@ export type PagoFila = {
   fecha: string;
   descripcion: string;
   monto: number;
+  tipoTrabajo: "proyecto" | "taller" | null;
+  jornada: "completo" | "medio" | null;
 };
+
+const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "taller", string> = {
+  proyecto: "Proyecto",
+  taller: "Taller",
+};
+const ETIQUETA_JORNADA: Record<"completo" | "medio", string> = {
+  completo: "Día completo",
+  medio: "Medio día",
+};
+
+function detalleTrabajo(p: PagoFila): string {
+  if (!p.tipoTrabajo && !p.jornada) return "—";
+  const partes = [
+    p.tipoTrabajo ? ETIQUETA_TIPO_TRABAJO[p.tipoTrabajo] : null,
+    p.jornada ? ETIQUETA_JORNADA[p.jornada] : null,
+  ].filter(Boolean);
+  return partes.join(" · ");
+}
 
 type Filtros = {
   colaborador: string;
+  tipoTrabajo: string;
   texto: string;
   fechaDesde: string;
   fechaHasta: string;
@@ -23,6 +44,7 @@ type Filtros = {
 
 const FILTROS_VACIOS: Filtros = {
   colaborador: "",
+  tipoTrabajo: "",
   texto: "",
   fechaDesde: "",
   fechaHasta: "",
@@ -57,6 +79,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
   const filtrados = useMemo(() => {
     return pagos.filter((p) => {
       if (filtros.colaborador && p.colaborador !== filtros.colaborador) return false;
+      if (filtros.tipoTrabajo && p.tipoTrabajo !== filtros.tipoTrabajo) return false;
 
       const texto = filtros.texto.trim().toLowerCase();
       if (texto && !p.descripcion.toLowerCase().includes(texto)) return false;
@@ -112,6 +135,18 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
             </select>
           </label>
           <label className={etiquetaFiltroMovil}>
+            Tipo de trabajo
+            <select
+              value={filtros.tipoTrabajo}
+              onChange={(e) => setFiltro("tipoTrabajo", e.target.value)}
+              className={inputFiltroMovil}
+            >
+              <option value="">Todos</option>
+              <option value="proyecto">Proyecto</option>
+              <option value="taller">Taller</option>
+            </select>
+          </label>
+          <label className={etiquetaFiltroMovil}>
             Buscar en descripción
             <input
               type="text"
@@ -146,11 +181,12 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
       {/* Vista de escritorio: tabla con filtros integrados en el encabezado */}
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-sm">
+          <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
                 <th className="px-3 py-2 font-medium">Colaborador</th>
+                <th className="px-3 py-2 font-medium">Detalle</th>
                 <th className="px-3 py-2 font-medium">Descripción</th>
                 <th className="px-3 py-2 font-medium">Monto</th>
                 <th className="px-3 py-2"></th>
@@ -187,6 +223,17 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                   </select>
                 </th>
                 <th className="px-3 py-2">
+                  <select
+                    value={filtros.tipoTrabajo}
+                    onChange={(e) => setFiltro("tipoTrabajo", e.target.value)}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todos</option>
+                    <option value="proyecto">Proyecto</option>
+                    <option value="taller">Taller</option>
+                  </select>
+                </th>
+                <th className="px-3 py-2">
                   <input
                     type="text"
                     value={filtros.texto}
@@ -203,7 +250,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {pagos.length === 0
@@ -222,6 +269,9 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                       {p.colaborador}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {detalleTrabajo(p)}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {p.descripcion}
@@ -270,6 +320,11 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                   <p className="font-medium text-green-900 dark:text-green-50">
                     {p.colaborador}
                   </p>
+                  {(p.tipoTrabajo || p.jornada) && (
+                    <p className="text-xs text-green-700/70 dark:text-green-300/70">
+                      {detalleTrabajo(p)}
+                    </p>
+                  )}
                   <p className="text-sm text-green-800/80 dark:text-green-200/80">
                     {p.descripcion}
                   </p>

@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { crearColaboradorAction } from "@/lib/actions/colaboradores";
-import { Field } from "@/components/ui/Field";
+import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton } from "@/components/ui/Button";
 
@@ -31,6 +31,12 @@ export function ColaboradorForm() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[200px]">
           <Field label="Nombre del colaborador" name="nombre" defaultValue={state.values?.nombre} required />
+        </div>
+        <div className="min-w-[160px]">
+          <SelectField label="Tipo" name="tipo" defaultValue={state.values?.tipo ?? "campo"} required>
+            <option value="fijo">Fijo (salario quincenal)</option>
+            <option value="campo">Campo (pago por día)</option>
+          </SelectField>
         </div>
         <SubmitButton>+ Agregar colaborador</SubmitButton>
       </div>

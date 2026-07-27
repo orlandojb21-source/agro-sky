@@ -12,15 +12,21 @@ export default async function PlanillaPage() {
   const supabase = await createClient();
   const { data: colaboradoresData } = await supabase
     .from("colaboradores")
-    .select("nombre")
+    .select("nombre, tipo")
     .order("nombre");
-  const nombresColaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
+  const colaboradores = (colaboradoresData ?? []).map((c) => ({
+    nombre: c.nombre as string,
+    tipo: c.tipo as "fijo" | "campo",
+  }));
+  const nombresColaboradores = colaboradores.map((c) => c.nombre);
+  const fijos = colaboradores.filter((c) => c.tipo === "fijo");
+  const campo = colaboradores.filter((c) => c.tipo === "campo");
 
   const [totalesMes, { data }] = await Promise.all([
     calcularTotalesMesActual(supabase, nombresColaboradores),
     supabase
       .from("planilla_pagos")
-      .select("id, colaborador, fecha, descripcion, monto")
+      .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada")
       .order("fecha", { ascending: false }),
   ]);
 
@@ -30,6 +36,8 @@ export default async function PlanillaPage() {
     fecha: p.fecha as string,
     descripcion: p.descripcion as string,
     monto: Number(p.monto),
+    tipoTrabajo: p.tipo_trabajo as "proyecto" | "taller" | null,
+    jornada: p.jornada as "completo" | "medio" | null,
   }));
 
   return (
@@ -38,23 +46,52 @@ export default async function PlanillaPage() {
         <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
           Pagado este mes
         </p>
-        {nombresColaboradores.length === 0 ? (
+        {colaboradores.length === 0 ? (
           <p className="mt-3 text-sm text-green-700/70 dark:text-green-300/70">
             Todavía no hay colaboradores registrados.
           </p>
         ) : (
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {nombresColaboradores.map((c) => (
-              <div
-                key={c}
-                className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 dark:border-green-900/40 dark:bg-green-950/20"
-              >
-                <p className="text-xs text-green-700/70 dark:text-green-300/70">{c}</p>
-                <p className="text-lg font-semibold text-green-900 dark:text-green-50">
-                  {formatMoney(totalesMes.porColaborador[c] ?? 0)}
+          <div className="mt-3 flex flex-col gap-4">
+            {fijos.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                  Fijos
                 </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {fijos.map((c) => (
+                    <div
+                      key={c.nombre}
+                      className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 dark:border-green-900/40 dark:bg-green-950/20"
+                    >
+                      <p className="text-xs text-green-700/70 dark:text-green-300/70">{c.nombre}</p>
+                      <p className="text-lg font-semibold text-green-900 dark:text-green-50">
+                        {formatMoney(totalesMes.porColaborador[c.nombre] ?? 0)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
+            {campo.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                  Campo
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {campo.map((c) => (
+                    <div
+                      key={c.nombre}
+                      className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 dark:border-green-900/40 dark:bg-green-950/20"
+                    >
+                      <p className="text-xs text-green-700/70 dark:text-green-300/70">{c.nombre}</p>
+                      <p className="text-lg font-semibold text-green-900 dark:text-green-50">
+                        {formatMoney(totalesMes.porColaborador[c.nombre] ?? 0)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         <div className="mt-3 inline-block rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-center dark:border-blue-900/40 dark:bg-blue-950/20">

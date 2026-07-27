@@ -28,6 +28,7 @@ export async function crearColaboradorAction(
   const supabase = await createClient();
   const { error } = await supabase.from("colaboradores").insert({
     nombre: parsed.data.nombre,
+    tipo: parsed.data.tipo,
     registrado_por: perfil.id,
   });
 

@@ -25,6 +25,8 @@ export async function crearPagoAction(
     fecha: parsed.data.fecha,
     descripcion: parsed.data.descripcion,
     monto: parsed.data.monto,
+    tipo_trabajo: parsed.data.tipoTrabajo || null,
+    jornada: parsed.data.jornada || null,
     // Todo pago de planilla es, por definicion, categoria "Planilla" -- no
     // hace falta que el usuario la elija (a diferencia de Caja Menuda,
     // donde un gasto si puede ser de varios tipos).
@@ -58,6 +60,8 @@ export async function editarPagoAction(
       fecha: parsed.data.fecha,
       descripcion: parsed.data.descripcion,
       monto: parsed.data.monto,
+      tipo_trabajo: parsed.data.tipoTrabajo || null,
+      jornada: parsed.data.jornada || null,
     })
     .eq("id", parsed.data.id);
 

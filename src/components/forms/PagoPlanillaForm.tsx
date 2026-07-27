@@ -1,10 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { crearPagoAction, editarPagoAction } from "@/lib/actions/planilla";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
+
+export type ColaboradorOpcion = { nombre: string; tipo: "fijo" | "campo" };
 
 type ValoresPago = {
   id?: string;
@@ -12,6 +14,8 @@ type ValoresPago = {
   fecha: string;
   descripcion: string;
   monto: number;
+  tipoTrabajo?: "proyecto" | "taller" | null;
+  jornada?: "completo" | "medio" | null;
 };
 
 export function PagoPlanillaForm({
@@ -20,7 +24,7 @@ export function PagoPlanillaForm({
   valoresIniciales,
 }: {
   fechaHoy: string;
-  colaboradores: string[];
+  colaboradores: ColaboradorOpcion[];
   valoresIniciales?: ValoresPago;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -31,20 +35,36 @@ export function PagoPlanillaForm({
 
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
-  if (state !== prevState) {
-    setPrevState(state);
-    setRemountKey((k) => k + 1);
-  }
 
   const v = state.values;
 
   // Si se edita un pago de un colaborador que ya se eliminó de la lista
   // administrable, se agrega igual como opción para no cambiarle el
-  // colaborador sin querer al abrir el formulario.
-  const opciones =
-    valoresIniciales?.colaborador && !colaboradores.includes(valoresIniciales.colaborador)
-      ? [valoresIniciales.colaborador, ...colaboradores]
-      : colaboradores;
+  // colaborador sin querer al abrir el formulario -- su tipo se infiere de
+  // si el pago ya tenía tipoTrabajo/jornada guardados (campo) o no (fijo).
+  const opciones: ColaboradorOpcion[] = useMemo(() => {
+    if (
+      valoresIniciales?.colaborador &&
+      !colaboradores.some((c) => c.nombre === valoresIniciales.colaborador)
+    ) {
+      const tipoInferido: ColaboradorOpcion["tipo"] =
+        valoresIniciales.tipoTrabajo || valoresIniciales.jornada ? "campo" : "fijo";
+      return [{ nombre: valoresIniciales.colaborador, tipo: tipoInferido }, ...colaboradores];
+    }
+    return colaboradores;
+  }, [colaboradores, valoresIniciales]);
+
+  const colaboradorInicial = v?.colaborador ?? valoresIniciales?.colaborador ?? opciones[0]?.nombre ?? "";
+  const [colaboradorSeleccionado, setColaboradorSeleccionado] = useState(colaboradorInicial);
+
+  if (state !== prevState) {
+    setPrevState(state);
+    setRemountKey((k) => k + 1);
+    setColaboradorSeleccionado(colaboradorInicial);
+  }
+
+  const tipoSeleccionado = opciones.find((c) => c.nombre === colaboradorSeleccionado)?.tipo;
+  const esCampo = tipoSeleccionado === "campo";
 
   return (
     <form
@@ -66,12 +86,13 @@ export function PagoPlanillaForm({
         <SelectField
           label="Colaborador"
           name="colaborador"
-          defaultValue={v?.colaborador ?? valoresIniciales?.colaborador ?? opciones[0]}
+          defaultValue={colaboradorInicial}
+          onChange={(e) => setColaboradorSeleccionado(e.target.value)}
           required
         >
           {opciones.map((c) => (
-            <option key={c} value={c}>
-              {c}
+            <option key={c.nombre} value={c.nombre}>
+              {c.nombre} — {c.tipo === "fijo" ? "Fijo" : "Campo"}
             </option>
           ))}
         </SelectField>
@@ -85,11 +106,34 @@ export function PagoPlanillaForm({
         required
       />
 
+      {esCampo && (
+        <div className="grid grid-cols-2 gap-4">
+          <SelectField
+            label="Tipo de trabajo"
+            name="tipoTrabajo"
+            defaultValue={v?.tipoTrabajo ?? valoresIniciales?.tipoTrabajo ?? "proyecto"}
+            required
+          >
+            <option value="proyecto">Proyecto</option>
+            <option value="taller">Taller</option>
+          </SelectField>
+          <SelectField
+            label="Jornada"
+            name="jornada"
+            defaultValue={v?.jornada ?? valoresIniciales?.jornada ?? "completo"}
+            required
+          >
+            <option value="completo">Día completo</option>
+            <option value="medio">Medio día</option>
+          </SelectField>
+        </div>
+      )}
+
       <Field
         label="Descripción"
         name="descripcion"
         defaultValue={v?.descripcion ?? valoresIniciales?.descripcion ?? undefined}
-        placeholder="Ej: Día completo, proyecto Finca La Loma"
+        placeholder="Ej: Salario quincenal, riego finca La Loma..."
         required
       />
 

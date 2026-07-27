@@ -58,12 +58,14 @@ export function SelectField({
   children,
   defaultValue,
   required,
+  onChange,
 }: {
   label: string;
   name: string;
   children: React.ReactNode;
   defaultValue?: string;
   required?: boolean;
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
@@ -72,6 +74,7 @@ export function SelectField({
         name={name}
         defaultValue={defaultValue}
         required={required}
+        onChange={onChange}
         className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
       >
         {children}

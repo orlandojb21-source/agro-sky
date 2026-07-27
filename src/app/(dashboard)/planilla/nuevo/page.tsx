@@ -6,8 +6,11 @@ export default async function NuevoPagoPlanillaPage() {
   await requireSection("planilla");
 
   const supabase = await createClient();
-  const { data } = await supabase.from("colaboradores").select("nombre").order("nombre");
-  const colaboradores = (data ?? []).map((c) => c.nombre as string);
+  const { data } = await supabase.from("colaboradores").select("nombre, tipo").order("nombre");
+  const colaboradores = (data ?? []).map((c) => ({
+    nombre: c.nombre as string,
+    tipo: c.tipo as "fijo" | "campo",
+  }));
 
   return (
     <div>
