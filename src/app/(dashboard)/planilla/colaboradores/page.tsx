@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -5,13 +6,16 @@ import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { ColaboradorForm } from "@/components/forms/ColaboradorForm";
 import { eliminarColaboradorAction } from "@/lib/actions/colaboradores";
+import { formatMoney } from "@/lib/format";
+
+type ColaboradorFila = { id: string; nombre: string; salario: number | null };
 
 function ListaColaboradores({
   titulo,
   colaboradores,
 }: {
   titulo: string;
-  colaboradores: { id: string; nombre: string }[];
+  colaboradores: ColaboradorFila[];
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -27,11 +31,26 @@ function ListaColaboradores({
           <ul className="divide-y divide-green-50 dark:divide-green-900/30">
             {colaboradores.map((c) => (
               <li key={c.id} className="flex items-center justify-between px-4 py-3">
-                <span className="font-medium text-green-900 dark:text-green-50">{c.nombre}</span>
-                <DeleteButton
-                  action={eliminarColaboradorAction.bind(null, c.id)}
-                  confirmMessage={`¿Eliminar a ${c.nombre}? Los pagos ya registrados a su nombre no se ven afectados, pero dejará de aparecer para registrar pagos nuevos.`}
-                />
+                <div>
+                  <span className="font-medium text-green-900 dark:text-green-50">{c.nombre}</span>
+                  {c.salario !== null && (
+                    <span className="ml-2 text-sm text-green-700/70 dark:text-green-300/70">
+                      {formatMoney(c.salario)} quincenal
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Link
+                    href={`/planilla/colaboradores/${c.id}/editar`}
+                    className="text-sm text-green-700 hover:underline dark:text-green-300"
+                  >
+                    Editar
+                  </Link>
+                  <DeleteButton
+                    action={eliminarColaboradorAction.bind(null, c.id)}
+                    confirmMessage={`¿Eliminar a ${c.nombre}? Los pagos ya registrados a su nombre no se ven afectados, pero dejará de aparecer para registrar pagos nuevos.`}
+                  />
+                </div>
               </li>
             ))}
           </ul>
@@ -47,10 +66,15 @@ export default async function ColaboradoresPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("colaboradores")
-    .select("id, nombre, tipo")
+    .select("id, nombre, tipo, salario")
     .order("nombre");
 
-  const colaboradores = data ?? [];
+  const colaboradores = (data ?? []).map((c) => ({
+    id: c.id as string,
+    nombre: c.nombre as string,
+    tipo: c.tipo as "fijo" | "campo",
+    salario: c.salario === null ? null : Number(c.salario),
+  }));
   const fijos = colaboradores.filter((c) => c.tipo === "fijo");
   const campo = colaboradores.filter((c) => c.tipo === "campo");
 

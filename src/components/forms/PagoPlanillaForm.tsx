@@ -6,7 +6,7 @@ import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 
-export type ColaboradorOpcion = { nombre: string; tipo: "fijo" | "campo" };
+export type ColaboradorOpcion = { nombre: string; tipo: "fijo" | "campo"; salario: number | null };
 
 type ValoresPago = {
   id?: string;
@@ -49,7 +49,10 @@ export function PagoPlanillaForm({
     ) {
       const tipoInferido: ColaboradorOpcion["tipo"] =
         valoresIniciales.tipoTrabajo || valoresIniciales.jornada ? "campo" : "fijo";
-      return [{ nombre: valoresIniciales.colaborador, tipo: tipoInferido }, ...colaboradores];
+      return [
+        { nombre: valoresIniciales.colaborador, tipo: tipoInferido, salario: null },
+        ...colaboradores,
+      ];
     }
     return colaboradores;
   }, [colaboradores, valoresIniciales]);
@@ -63,8 +66,12 @@ export function PagoPlanillaForm({
     setColaboradorSeleccionado(colaboradorInicial);
   }
 
-  const tipoSeleccionado = opciones.find((c) => c.nombre === colaboradorSeleccionado)?.tipo;
-  const esCampo = tipoSeleccionado === "campo";
+  const colaboradorActual = opciones.find((c) => c.nombre === colaboradorSeleccionado);
+  const esCampo = colaboradorActual?.tipo === "campo";
+  // El salario solo se sugiere al crear un pago nuevo -- al editar uno ya
+  // existente se respeta siempre el monto histórico, aunque se cambie el
+  // colaborador, para no pisar un ajuste que ya se hizo a mano.
+  const montoSugerido = !esEdicion && colaboradorActual?.tipo === "fijo" ? colaboradorActual.salario : null;
 
   return (
     <form
@@ -138,12 +145,13 @@ export function PagoPlanillaForm({
       />
 
       <Field
+        key={`monto-${colaboradorSeleccionado}`}
         label="Monto pagado (USD)"
         name="monto"
         type="number"
         min={0}
         step="0.01"
-        defaultValue={v?.monto ?? valoresIniciales?.monto ?? undefined}
+        defaultValue={v?.monto ?? valoresIniciales?.monto ?? montoSugerido ?? undefined}
         required
       />
 

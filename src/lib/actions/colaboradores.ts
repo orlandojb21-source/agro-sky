@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requirePerfil } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { colaboradorSchema } from "@/lib/validation/colaboradores";
+import { colaboradorSchema, colaboradorEditSchema } from "@/lib/validation/colaboradores";
 import type { ActionState } from "./types";
 
 function mensajeError(error: { code?: string }): string {
@@ -29,6 +30,7 @@ export async function crearColaboradorAction(
   const { error } = await supabase.from("colaboradores").insert({
     nombre: parsed.data.nombre,
     tipo: parsed.data.tipo,
+    salario: parsed.data.tipo === "fijo" ? Number(parsed.data.salario) : null,
     registrado_por: perfil.id,
   });
 
@@ -37,6 +39,35 @@ export async function crearColaboradorAction(
   revalidatePath("/planilla/colaboradores");
   revalidatePath("/planilla");
   return { error: null, success: true };
+}
+
+export async function editarColaboradorAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requirePerfil();
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+
+  const parsed = colaboradorEditSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("colaboradores")
+    .update({
+      nombre: parsed.data.nombre,
+      tipo: parsed.data.tipo,
+      salario: parsed.data.tipo === "fijo" ? Number(parsed.data.salario) : null,
+    })
+    .eq("id", parsed.data.id);
+
+  if (error) return { error: mensajeError(error), values: raw };
+
+  revalidatePath("/planilla/colaboradores");
+  revalidatePath("/planilla");
+  redirect("/planilla/colaboradores");
 }
 
 export async function eliminarColaboradorAction(id: string) {
