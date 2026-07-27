@@ -53,7 +53,6 @@ export function ProductoForm({
   }
 
   const v = state.values;
-  const numeroParte = v?.numeroParte ?? valoresIniciales?.numeroParte;
   const descripcion = v?.descripcion ?? valoresIniciales?.descripcion;
   const cantidad = v?.cantidad ?? valoresIniciales?.cantidad ?? 0;
   const costo = v?.costo ?? valoresIniciales?.costo ?? 0;
@@ -78,18 +77,25 @@ export function ProductoForm({
       )}
 
       {!esEdicion && (
-        <SelectField label="Sección" name="tipo" defaultValue={tipoSeleccionado}>
-          <option value="nuevo">Nuevo</option>
-          <option value="usado">Usado</option>
-        </SelectField>
+        <>
+          <SelectField label="Sección" name="tipo" defaultValue={tipoSeleccionado}>
+            <option value="nuevo">Nuevo</option>
+            <option value="usado">Usado</option>
+          </SelectField>
+          <p className="-mt-2 text-xs text-green-700/60 dark:text-green-300/60">
+            El número de parte se asigna automáticamente al guardar.
+          </p>
+        </>
       )}
 
-      <Field
-        label="Número de parte"
-        name="numeroParte"
-        defaultValue={numeroParte}
-        required
-      />
+      {esEdicion && (
+        <div className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+          Número de parte
+          <p className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 text-green-800/80 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-200/80">
+            {valoresIniciales?.numeroParte}
+          </p>
+        </div>
+      )}
       <Field
         label="Descripción"
         name="descripcion"

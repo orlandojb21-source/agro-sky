@@ -21,7 +21,6 @@ export async function crearServicioAction(
 
   const supabase = await createClient();
   const { error } = await supabase.from("servicios").insert({
-    nombre: parsed.data.nombre,
     descripcion: parsed.data.descripcion || null,
     costo: parsed.data.costo,
     precio: parsed.data.precio,
@@ -51,7 +50,6 @@ export async function actualizarServicioAction(
   const { error } = await supabase
     .from("servicios")
     .update({
-      nombre: parsed.data.nombre,
       descripcion: parsed.data.descripcion || null,
       costo: parsed.data.costo,
       precio: parsed.data.precio,

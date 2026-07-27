@@ -18,6 +18,7 @@ type ValoresMovimiento = {
   fecha: string;
   categoria: string | null;
   nombre: string | null;
+  numeroRecibo: string | null;
   concepto: string | null;
   montoDetalle: Record<string, number> | null;
   colaborador: string | null;
@@ -40,9 +41,11 @@ function detalleAValoresIniciales(
 
 export function MovimientoForm({
   fechaHoy,
+  colaboradores,
   valoresIniciales,
 }: {
   fechaHoy: string;
+  colaboradores: string[];
   valoresIniciales?: ValoresMovimiento;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -63,6 +66,14 @@ export function MovimientoForm({
   const montoIniciales = v ?? detalleAValoresIniciales("monto", valoresIniciales?.montoDetalle);
   const entregadoIniciales = v ?? detalleAValoresIniciales("entregado", valoresIniciales?.entregadoDetalle);
   const vueltoIniciales = v ?? detalleAValoresIniciales("vuelto", valoresIniciales?.vueltoDetalle);
+
+  // Si se edita un gasto de un colaborador que ya se eliminó de la lista
+  // administrable de Planilla, se agrega igual como opción para no cambiar
+  // el nombre sin querer al abrir el formulario.
+  const opcionesNombre =
+    valoresIniciales?.nombre && !colaboradores.includes(valoresIniciales.nombre)
+      ? [valoresIniciales.nombre, ...colaboradores]
+      : colaboradores;
 
   return (
     <form
@@ -97,10 +108,23 @@ export function MovimientoForm({
       <p className="text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
         Gasto (opcional)
       </p>
-      <Field
+      <SelectField
         label="Nombre (a quién se le entregó el dinero)"
         name="nombre"
-        defaultValue={v?.nombre ?? valoresIniciales?.nombre ?? undefined}
+        defaultValue={v?.nombre ?? valoresIniciales?.nombre ?? ""}
+      >
+        <option value="">Selecciona...</option>
+        {opcionesNombre.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </SelectField>
+      <Field
+        label="# de recibo"
+        name="numeroRecibo"
+        defaultValue={v?.numeroRecibo ?? valoresIniciales?.numeroRecibo ?? undefined}
+        placeholder="Ej: 0123"
       />
       <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
         Concepto

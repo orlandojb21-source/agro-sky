@@ -326,6 +326,7 @@ export type MovimientoExportable = {
   tipo: "gasto" | "reposicion";
   categoria: string | null;
   nombre: string | null;
+  numeroRecibo: string | null;
   concepto: string | null;
   colaborador: string | null;
   previsto: number | null;
@@ -344,6 +345,7 @@ export async function exportarMovimientosExcel(filas: MovimientoExportable[], no
     { header: "Tipo", key: "tipo", width: 12 },
     { header: "Categoría", key: "categoria", width: 18 },
     { header: "Nombre / Nota", key: "nombre", width: 25 },
+    { header: "# Recibo", key: "numeroRecibo", width: 14 },
     { header: "Concepto", key: "concepto", width: 18 },
     { header: "Colaborador", key: "colaborador", width: 18 },
     { header: "Previsto", key: "previsto", width: 12 },
@@ -359,6 +361,7 @@ export async function exportarMovimientosExcel(filas: MovimientoExportable[], no
       tipo: f.tipo === "gasto" ? "Gasto" : "Reposición",
       categoria: celdaSegura(f.categoria ?? ""),
       nombre: celdaSegura(f.nombre ?? f.nota ?? ""),
+      numeroRecibo: celdaSegura(f.numeroRecibo ?? ""),
       concepto: celdaSegura(f.concepto ?? ""),
       colaborador: celdaSegura(f.colaborador ?? ""),
       previsto: f.previsto ?? "",
@@ -405,6 +408,7 @@ export async function exportarMovimientosPDF(
         "Tipo",
         "Categoría",
         "Nombre / Nota",
+        "# Recibo",
         "Concepto",
         "Colaborador",
         "Previsto",
@@ -418,6 +422,7 @@ export async function exportarMovimientosPDF(
       f.tipo === "gasto" ? "Gasto" : "Reposición",
       f.categoria ?? "",
       f.nombre ?? f.nota ?? "",
+      f.numeroRecibo ?? "",
       f.concepto ?? "",
       f.colaborador ?? "",
       f.previsto !== null ? formatMoney(f.previsto) : "",

@@ -12,8 +12,10 @@ function numeroOpcionalNoNegativo(mensaje: string) {
     .refine((v) => v === null || (!Number.isNaN(v) && v >= 0), mensaje);
 }
 
+// El código (columna "nombre") ya no lo escribe el usuario -- se genera
+// solo (ASPS-001) con un trigger en la base de datos al insertar (ver
+// migracion 0025). No forma parte de este schema.
 export const servicioSchema = z.object({
-  nombre: z.string().trim().min(1, "Nombre requerido"),
   descripcion: z.string().trim().optional().default(""),
   costo: numeroOpcionalNoNegativo("El costo no puede ser negativo"),
   precio: numeroOpcionalNoNegativo("El precio no puede ser negativo"),

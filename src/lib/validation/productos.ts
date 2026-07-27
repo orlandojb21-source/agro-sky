@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+// El numero de parte ya no lo escribe el usuario -- se genera solo
+// (ASPN-0001 / ASPU-0001) con un trigger en la base de datos al insertar
+// (ver migracion 0025). No forma parte de este schema.
 export const productoCreateSchema = z.object({
   tipo: z.enum(["nuevo", "usado"]),
-  numeroParte: z.string().trim().min(1, "Número de parte requerido"),
   descripcion: z.string().trim().min(1, "Descripción requerida"),
   cantidad: z.coerce
     .number()

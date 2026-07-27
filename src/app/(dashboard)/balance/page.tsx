@@ -17,7 +17,7 @@ export default async function BalancePage() {
       supabase
         .from("caja_gastos")
         .select(
-          "fecha, categoria, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
+          "fecha, categoria, nombre, numero_recibo, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
         )
         .order("fecha", { ascending: false }),
       supabase.from("caja_reposiciones").select("fecha, monto, nota").order("fecha", { ascending: false }),
@@ -35,6 +35,7 @@ export default async function BalancePage() {
       tipo: "gasto" as const,
       categoria: g.categoria as string | null,
       nombre: g.nombre as string | null,
+      numeroRecibo: g.numero_recibo as string | null,
       concepto: g.concepto as string | null,
       colaborador: g.colaborador as string | null,
       previsto: g.previsto === null ? null : Number(g.previsto),
@@ -52,6 +53,7 @@ export default async function BalancePage() {
       tipo: "reposicion" as const,
       categoria: null,
       nombre: null,
+      numeroRecibo: null,
       concepto: null,
       colaborador: null,
       previsto: null,

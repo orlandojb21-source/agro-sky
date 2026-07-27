@@ -12,7 +12,7 @@ export default async function CajaMenudaPage() {
     supabase
       .from("caja_gastos")
       .select(
-        "id, fecha, categoria, nombre, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
+        "id, fecha, categoria, nombre, numero_recibo, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
       )
       .order("fecha", { ascending: false }),
     supabase
@@ -29,6 +29,7 @@ export default async function CajaMenudaPage() {
       categoria: g.categoria as string | null,
       monto: g.monto === null ? null : Number(g.monto),
       nombre: g.nombre as string | null,
+      numeroRecibo: g.numero_recibo as string | null,
       concepto: g.concepto as string | null,
       colaborador: g.colaborador as string | null,
       previsto: g.previsto === null ? null : Number(g.previsto),
@@ -43,6 +44,7 @@ export default async function CajaMenudaPage() {
       categoria: null,
       monto: Number(r.monto),
       nombre: null,
+      numeroRecibo: null,
       concepto: null,
       colaborador: null,
       previsto: null,

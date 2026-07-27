@@ -38,6 +38,7 @@ export const gastoSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
   categoria: z.enum(CATEGORIAS_GASTO, { message: "Selecciona una categoría" }),
   nombre: z.string().trim().optional().default(""),
+  numeroRecibo: z.string().trim().optional().default(""),
   concepto: z.string().trim().optional().default(""),
   colaborador: z.string().trim().optional().default(""),
   previsto: numeroOpcionalPositivo("El previsto debe ser mayor a cero"),

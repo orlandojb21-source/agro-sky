@@ -32,7 +32,8 @@ export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   compras: ["administrador", "jefe", "soporte"],
   planilla: ["administrador", "jefe", "soporte"],
   ventas: ["administrador", "jefe", "soporte"],
-  balance: ["administrador", "jefe", "soporte"],
+  // Administrador ya no ve Balance -- pedido explicito del usuario.
+  balance: ["jefe", "soporte"],
   proyectos: ["administrador", "jefe", "soporte"],
   usuarios: ["soporte", "jefe"],
 };

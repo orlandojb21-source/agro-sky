@@ -42,12 +42,18 @@ export function ServicioForm({ valoresIniciales }: { valoresIniciales?: ValoresS
       <FormError message={state.error} />
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
-      <Field
-        label="Código"
-        name="nombre"
-        defaultValue={v?.nombre ?? valoresIniciales?.nombre ?? undefined}
-        required
-      />
+      {esEdicion ? (
+        <div className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+          Código
+          <p className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 text-green-800/80 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-200/80">
+            {valoresIniciales?.nombre}
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs text-green-700/60 dark:text-green-300/60">
+          El código se asigna automáticamente al guardar.
+        </p>
+      )}
 
       <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
         Descripción

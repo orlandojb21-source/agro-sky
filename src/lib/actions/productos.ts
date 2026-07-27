@@ -36,7 +36,6 @@ export async function crearProductoAction(
   const supabase = await createClient();
   const { error } = await supabase.from("productos").insert({
     tipo: parsed.data.tipo,
-    numero_parte: parsed.data.numeroParte,
     descripcion: parsed.data.descripcion,
     cantidad: parsed.data.cantidad,
     costo: parsed.data.costo,
@@ -74,7 +73,6 @@ export async function actualizarProductoAction(
   const { error } = await supabase
     .from("productos")
     .update({
-      numero_parte: parsed.data.numeroParte,
       descripcion: parsed.data.descripcion,
       cantidad: parsed.data.cantidad,
       costo: parsed.data.costo,

@@ -19,6 +19,7 @@ export type MovimientoFila = {
   categoria: string | null;
   monto: number | null;
   nombre: string | null;
+  numeroRecibo: string | null;
   concepto: string | null;
   colaborador: string | null;
   previsto: number | null;
@@ -119,7 +120,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
 
       const texto = filtros.texto.trim().toLowerCase();
       if (texto) {
-        const campos = [m.nombre, m.concepto, m.colaborador, m.nota]
+        const campos = [m.nombre, m.numeroRecibo, m.concepto, m.colaborador, m.nota]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
@@ -254,6 +255,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                 <th className="px-3 py-2 font-medium">Tipo</th>
                 <th className="px-3 py-2 font-medium">Categoría</th>
                 <th className="px-3 py-2 font-medium">Nombre / Nota</th>
+                <th className="px-3 py-2 font-medium"># Recibo</th>
                 <th className="px-3 py-2 font-medium">Concepto</th>
                 <th className="px-3 py-2 font-medium">Colaborador</th>
                 <th className="px-3 py-2 font-medium">Previsto</th>
@@ -304,7 +306,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                     ))}
                   </select>
                 </th>
-                <th className="px-3 py-2" colSpan={3}>
+                <th className="px-3 py-2" colSpan={4}>
                   <input
                     type="text"
                     value={filtros.texto}
@@ -339,7 +341,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {movimientos.length === 0
@@ -372,6 +374,9 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                       {m.nombre ?? m.nota ?? "—"}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {m.numeroRecibo ?? "—"}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {m.concepto ?? "—"}
@@ -482,8 +487,16 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                 </div>
               </div>
 
-              {(m.concepto || m.colaborador || m.previsto !== null || m.entregado !== null) && (
+              {(m.concepto || m.numeroRecibo || m.colaborador || m.previsto !== null || m.entregado !== null) && (
                 <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                  {m.numeroRecibo && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
+                        # Recibo
+                      </p>
+                      <p className="text-green-900 dark:text-green-50">{m.numeroRecibo}</p>
+                    </div>
+                  )}
                   {m.concepto && (
                     <div>
                       <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
