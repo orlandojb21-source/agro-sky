@@ -11,6 +11,7 @@ export const ROL_LABEL: Record<Rol, string> = {
 /** Secciones de navegacion, usadas tanto por el layout (gating) como por el menu. */
 export type Seccion =
   | "inventario"
+  | "mantenimiento"
   | "caja-menuda"
   | "compras"
   | "planilla"
@@ -26,6 +27,7 @@ export type Seccion =
 // politica RLS equivalente en Supabase).
 export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   inventario: ["administrador", "jefe", "soporte"],
+  mantenimiento: ["administrador", "jefe", "soporte"],
   "caja-menuda": ["administrador", "jefe", "soporte"],
   compras: ["administrador", "jefe", "soporte"],
   planilla: ["administrador", "jefe", "soporte"],
