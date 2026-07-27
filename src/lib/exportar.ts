@@ -321,6 +321,81 @@ export async function exportarFacturaPDF(factura: FacturaExportable) {
   doc.save(`agro-sky-factura-${String(factura.numeroFactura).padStart(4, "0")}.pdf`);
 }
 
+export type OrdenCompraItemExportable = {
+  codigo: string;
+  descripcion: string;
+  cantidad: number;
+};
+
+export type OrdenCompraExportable = {
+  numeroOrden: number;
+  fecha: string;
+  proveedorNombre: string;
+  proveedorContacto: string | null;
+  items: OrdenCompraItemExportable[];
+};
+
+// Orden de Compra en el mismo formato carta vertical que la Factura, pero
+// con los datos del proveedor en vez del cliente y sin precios/totales --
+// es una lista de lo que se le pide al proveedor, no un documento de cobro.
+export async function exportarOrdenCompraPDF(orden: OrdenCompraExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Orden de Compra No. ${String(orden.numeroOrden).padStart(4, "0")}`, 14, 20);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let yProveedor = 30;
+  for (const linea of [
+    `Fecha: ${formatDateOnly(orden.fecha)}`,
+    `Proveedor: ${orden.proveedorNombre}`,
+    `Contacto: ${orden.proveedorContacto ?? "—"}`,
+  ]) {
+    doc.text(linea, 14, yProveedor);
+    yProveedor += 6;
+  }
+
+  const startY = Math.max(yProveedor, yEmpresa) + 6;
+
+  autoTable(doc, {
+    startY,
+    head: [["Código", "Descripción", "Cantidad"]],
+    body: orden.items.map((it) => [it.codigo, it.descripcion, String(it.cantidad)]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [21, 128, 61] },
+  });
+
+  doc.save(`agro-sky-orden-compra-${String(orden.numeroOrden).padStart(4, "0")}.pdf`);
+}
+
 export type MovimientoExportable = {
   fecha: string;
   tipo: "gasto" | "reposicion";
