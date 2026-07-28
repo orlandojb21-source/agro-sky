@@ -759,14 +759,16 @@ export async function exportarInformeProyectoExcel(informe: InformeProyectoExpor
   );
 }
 
-// Talonario de pago de un colaborador Fijo: salario bruto menos las
-// deducciones legales de Panama (CSS, Seguro Educativo) -- ambas siempre
-// llegan aqui ya resueltas a un numero (0 si no se registraron para ese
-// pago), el neto se calcula aqui mismo, nunca se guarda en la base de datos.
+// Talonario de pago de un colaborador Fijo: salario bruto + bonificacion
+// (si tiene) menos las deducciones legales de Panama (CSS, Seguro
+// Educativo -- la bonificacion nunca las lleva). Todos los montos llegan
+// aqui ya resueltos a un numero (0 si no se registraron para ese pago), el
+// neto se calcula aqui mismo, nunca se guarda en la base de datos.
 export type TalonarioExportable = {
   colaboradorNombre: string;
   fecha: string;
   salarioBruto: number;
+  bonificacion: number;
   css: number;
   seguroEducativo: number;
 };
@@ -816,19 +818,23 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
   }
 
   const totalDeducciones = talonario.css + talonario.seguroEducativo;
-  const neto = talonario.salarioBruto - totalDeducciones;
+  const neto = talonario.salarioBruto + talonario.bonificacion - totalDeducciones;
 
   const startY = Math.max(yColaborador, yEmpresa) + 6;
   const anchoResumen = 90;
   const xEtiqueta = margenDerecho - anchoResumen;
   let y = startY;
   doc.setFontSize(10);
-  for (const [etiqueta, valor, negrita] of [
-    ["Salario bruto", formatMoney(talonario.salarioBruto), false],
+  const filas: [string, string, boolean][] = [["Salario bruto", formatMoney(talonario.salarioBruto), false]];
+  if (talonario.bonificacion > 0) {
+    filas.push(["Bonificación", formatMoney(talonario.bonificacion), false]);
+  }
+  filas.push(
     ["CSS", `-${formatMoney(talonario.css)}`, false],
     ["Seguro Educativo", `-${formatMoney(talonario.seguroEducativo)}`, false],
     ["Total deducciones", `-${formatMoney(totalDeducciones)}`, false],
-  ] as const) {
+  );
+  for (const [etiqueta, valor, negrita] of filas) {
     doc.setFont("helvetica", negrita ? "bold" : "normal");
     doc.text(etiqueta, xEtiqueta, y);
     doc.text(valor, margenDerecho, y, { align: "right" });

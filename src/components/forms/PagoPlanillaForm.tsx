@@ -31,6 +31,7 @@ type ValoresPago = {
   jornada?: "completo" | "medio" | null;
   css?: number | null;
   seguroEducativo?: number | null;
+  bonificacion?: number | null;
 };
 
 function calcularDeduccion(montoTexto: string, tasa: number): string {
@@ -227,6 +228,18 @@ export function PagoPlanillaForm({
         onChange={(e) => cambiarMonto(e.target.value)}
         required
       />
+
+      {esFijo && (
+        <Field
+          key={`bonificacion-${colaboradorSeleccionado}`}
+          label="Bonificación (USD, opcional — no aplica CSS ni Seguro Educativo)"
+          name="bonificacion"
+          type="number"
+          min={0}
+          step="0.01"
+          defaultValue={v?.bonificacion ?? valoresIniciales?.bonificacion ?? undefined}
+        />
+      )}
 
       {mostrarDeducciones && (
         <div className="grid grid-cols-2 gap-4">

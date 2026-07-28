@@ -72,7 +72,7 @@ export default async function PlanillaPage() {
     calcularTotalesMesActual(supabase, nombresColaboradores),
     supabase
       .from("planilla_pagos")
-      .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo")
+      .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion")
       .order("fecha", { ascending: false }),
   ]);
 
@@ -94,6 +94,7 @@ export default async function PlanillaPage() {
       esFijo: tipo === "fijo",
       css: p.css === null ? null : Number(p.css),
       seguroEducativo: p.seguro_educativo === null ? null : Number(p.seguro_educativo),
+      bonificacion: p.bonificacion === null ? null : Number(p.bonificacion),
     };
   });
 

@@ -18,6 +18,7 @@ export type PagoFila = {
   esFijo: boolean;
   css: number | null;
   seguroEducativo: number | null;
+  bonificacion: number | null;
 };
 
 const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "taller", string> = {
@@ -30,6 +31,9 @@ const ETIQUETA_JORNADA: Record<"completo" | "medio", string> = {
 };
 
 function detalleTrabajo(p: PagoFila): string {
+  if (p.esFijo) {
+    return p.bonificacion ? `Bonificación: ${formatMoney(p.bonificacion)}` : "—";
+  }
   if (!p.tipoTrabajo && !p.jornada) return "—";
   const partes = [
     p.tipoTrabajo ? ETIQUETA_TIPO_TRABAJO[p.tipoTrabajo] : null,
@@ -291,6 +295,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                               colaboradorNombre: p.colaborador,
                               fecha: p.fecha,
                               salarioBruto: p.monto,
+                              bonificacion: p.bonificacion ?? 0,
                               css: p.css ?? 0,
                               seguroEducativo: p.seguroEducativo ?? 0,
                             }}
@@ -335,7 +340,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                   <p className="font-medium text-green-900 dark:text-green-50">
                     {p.colaborador}
                   </p>
-                  {(p.tipoTrabajo || p.jornada) && (
+                  {(p.tipoTrabajo || p.jornada || p.bonificacion) && (
                     <p className="text-xs text-green-700/70 dark:text-green-300/70">
                       {detalleTrabajo(p)}
                     </p>
@@ -356,6 +361,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                       colaboradorNombre: p.colaborador,
                       fecha: p.fecha,
                       salarioBruto: p.monto,
+                      bonificacion: p.bonificacion ?? 0,
                       css: p.css ?? 0,
                       seguroEducativo: p.seguroEducativo ?? 0,
                     }}

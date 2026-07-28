@@ -43,7 +43,7 @@ export async function calcularTotalesMesActual(
 
   const { data } = await supabase
     .from("planilla_pagos")
-    .select("colaborador, monto")
+    .select("colaborador, monto, bonificacion")
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
 
@@ -54,7 +54,9 @@ export async function calcularTotalesMesActual(
   let total = 0;
   for (const fila of data ?? []) {
     const nombre = fila.colaborador as string;
-    const monto = Number(fila.monto);
+    // La bonificacion tambien es dinero que la empresa paga, aunque no
+    // tenga CSS/Seguro Educativo -- cuenta igual para "cuanto se pago".
+    const monto = Number(fila.monto) + Number(fila.bonificacion ?? 0);
     if (nombre in porColaborador) porColaborador[nombre] += monto;
     total += monto;
   }

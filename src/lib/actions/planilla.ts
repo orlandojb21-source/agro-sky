@@ -29,6 +29,7 @@ export async function crearPagoAction(
     jornada: parsed.data.jornada || null,
     css: parsed.data.css ? Number(parsed.data.css) : null,
     seguro_educativo: parsed.data.seguroEducativo ? Number(parsed.data.seguroEducativo) : null,
+    bonificacion: parsed.data.bonificacion ? Number(parsed.data.bonificacion) : null,
     // Todo pago de planilla es, por definicion, categoria "Planilla" -- no
     // hace falta que el usuario la elija (a diferencia de Caja Menuda,
     // donde un gasto si puede ser de varios tipos).
@@ -66,6 +67,7 @@ export async function editarPagoAction(
       jornada: parsed.data.jornada || null,
       css: parsed.data.css ? Number(parsed.data.css) : null,
       seguro_educativo: parsed.data.seguroEducativo ? Number(parsed.data.seguroEducativo) : null,
+      bonificacion: parsed.data.bonificacion ? Number(parsed.data.bonificacion) : null,
     })
     .eq("id", parsed.data.id);
 

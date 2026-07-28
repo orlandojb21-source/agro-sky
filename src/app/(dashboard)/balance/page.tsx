@@ -25,7 +25,10 @@ export default async function BalancePage() {
         .from("ventas")
         .select("fecha, subtotal_gravado, subtotal_exento, itbms")
         .order("fecha", { ascending: false }),
-      supabase.from("planilla_pagos").select("fecha, colaborador, monto").order("fecha", { ascending: false }),
+      supabase
+        .from("planilla_pagos")
+        .select("fecha, colaborador, monto, bonificacion")
+        .order("fecha", { ascending: false }),
       supabase.from("colaboradores").select("nombre").order("nombre"),
     ]);
 
@@ -73,7 +76,9 @@ export default async function BalancePage() {
   const pagosPlanilla: PagoPlanillaBalance[] = (pagosData ?? []).map((p) => ({
     fecha: p.fecha as string,
     colaborador: p.colaborador as string,
-    monto: Number(p.monto),
+    // La bonificacion tambien es un costo real de planilla, aunque no
+    // tenga CSS/Seguro Educativo -- se incluye en el total pagado.
+    monto: Number(p.monto) + Number(p.bonificacion ?? 0),
   }));
 
   const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
