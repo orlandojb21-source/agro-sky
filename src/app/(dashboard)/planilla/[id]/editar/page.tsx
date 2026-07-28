@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { esSoporteOJefe } from "@/lib/roles";
 import { PagoPlanillaForm } from "@/components/forms/PagoPlanillaForm";
 
 export default async function EditarPagoPlanillaPage({
@@ -9,7 +10,7 @@ export default async function EditarPagoPlanillaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("planilla");
+  const perfil = await requireSection("planilla");
 
   const supabase = await createClient();
   const [{ data: pago }, { data: colaboradoresData }] = await Promise.all([
@@ -23,12 +24,25 @@ export default async function EditarPagoPlanillaPage({
 
   if (!pago) notFound();
 
-  const colaboradores = (colaboradoresData ?? []).map((c) => ({
+  let colaboradores = (colaboradoresData ?? []).map((c) => ({
     nombre: c.nombre as string,
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
     aplicaDeducciones: c.aplica_deducciones as boolean,
   }));
+
+  // El administrador no puede editar pagos de colaboradores Fijos -- si el
+  // pago que se intenta abrir es de un Fijo, se bloquea el acceso directo
+  // (el link "Editar" ya no aparece para estas filas, esto cubre entrar
+  // por URL directa). El tipo se infiere igual que en /planilla/page.tsx.
+  if (!esSoporteOJefe(perfil.rol)) {
+    const tipoDelColaborador = colaboradores.find((c) => c.nombre === pago.colaborador)?.tipo;
+    const tipo = tipoDelColaborador ?? (pago.tipo_trabajo || pago.jornada ? "campo" : "fijo");
+    if (tipo === "fijo") {
+      redirect("/unauthorized");
+    }
+    colaboradores = colaboradores.filter((c) => c.tipo !== "fijo");
+  }
 
   return (
     <div>

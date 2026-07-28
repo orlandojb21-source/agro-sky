@@ -1,5 +1,6 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { esSoporteOJefe } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { PagosPlanillaTabla, type PagoFila } from "@/components/forms/PagosPlanillaTabla";
@@ -51,7 +52,8 @@ function TarjetaResumen({
 }
 
 export default async function PlanillaPage() {
-  await requireSection("planilla");
+  const perfil = await requireSection("planilla");
+  const puedeAdministrarFijos = esSoporteOJefe(perfil.rol);
 
   const supabase = await createClient();
   const { data: colaboradoresData } = await supabase
@@ -135,7 +137,7 @@ export default async function PlanillaPage() {
             </div>
           }
         />
-        <PagosPlanillaTabla pagos={pagos} />
+        <PagosPlanillaTabla pagos={pagos} puedeAdministrarFijos={puedeAdministrarFijos} />
       </div>
     </div>
   );
