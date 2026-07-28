@@ -31,6 +31,7 @@ export async function crearColaboradorAction(
     nombre: parsed.data.nombre,
     tipo: parsed.data.tipo,
     salario: parsed.data.tipo === "fijo" ? Number(parsed.data.salario) : null,
+    aplica_deducciones: parsed.data.tipo === "fijo" ? parsed.data.aplicaDeducciones : true,
     registrado_por: perfil.id,
   });
 
@@ -60,6 +61,7 @@ export async function editarColaboradorAction(
       nombre: parsed.data.nombre,
       tipo: parsed.data.tipo,
       salario: parsed.data.tipo === "fijo" ? Number(parsed.data.salario) : null,
+      aplica_deducciones: parsed.data.tipo === "fijo" ? parsed.data.aplicaDeducciones : true,
     })
     .eq("id", parsed.data.id);
 

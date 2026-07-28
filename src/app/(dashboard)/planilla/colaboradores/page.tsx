@@ -8,7 +8,12 @@ import { ColaboradorForm } from "@/components/forms/ColaboradorForm";
 import { eliminarColaboradorAction } from "@/lib/actions/colaboradores";
 import { formatMoney } from "@/lib/format";
 
-type ColaboradorFila = { id: string; nombre: string; salario: number | null };
+type ColaboradorFila = {
+  id: string;
+  nombre: string;
+  salario: number | null;
+  aplicaDeducciones: boolean;
+};
 
 function ListaColaboradores({
   titulo,
@@ -36,6 +41,7 @@ function ListaColaboradores({
                   {c.salario !== null && (
                     <span className="ml-2 text-sm text-green-700/70 dark:text-green-300/70">
                       {formatMoney(c.salario)} quincenal
+                      {!c.aplicaDeducciones && " — sin CSS/Seguro Educativo"}
                     </span>
                   )}
                 </div>
@@ -66,7 +72,7 @@ export default async function ColaboradoresPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("colaboradores")
-    .select("id, nombre, tipo, salario")
+    .select("id, nombre, tipo, salario, aplica_deducciones")
     .order("nombre");
 
   const colaboradores = (data ?? []).map((c) => ({
@@ -74,6 +80,7 @@ export default async function ColaboradoresPage() {
     nombre: c.nombre as string,
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
+    aplicaDeducciones: c.aplica_deducciones as boolean,
   }));
   const fijos = colaboradores.filter((c) => c.tipo === "fijo");
   const campo = colaboradores.filter((c) => c.tipo === "campo");

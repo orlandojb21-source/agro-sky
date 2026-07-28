@@ -14,7 +14,7 @@ export default async function EditarColaboradorPage({
   const supabase = await createClient();
   const { data: colaborador } = await supabase
     .from("colaboradores")
-    .select("id, nombre, tipo, salario")
+    .select("id, nombre, tipo, salario, aplica_deducciones")
     .eq("id", id)
     .maybeSingle();
 
@@ -31,6 +31,7 @@ export default async function EditarColaboradorPage({
           nombre: colaborador.nombre as string,
           tipo: colaborador.tipo as "fijo" | "campo",
           salario: colaborador.salario === null ? null : Number(colaborador.salario),
+          aplicaDeducciones: colaborador.aplica_deducciones as boolean,
         }}
       />
     </div>

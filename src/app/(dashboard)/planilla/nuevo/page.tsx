@@ -6,11 +6,15 @@ export default async function NuevoPagoPlanillaPage() {
   await requireSection("planilla");
 
   const supabase = await createClient();
-  const { data } = await supabase.from("colaboradores").select("nombre, tipo, salario").order("nombre");
+  const { data } = await supabase
+    .from("colaboradores")
+    .select("nombre, tipo, salario, aplica_deducciones")
+    .order("nombre");
   const colaboradores = (data ?? []).map((c) => ({
     nombre: c.nombre as string,
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
+    aplicaDeducciones: c.aplica_deducciones as boolean,
   }));
 
   return (

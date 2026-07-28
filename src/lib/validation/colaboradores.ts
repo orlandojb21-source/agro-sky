@@ -6,6 +6,12 @@ const colaboradorBase = z.object({
   // Solo aplica a Fijo -- llega como string crudo del form, se valida con
   // .refine() abajo porque su obligatoriedad depende del tipo elegido.
   salario: z.string().trim().optional().default(""),
+  // Checkbox HTML: llega "on" si esta marcado, o ni siquiera aparece en el
+  // FormData si no lo esta -- por eso es opcional y se transforma a boolean.
+  aplicaDeducciones: z
+    .string()
+    .optional()
+    .transform((v) => v === "on"),
 });
 
 function salarioValido(data: { tipo: string; salario: string }): boolean {

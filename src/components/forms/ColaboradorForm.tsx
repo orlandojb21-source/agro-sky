@@ -11,6 +11,7 @@ type ValoresColaborador = {
   nombre: string;
   tipo: "fijo" | "campo";
   salario: number | null;
+  aplicaDeducciones: boolean;
 };
 
 export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: ValoresColaborador }) {
@@ -25,6 +26,13 @@ export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: Valor
 
   const tipoInicial = (state.values?.tipo as "fijo" | "campo" | undefined) ?? valoresIniciales?.tipo ?? "campo";
   const [tipoSeleccionado, setTipoSeleccionado] = useState(tipoInicial);
+  // Si ya se intento enviar el formulario (state.values existe), el checkbox
+  // se reconstruye a partir de lo que realmente se envio ("on" o ausente) en
+  // vez de asumir el valor por defecto -- para no perder la eleccion del
+  // usuario en un reintento tras un error.
+  const aplicaDeduccionesInicial = state.values
+    ? state.values.aplicaDeducciones === "on"
+    : (valoresIniciales?.aplicaDeducciones ?? true);
 
   if (state !== prevState) {
     setPrevState(state);
@@ -67,17 +75,28 @@ export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: Valor
           </SelectField>
         </div>
         {tipoSeleccionado === "fijo" && (
-          <div className="min-w-[160px]">
-            <Field
-              label="Salario quincenal (USD)"
-              name="salario"
-              type="number"
-              min={0}
-              step="0.01"
-              defaultValue={state.values?.salario ?? valoresIniciales?.salario ?? undefined}
-              required
-            />
-          </div>
+          <>
+            <div className="min-w-[160px]">
+              <Field
+                label="Salario quincenal (USD)"
+                name="salario"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={state.values?.salario ?? valoresIniciales?.salario ?? undefined}
+                required
+              />
+            </div>
+            <label className="flex items-center gap-2 pb-2.5 text-sm text-green-900 dark:text-green-100">
+              <input
+                type="checkbox"
+                name="aplicaDeducciones"
+                defaultChecked={aplicaDeduccionesInicial}
+                className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-600"
+              />
+              Aplica CSS / Seguro Educativo (9.75% / 1.25%)
+            </label>
+          </>
         )}
         <SubmitButton>{esEdicion ? "Guardar cambios" : "+ Agregar colaborador"}</SubmitButton>
         {esEdicion && (

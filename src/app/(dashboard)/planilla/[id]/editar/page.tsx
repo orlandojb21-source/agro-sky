@@ -18,7 +18,7 @@ export default async function EditarPagoPlanillaPage({
       .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("colaboradores").select("nombre, tipo, salario").order("nombre"),
+    supabase.from("colaboradores").select("nombre, tipo, salario, aplica_deducciones").order("nombre"),
   ]);
 
   if (!pago) notFound();
@@ -27,6 +27,7 @@ export default async function EditarPagoPlanillaPage({
     nombre: c.nombre as string,
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
+    aplicaDeducciones: c.aplica_deducciones as boolean,
   }));
 
   return (
