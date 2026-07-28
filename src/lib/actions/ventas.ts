@@ -25,8 +25,11 @@ export async function crearVentaAction(
     fecha: raw.fecha,
     clienteNombre: raw.clienteNombre,
     clienteDocumento: raw.clienteDocumento,
+    clienteRuc: raw.clienteRuc,
+    clienteRucDv: raw.clienteRucDv,
     clienteTelefono: raw.clienteTelefono,
     clienteDireccion: raw.clienteDireccion,
+    clienteCorreo: raw.clienteCorreo,
     nota: raw.nota,
     items,
   });
@@ -40,8 +43,11 @@ export async function crearVentaAction(
     p_fecha: parsed.data.fecha,
     p_cliente_nombre: parsed.data.clienteNombre,
     p_cliente_documento: parsed.data.clienteDocumento || null,
+    p_cliente_ruc: parsed.data.clienteRuc || null,
+    p_cliente_ruc_dv: parsed.data.clienteRucDv || null,
     p_cliente_telefono: parsed.data.clienteTelefono || null,
     p_cliente_direccion: parsed.data.clienteDireccion || null,
+    p_cliente_correo: parsed.data.clienteCorreo || null,
     p_nota: parsed.data.nota || null,
     p_items: parsed.data.items.map((item) => ({
       tipo: item.tipo,

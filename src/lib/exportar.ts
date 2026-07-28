@@ -225,8 +225,11 @@ export type FacturaExportable = {
   numeroFactura: number;
   fecha: string;
   clienteNombre: string;
+  clienteRuc: string | null;
+  clienteRucDv: string | null;
   clienteTelefono: string | null;
   clienteDireccion: string | null;
+  clienteCorreo: string | null;
   items: FacturaItemExportable[];
   subtotalGravado: number;
   subtotalExento: number;
@@ -269,16 +272,21 @@ export async function exportarFacturaPDF(factura: FacturaExportable) {
 
   doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
-  doc.text(`Factura No. ${String(factura.numeroFactura).padStart(4, "0")}`, 14, 20);
+  doc.text(`Factura No. ${String(factura.numeroFactura).padStart(10, "0")}`, 14, 20);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   let yCliente = 30;
+  const ruc = factura.clienteRuc
+    ? `${factura.clienteRuc}${factura.clienteRucDv ? ` DV ${factura.clienteRucDv}` : ""}`
+    : "—";
   for (const linea of [
     `Fecha: ${formatDateOnly(factura.fecha)}`,
     `Nombre del Cliente: ${factura.clienteNombre}`,
+    `RUC: ${ruc}`,
     `Número de Teléfono: ${factura.clienteTelefono ?? "—"}`,
     `Dirección: ${factura.clienteDireccion ?? "—"}`,
+    `Correo: ${factura.clienteCorreo ?? "—"}`,
   ]) {
     doc.text(linea, 14, yCliente);
     yCliente += 6;
@@ -318,7 +326,7 @@ export async function exportarFacturaPDF(factura: FacturaExportable) {
     yResumen += 6;
   }
 
-  doc.save(`agro-sky-factura-${String(factura.numeroFactura).padStart(4, "0")}.pdf`);
+  doc.save(`agro-sky-factura-${String(factura.numeroFactura).padStart(10, "0")}.pdf`);
 }
 
 export type OrdenCompraItemExportable = {

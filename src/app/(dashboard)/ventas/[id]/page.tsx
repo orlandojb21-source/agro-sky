@@ -19,7 +19,7 @@ export default async function DetalleVentaPage({
     supabase
       .from("ventas")
       .select(
-        "id, numero_factura, fecha, cliente_nombre, cliente_documento, cliente_telefono, cliente_direccion, nota, subtotal_gravado, subtotal_exento, itbms, total",
+        "id, numero_factura, fecha, cliente_nombre, cliente_documento, cliente_ruc, cliente_ruc_dv, cliente_telefono, cliente_direccion, cliente_correo, nota, subtotal_gravado, subtotal_exento, itbms, total",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -36,8 +36,11 @@ export default async function DetalleVentaPage({
     numeroFactura: venta.numero_factura as number,
     fecha: venta.fecha as string,
     clienteNombre: venta.cliente_nombre as string,
+    clienteRuc: venta.cliente_ruc as string | null,
+    clienteRucDv: venta.cliente_ruc_dv as string | null,
     clienteTelefono: venta.cliente_telefono as string | null,
     clienteDireccion: venta.cliente_direccion as string | null,
+    clienteCorreo: venta.cliente_correo as string | null,
     items: (items ?? []).map((it) => ({
       codigo: (it.codigo as string | null) ?? "",
       descripcion: it.descripcion as string,
@@ -55,7 +58,7 @@ export default async function DetalleVentaPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-green-900 dark:text-green-50">
-          Factura No. {String(venta.numero_factura).padStart(4, "0")} —{" "}
+          Factura No. {String(venta.numero_factura).padStart(10, "0")} —{" "}
           {formatDateOnly(venta.fecha as string)}
         </h1>
         <div className="flex gap-2">
@@ -76,9 +79,20 @@ export default async function DetalleVentaPage({
         {venta.cliente_documento ? (
           <div>
             <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-              Cédula/RUC
+              Cédula
             </p>
             <p className="text-green-900 dark:text-green-50">{venta.cliente_documento as string}</p>
+          </div>
+        ) : null}
+        {venta.cliente_ruc ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              RUC
+            </p>
+            <p className="text-green-900 dark:text-green-50">
+              {venta.cliente_ruc as string}
+              {venta.cliente_ruc_dv ? ` DV ${venta.cliente_ruc_dv as string}` : ""}
+            </p>
           </div>
         ) : null}
         {venta.cliente_telefono ? (
@@ -95,6 +109,14 @@ export default async function DetalleVentaPage({
               Dirección
             </p>
             <p className="text-green-900 dark:text-green-50">{venta.cliente_direccion as string}</p>
+          </div>
+        ) : null}
+        {venta.cliente_correo ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              Correo electrónico
+            </p>
+            <p className="text-green-900 dark:text-green-50">{venta.cliente_correo as string}</p>
           </div>
         ) : null}
         {venta.nota ? (

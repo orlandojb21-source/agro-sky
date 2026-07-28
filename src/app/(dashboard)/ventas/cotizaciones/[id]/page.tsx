@@ -24,7 +24,7 @@ export default async function DetalleCotizacionPage({
     supabase
       .from("cotizaciones")
       .select(
-        "id, fecha, cliente_nombre, cliente_documento, cliente_telefono, cliente_direccion, nota, subtotal_gravado, subtotal_exento, itbms, total, estado, venta_id",
+        "id, fecha, cliente_nombre, cliente_documento, cliente_ruc, cliente_ruc_dv, cliente_telefono, cliente_direccion, cliente_correo, nota, subtotal_gravado, subtotal_exento, itbms, total, estado, venta_id",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -82,10 +82,21 @@ export default async function DetalleCotizacionPage({
         {cotizacion.cliente_documento ? (
           <div>
             <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-              Cédula/RUC
+              Cédula
             </p>
             <p className="text-green-900 dark:text-green-50">
               {cotizacion.cliente_documento as string}
+            </p>
+          </div>
+        ) : null}
+        {cotizacion.cliente_ruc ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              RUC
+            </p>
+            <p className="text-green-900 dark:text-green-50">
+              {cotizacion.cliente_ruc as string}
+              {cotizacion.cliente_ruc_dv ? ` DV ${cotizacion.cliente_ruc_dv as string}` : ""}
             </p>
           </div>
         ) : null}
@@ -106,6 +117,16 @@ export default async function DetalleCotizacionPage({
             </p>
             <p className="text-green-900 dark:text-green-50">
               {cotizacion.cliente_direccion as string}
+            </p>
+          </div>
+        ) : null}
+        {cotizacion.cliente_correo ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              Correo electrónico
+            </p>
+            <p className="text-green-900 dark:text-green-50">
+              {cotizacion.cliente_correo as string}
             </p>
           </div>
         ) : null}

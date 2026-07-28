@@ -1,17 +1,23 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { VentaForm, type CatalogoProducto, type CatalogoServicio } from "@/components/forms/VentaForm";
+import {
+  VentaForm,
+  type CatalogoProducto,
+  type CatalogoServicio,
+  type ClienteOpcion,
+} from "@/components/forms/VentaForm";
 
 export default async function NuevaVentaPage() {
   await requireSection("ventas");
 
   const supabase = await createClient();
-  const [{ data: productos }, { data: servicios }] = await Promise.all([
+  const [{ data: productos }, { data: servicios }, { data: clientesData }] = await Promise.all([
     supabase
       .from("productos")
       .select("id, tipo, numero_parte, descripcion, cantidad, venta")
       .order("numero_parte"),
     supabase.from("servicios").select("id, nombre, descripcion, precio").order("nombre"),
+    supabase.from("clientes").select("nombre, cedula, ruc, ruc_dv, telefono, direccion, correo").order("nombre"),
   ]);
 
   const aCatalogoProducto = (p: { id: string; numero_parte: string; descripcion: string; cantidad: number; venta: number }): CatalogoProducto => ({
@@ -36,6 +42,16 @@ export default async function NuevaVentaPage() {
     precio: s.precio === null ? null : Number(s.precio),
   }));
 
+  const clientes: ClienteOpcion[] = (clientesData ?? []).map((c) => ({
+    nombre: c.nombre as string,
+    cedula: c.cedula as string | null,
+    ruc: c.ruc as string | null,
+    rucDv: c.ruc_dv as string | null,
+    telefono: c.telefono as string | null,
+    direccion: c.direccion as string | null,
+    correo: c.correo as string | null,
+  }));
+
   return (
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">
@@ -46,6 +62,7 @@ export default async function NuevaVentaPage() {
         productosNuevos={productosNuevos}
         productosUsados={productosUsados}
         servicios={catalogoServicios}
+        clientes={clientes}
       />
     </div>
   );

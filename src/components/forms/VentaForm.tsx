@@ -28,6 +28,16 @@ export type CatalogoServicio = {
   precio: number | null;
 };
 
+export type ClienteOpcion = {
+  nombre: string;
+  cedula: string | null;
+  ruc: string | null;
+  rucDv: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  correo: string | null;
+};
+
 type Tipo = "nuevo" | "usado" | "servicio";
 
 type ItemVenta = {
@@ -45,12 +55,14 @@ export function VentaForm({
   productosNuevos,
   productosUsados,
   servicios,
+  clientes = [],
   modo = "venta",
 }: {
   fechaHoy: string;
   productosNuevos: CatalogoProducto[];
   productosUsados: CatalogoProducto[];
   servicios: CatalogoServicio[];
+  clientes?: ClienteOpcion[];
   modo?: "venta" | "cotizacion";
 }) {
   const [state, formAction] = useActionState(
@@ -58,14 +70,45 @@ export function VentaForm({
     { error: null },
   );
 
+  const v = state.values;
+
+  // Datos del cliente controlados (no solo defaultValue): al elegir/tipear
+  // un nombre que ya existe en el registro de clientes, se autocompletan
+  // los demas campos -- pero siguen siendo editables a mano despues.
+  const [clienteNombre, setClienteNombre] = useState(v?.clienteNombre ?? "");
+  const [clienteDocumento, setClienteDocumento] = useState(v?.clienteDocumento ?? "");
+  const [clienteRuc, setClienteRuc] = useState(v?.clienteRuc ?? "");
+  const [clienteRucDv, setClienteRucDv] = useState(v?.clienteRucDv ?? "");
+  const [clienteTelefono, setClienteTelefono] = useState(v?.clienteTelefono ?? "");
+  const [clienteDireccion, setClienteDireccion] = useState(v?.clienteDireccion ?? "");
+  const [clienteCorreo, setClienteCorreo] = useState(v?.clienteCorreo ?? "");
+
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
   if (state !== prevState) {
     setPrevState(state);
     setRemountKey((k) => k + 1);
+    setClienteNombre(state.values?.clienteNombre ?? "");
+    setClienteDocumento(state.values?.clienteDocumento ?? "");
+    setClienteRuc(state.values?.clienteRuc ?? "");
+    setClienteRucDv(state.values?.clienteRucDv ?? "");
+    setClienteTelefono(state.values?.clienteTelefono ?? "");
+    setClienteDireccion(state.values?.clienteDireccion ?? "");
+    setClienteCorreo(state.values?.clienteCorreo ?? "");
   }
 
-  const v = state.values;
+  function cambiarClienteNombre(nombre: string) {
+    setClienteNombre(nombre);
+    const encontrado = clientes.find((c) => c.nombre.trim().toLowerCase() === nombre.trim().toLowerCase());
+    if (encontrado) {
+      setClienteDocumento(encontrado.cedula ?? "");
+      setClienteRuc(encontrado.ruc ?? "");
+      setClienteRucDv(encontrado.rucDv ?? "");
+      setClienteTelefono(encontrado.telefono ?? "");
+      setClienteDireccion(encontrado.direccion ?? "");
+      setClienteCorreo(encontrado.correo ?? "");
+    }
+  }
 
   const [items, setItems] = useState<ItemVenta[]>(() => {
     if (!v?.items) return [];
@@ -174,23 +217,57 @@ export function VentaForm({
         <Field
           label="Cliente"
           name="clienteNombre"
-          defaultValue={v?.clienteNombre ?? undefined}
+          value={clienteNombre}
+          onChange={(e) => cambiarClienteNombre(e.target.value)}
+          list="clientes-datalist"
+          placeholder="Escribe o elige un cliente ya registrado..."
           required
         />
+        <datalist id="clientes-datalist">
+          {clientes.map((c) => (
+            <option key={c.nombre} value={c.nombre} />
+          ))}
+        </datalist>
         <Field
-          label="Cédula/RUC (opcional)"
+          label="Cédula (opcional)"
           name="clienteDocumento"
-          defaultValue={v?.clienteDocumento ?? undefined}
+          value={clienteDocumento}
+          onChange={(e) => setClienteDocumento(e.target.value)}
         />
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <Field
+              label="RUC (opcional)"
+              name="clienteRuc"
+              value={clienteRuc}
+              onChange={(e) => setClienteRuc(e.target.value)}
+            />
+          </div>
+          <Field
+            label="DV (opcional)"
+            name="clienteRucDv"
+            value={clienteRucDv}
+            onChange={(e) => setClienteRucDv(e.target.value)}
+          />
+        </div>
         <Field
           label="Número de teléfono (opcional)"
           name="clienteTelefono"
-          defaultValue={v?.clienteTelefono ?? undefined}
+          value={clienteTelefono}
+          onChange={(e) => setClienteTelefono(e.target.value)}
         />
         <Field
           label="Dirección (opcional)"
           name="clienteDireccion"
-          defaultValue={v?.clienteDireccion ?? undefined}
+          value={clienteDireccion}
+          onChange={(e) => setClienteDireccion(e.target.value)}
+        />
+        <Field
+          label="Correo electrónico (opcional)"
+          name="clienteCorreo"
+          type="email"
+          value={clienteCorreo}
+          onChange={(e) => setClienteCorreo(e.target.value)}
         />
         <Field label="Nota (opcional)" name="nota" defaultValue={v?.nota ?? undefined} />
       </div>

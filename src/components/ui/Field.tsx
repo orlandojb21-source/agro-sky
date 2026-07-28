@@ -14,6 +14,7 @@ export function Field({
   min,
   placeholder,
   onChange,
+  list,
 }: {
   label: string;
   name: string;
@@ -30,6 +31,9 @@ export function Field({
   min?: string | number;
   placeholder?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  // Id de un <datalist> para sugerir valores ya guardados (ej. clientes
+  // existentes), sin dejar de aceptar texto libre.
+  list?: string;
 }) {
   const valorControlado = value !== undefined ? { value } : { defaultValue };
   return (
@@ -53,6 +57,7 @@ export function Field({
           min={min}
           placeholder={placeholder}
           onChange={onChange}
+          list={list}
           className={CLASE_INPUT}
         />
       )}
