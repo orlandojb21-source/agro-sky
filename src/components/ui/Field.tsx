@@ -8,6 +8,7 @@ export function Field({
   name,
   type = "text",
   defaultValue,
+  value,
   required,
   step,
   min,
@@ -18,12 +19,19 @@ export function Field({
   name: string;
   type?: string;
   defaultValue?: string | number;
+  // Si se pasa `value`, el input queda controlado (ignora defaultValue) --
+  // usado cuando otro campo del mismo formulario necesita recalcular este
+  // valor en vivo (ej. una deducción calculada a partir de un monto que se
+  // sigue editando). Si no se pasa, el input sigue siendo no controlado
+  // como siempre.
+  value?: string;
   required?: boolean;
   step?: string;
   min?: string | number;
   placeholder?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const valorControlado = value !== undefined ? { value } : { defaultValue };
   return (
     <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
       {label}
@@ -39,7 +47,7 @@ export function Field({
         <input
           name={name}
           type={type}
-          defaultValue={defaultValue}
+          {...valorControlado}
           required={required}
           step={step}
           min={min}

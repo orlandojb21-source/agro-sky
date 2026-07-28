@@ -33,6 +33,12 @@ type ValoresPago = {
   seguroEducativo?: number | null;
 };
 
+function calcularDeduccion(montoTexto: string, tasa: number): string {
+  const monto = Number(montoTexto);
+  if (!montoTexto || Number.isNaN(monto) || monto <= 0) return "";
+  return String(Math.round(monto * tasa * 100) / 100);
+}
+
 export function PagoPlanillaForm({
   fechaHoy,
   colaboradores,
@@ -73,12 +79,57 @@ export function PagoPlanillaForm({
   }, [colaboradores, valoresIniciales]);
 
   const colaboradorInicial = v?.colaborador ?? valoresIniciales?.colaborador ?? opciones[0]?.nombre ?? "";
+
+  // Calcula el monto/CSS/Seguro Educativo con los que arrancar el formulario
+  // para un colaborador dado: si ya se intentó enviar (v) o se está
+  // editando un pago con deducciones ya guardadas, se respeta eso tal cual;
+  // si no, se sugiere el salario y sus deducciones al 9.75%/1.25% -- pero
+  // solo si el colaborador es Fijo.
+  function datosIniciales(nombreColaborador: string) {
+    const colaborador = opciones.find((c) => c.nombre === nombreColaborador);
+    const esFijoColab = colaborador?.tipo === "fijo";
+    const montoSugerido = !esEdicion && esFijoColab && colaborador?.salario !== null ? String(colaborador!.salario) : "";
+    const monto =
+      v?.monto ?? (valoresIniciales?.monto != null ? String(valoresIniciales.monto) : montoSugerido);
+    const cssHistorico = v?.css ?? (valoresIniciales?.css != null ? String(valoresIniciales.css) : null);
+    const seguroHistorico =
+      v?.seguroEducativo ?? (valoresIniciales?.seguroEducativo != null ? String(valoresIniciales.seguroEducativo) : null);
+    const css = cssHistorico ?? (esFijoColab ? calcularDeduccion(monto, TASA_CSS) : "");
+    const seguroEducativo = seguroHistorico ?? (esFijoColab ? calcularDeduccion(monto, TASA_SEGURO_EDUCATIVO) : "");
+    return { monto, css, seguroEducativo };
+  }
+
   const [colaboradorSeleccionado, setColaboradorSeleccionado] = useState(colaboradorInicial);
+  const [montoTexto, setMontoTexto] = useState(() => datosIniciales(colaboradorInicial).monto);
+  const [cssTexto, setCssTexto] = useState(() => datosIniciales(colaboradorInicial).css);
+  const [seguroTexto, setSeguroTexto] = useState(() => datosIniciales(colaboradorInicial).seguroEducativo);
 
   if (state !== prevState) {
     setPrevState(state);
     setRemountKey((k) => k + 1);
+    const iniciales = datosIniciales(colaboradorInicial);
     setColaboradorSeleccionado(colaboradorInicial);
+    setMontoTexto(iniciales.monto);
+    setCssTexto(iniciales.css);
+    setSeguroTexto(iniciales.seguroEducativo);
+  }
+
+  function cambiarColaborador(nombre: string) {
+    setColaboradorSeleccionado(nombre);
+    const iniciales = datosIniciales(nombre);
+    setMontoTexto(iniciales.monto);
+    setCssTexto(iniciales.css);
+    setSeguroTexto(iniciales.seguroEducativo);
+  }
+
+  // Las deducciones siempre siguen al monto mientras se está escribiendo --
+  // si el monto cambia (ej. un ajuste manual), CSS/Seguro Educativo se
+  // recalculan al 9.75%/1.25% del nuevo monto, sin quedarse ancladas al
+  // salario original. Siguen siendo editables a mano después de esto.
+  function cambiarMonto(texto: string) {
+    setMontoTexto(texto);
+    setCssTexto(calcularDeduccion(texto, TASA_CSS));
+    setSeguroTexto(calcularDeduccion(texto, TASA_SEGURO_EDUCATIVO));
   }
 
   const colaboradorActual = opciones.find((c) => c.nombre === colaboradorSeleccionado);
@@ -94,13 +145,6 @@ export function PagoPlanillaForm({
     esEdicion && (valoresIniciales?.css != null || valoresIniciales?.seguroEducativo != null);
   const mostrarDeducciones =
     esFijo && ((colaboradorActual?.aplicaDeducciones ?? false) || tieneDeduccionesHistoricas);
-  // El salario y las deducciones solo se sugieren al crear un pago nuevo --
-  // al editar uno ya existente se respeta siempre lo histórico, aunque se
-  // cambie el colaborador, para no pisar un ajuste que ya se hizo a mano.
-  const montoSugerido = !esEdicion && esFijo ? colaboradorActual!.salario : null;
-  const cssSugerido = montoSugerido !== null ? Math.round(montoSugerido * TASA_CSS * 100) / 100 : null;
-  const seguroEducativoSugerido =
-    montoSugerido !== null ? Math.round(montoSugerido * TASA_SEGURO_EDUCATIVO * 100) / 100 : null;
 
   return (
     <form
@@ -123,7 +167,7 @@ export function PagoPlanillaForm({
           label="Colaborador"
           name="colaborador"
           defaultValue={colaboradorInicial}
-          onChange={(e) => setColaboradorSeleccionado(e.target.value)}
+          onChange={(e) => cambiarColaborador(e.target.value)}
           required
         >
           {opciones.map((c) => (
@@ -174,35 +218,35 @@ export function PagoPlanillaForm({
       />
 
       <Field
-        key={`monto-${colaboradorSeleccionado}`}
         label="Monto pagado (USD)"
         name="monto"
         type="number"
         min={0}
         step="0.01"
-        defaultValue={v?.monto ?? valoresIniciales?.monto ?? montoSugerido ?? undefined}
+        value={montoTexto}
+        onChange={(e) => cambiarMonto(e.target.value)}
         required
       />
 
       {mostrarDeducciones && (
         <div className="grid grid-cols-2 gap-4">
           <Field
-            key={`css-${colaboradorSeleccionado}`}
             label="CSS (9.75%)"
             name="css"
             type="number"
             min={0}
             step="0.01"
-            defaultValue={v?.css ?? valoresIniciales?.css ?? cssSugerido ?? undefined}
+            value={cssTexto}
+            onChange={(e) => setCssTexto(e.target.value)}
           />
           <Field
-            key={`seguroEducativo-${colaboradorSeleccionado}`}
             label="Seguro Educativo (1.25%)"
             name="seguroEducativo"
             type="number"
             min={0}
             step="0.01"
-            defaultValue={v?.seguroEducativo ?? valoresIniciales?.seguroEducativo ?? seguroEducativoSugerido ?? undefined}
+            value={seguroTexto}
+            onChange={(e) => setSeguroTexto(e.target.value)}
           />
         </div>
       )}
