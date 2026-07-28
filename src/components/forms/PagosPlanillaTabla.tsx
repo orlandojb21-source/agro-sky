@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { BotonExportarTalonario } from "@/components/forms/BotonExportarTalonario";
 import { eliminarPagoAction } from "@/lib/actions/planilla";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 
@@ -14,6 +15,9 @@ export type PagoFila = {
   monto: number;
   tipoTrabajo: "proyecto" | "taller" | null;
   jornada: "completo" | "medio" | null;
+  esFijo: boolean;
+  css: number | null;
+  seguroEducativo: number | null;
 };
 
 const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "taller", string> = {
@@ -281,6 +285,17 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
+                        {p.esFijo && (
+                          <BotonExportarTalonario
+                            talonario={{
+                              colaboradorNombre: p.colaborador,
+                              fecha: p.fecha,
+                              salarioBruto: p.monto,
+                              css: p.css ?? 0,
+                              seguroEducativo: p.seguroEducativo ?? 0,
+                            }}
+                          />
+                        )}
                         <Link
                           href={`/planilla/${p.id}/editar`}
                           className="text-sm text-green-700 hover:underline dark:text-green-300"
@@ -334,7 +349,18 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                 </p>
               </div>
 
-              <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+              <div className="mt-3 flex flex-wrap gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+                {p.esFijo && (
+                  <BotonExportarTalonario
+                    talonario={{
+                      colaboradorNombre: p.colaborador,
+                      fecha: p.fecha,
+                      salarioBruto: p.monto,
+                      css: p.css ?? 0,
+                      seguroEducativo: p.seguroEducativo ?? 0,
+                    }}
+                  />
+                )}
                 <Link
                   href={`/planilla/${p.id}/editar`}
                   className="text-sm text-green-700 hover:underline dark:text-green-300"

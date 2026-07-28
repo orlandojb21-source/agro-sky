@@ -15,7 +15,7 @@ export default async function EditarPagoPlanillaPage({
   const [{ data: pago }, { data: colaboradoresData }] = await Promise.all([
     supabase
       .from("planilla_pagos")
-      .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada")
+      .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("colaboradores").select("nombre, tipo, salario").order("nombre"),
@@ -45,6 +45,8 @@ export default async function EditarPagoPlanillaPage({
           monto: Number(pago.monto),
           tipoTrabajo: pago.tipo_trabajo as "proyecto" | "taller" | null,
           jornada: pago.jornada as "completo" | "medio" | null,
+          css: pago.css === null ? null : Number(pago.css),
+          seguroEducativo: pago.seguro_educativo === null ? null : Number(pago.seguro_educativo),
         }}
       />
     </div>

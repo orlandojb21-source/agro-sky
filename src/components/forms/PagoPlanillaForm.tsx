@@ -16,6 +16,8 @@ type ValoresPago = {
   monto: number;
   tipoTrabajo?: "proyecto" | "taller" | null;
   jornada?: "completo" | "medio" | null;
+  css?: number | null;
+  seguroEducativo?: number | null;
 };
 
 export function PagoPlanillaForm({
@@ -68,6 +70,7 @@ export function PagoPlanillaForm({
 
   const colaboradorActual = opciones.find((c) => c.nombre === colaboradorSeleccionado);
   const esCampo = colaboradorActual?.tipo === "campo";
+  const esFijo = colaboradorActual?.tipo === "fijo";
   // El salario solo se sugiere al crear un pago nuevo -- al editar uno ya
   // existente se respeta siempre el monto histórico, aunque se cambie el
   // colaborador, para no pisar un ajuste que ya se hizo a mano.
@@ -154,6 +157,29 @@ export function PagoPlanillaForm({
         defaultValue={v?.monto ?? valoresIniciales?.monto ?? montoSugerido ?? undefined}
         required
       />
+
+      {esFijo && (
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            key={`css-${colaboradorSeleccionado}`}
+            label="CSS (deducción, opcional)"
+            name="css"
+            type="number"
+            min={0}
+            step="0.01"
+            defaultValue={v?.css ?? valoresIniciales?.css ?? undefined}
+          />
+          <Field
+            key={`seguroEducativo-${colaboradorSeleccionado}`}
+            label="Seguro Educativo (deducción, opcional)"
+            name="seguroEducativo"
+            type="number"
+            min={0}
+            step="0.01"
+            defaultValue={v?.seguroEducativo ?? valoresIniciales?.seguroEducativo ?? undefined}
+          />
+        </div>
+      )}
 
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar pago"}</SubmitButton>

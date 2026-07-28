@@ -66,24 +66,36 @@ export default async function PlanillaPage() {
   const nombresColaboradores = colaboradores.map((c) => c.nombre);
   const fijos = colaboradores.filter((c) => c.tipo === "fijo");
   const campo = colaboradores.filter((c) => c.tipo === "campo");
+  const tipoPorColaborador = new Map(colaboradores.map((c) => [c.nombre, c.tipo]));
 
   const [totalesMes, { data }] = await Promise.all([
     calcularTotalesMesActual(supabase, nombresColaboradores),
     supabase
       .from("planilla_pagos")
-      .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada")
+      .select("id, colaborador, fecha, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo")
       .order("fecha", { ascending: false }),
   ]);
 
-  const pagos: PagoFila[] = (data ?? []).map((p) => ({
-    id: p.id as string,
-    colaborador: p.colaborador as string,
-    fecha: p.fecha as string,
-    descripcion: p.descripcion as string,
-    monto: Number(p.monto),
-    tipoTrabajo: p.tipo_trabajo as "proyecto" | "taller" | null,
-    jornada: p.jornada as "completo" | "medio" | null,
-  }));
+  const pagos: PagoFila[] = (data ?? []).map((p) => {
+    const tipoTrabajo = p.tipo_trabajo as "proyecto" | "taller" | null;
+    const jornada = p.jornada as "completo" | "medio" | null;
+    // Si el colaborador ya no existe en la tabla administrable, se infiere
+    // el tipo a partir de si el pago tiene tipoTrabajo/jornada guardados
+    // (mismo criterio que PagoPlanillaForm para colaboradores eliminados).
+    const tipo = tipoPorColaborador.get(p.colaborador as string) ?? (tipoTrabajo || jornada ? "campo" : "fijo");
+    return {
+      id: p.id as string,
+      colaborador: p.colaborador as string,
+      fecha: p.fecha as string,
+      descripcion: p.descripcion as string,
+      monto: Number(p.monto),
+      tipoTrabajo,
+      jornada,
+      esFijo: tipo === "fijo",
+      css: p.css === null ? null : Number(p.css),
+      seguroEducativo: p.seguro_educativo === null ? null : Number(p.seguro_educativo),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">

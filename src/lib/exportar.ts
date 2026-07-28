@@ -503,7 +503,7 @@ export async function exportarMovimientosPDF(
       f.previsto !== null ? formatMoney(f.previsto) : "",
       f.entregado !== null ? formatMoney(f.entregado) : "",
       f.vuelto !== null ? formatMoney(f.vuelto) : "",
-      (f.tipo === "gasto" ? "−" : "+") + formatMoney(f.monto),
+      (f.tipo === "gasto" ? "-" : "+") + formatMoney(f.monto),
     ]),
     styles: { fontSize: 9 },
     headStyles: { fillColor: [21, 128, 61] },
@@ -757,4 +757,91 @@ export async function exportarInformeProyectoExcel(informe: InformeProyectoExpor
     }),
     `${nombreArchivoProyecto(informe.proyecto)}.xlsx`,
   );
+}
+
+// Talonario de pago de un colaborador Fijo: salario bruto menos las
+// deducciones legales de Panama (CSS, Seguro Educativo) -- ambas siempre
+// llegan aqui ya resueltas a un numero (0 si no se registraron para ese
+// pago), el neto se calcula aqui mismo, nunca se guarda en la base de datos.
+export type TalonarioExportable = {
+  colaboradorNombre: string;
+  fecha: string;
+  salarioBruto: number;
+  css: number;
+  seguroEducativo: number;
+};
+
+export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text("Talonario de Pago", 14, 20);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let yColaborador = 30;
+  for (const linea of [
+    `Colaborador: ${talonario.colaboradorNombre}`,
+    `Fecha de pago: ${formatDateOnly(talonario.fecha)}`,
+  ]) {
+    doc.text(linea, 14, yColaborador);
+    yColaborador += 6;
+  }
+
+  const totalDeducciones = talonario.css + talonario.seguroEducativo;
+  const neto = talonario.salarioBruto - totalDeducciones;
+
+  const startY = Math.max(yColaborador, yEmpresa) + 6;
+  const anchoResumen = 90;
+  const xEtiqueta = margenDerecho - anchoResumen;
+  let y = startY;
+  doc.setFontSize(10);
+  for (const [etiqueta, valor, negrita] of [
+    ["Salario bruto", formatMoney(talonario.salarioBruto), false],
+    ["CSS", `-${formatMoney(talonario.css)}`, false],
+    ["Seguro Educativo", `-${formatMoney(talonario.seguroEducativo)}`, false],
+    ["Total deducciones", `-${formatMoney(totalDeducciones)}`, false],
+  ] as const) {
+    doc.setFont("helvetica", negrita ? "bold" : "normal");
+    doc.text(etiqueta, xEtiqueta, y);
+    doc.text(valor, margenDerecho, y, { align: "right" });
+    y += 6;
+  }
+  doc.setDrawColor(21, 128, 61);
+  doc.line(xEtiqueta, y, margenDerecho, y);
+  y += 6;
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Neto pagado", xEtiqueta, y);
+  doc.text(formatMoney(neto), margenDerecho, y, { align: "right" });
+
+  const nombreSlug = talonario.colaboradorNombre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  doc.save(`agro-sky-talonario-${nombreSlug}-${talonario.fecha}.pdf`);
 }
