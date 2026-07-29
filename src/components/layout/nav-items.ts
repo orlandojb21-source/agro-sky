@@ -2,7 +2,7 @@ import type { Seccion } from "@/lib/roles";
 
 export const NAV: { seccion: Seccion; href: string; label: string }[] = [
   { seccion: "inventario", href: "/inventario", label: "Inventario" },
-  { seccion: "mantenimiento", href: "/mantenimiento", label: "Mantenimiento" },
+  { seccion: "bitacora", href: "/bitacora", label: "Bitácora" },
   { seccion: "caja-menuda", href: "/caja-menuda", label: "Caja Menuda" },
   { seccion: "compras", href: "/compras", label: "Compras" },
   { seccion: "planilla", href: "/planilla", label: "Planilla" },
