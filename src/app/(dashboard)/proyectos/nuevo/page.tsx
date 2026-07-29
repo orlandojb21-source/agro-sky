@@ -1,5 +1,6 @@
 import { requireSection } from "@/lib/session";
-import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
+import { createClient } from "@/lib/supabase/server";
+import { ProyectoInformeForm, type PagoPlanillaProyecto } from "@/components/forms/ProyectoInformeForm";
 
 export default async function NuevoInformeProyectoPage() {
   await requireSection("proyectos");
@@ -10,12 +11,28 @@ export default async function NuevoInformeProyectoPage() {
   hasta.setDate(hasta.getDate() + 6);
   const fechaHastaSugerida = hasta.toISOString().slice(0, 10);
 
+  const supabase = await createClient();
+  const { data: pagosData } = await supabase
+    .from("planilla_pagos")
+    .select("descripcion, fecha, monto")
+    .eq("tipo_trabajo", "proyecto");
+
+  const pagosPlanillaProyecto: PagoPlanillaProyecto[] = (pagosData ?? []).map((p) => ({
+    descripcion: p.descripcion as string,
+    fecha: p.fecha as string,
+    monto: Number(p.monto),
+  }));
+
   return (
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">
         Nuevo informe de proyecto
       </h1>
-      <ProyectoInformeForm fechaHoy={fechaHoy} fechaHastaSugerida={fechaHastaSugerida} />
+      <ProyectoInformeForm
+        fechaHoy={fechaHoy}
+        fechaHastaSugerida={fechaHastaSugerida}
+        pagosPlanillaProyecto={pagosPlanillaProyecto}
+      />
     </div>
   );
 }

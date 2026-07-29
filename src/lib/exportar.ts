@@ -406,6 +406,19 @@ export async function exportarOrdenCompraPDF(orden: OrdenCompraExportable) {
 
 export type FilaInformeExportable = { drone: string; hectareas: number; precio: number; total: number };
 
+export type ItemGastoOperativoExportable = {
+  categoria: string;
+  etiqueta: string;
+  cantidad: number;
+  precio: number;
+  total: number;
+};
+
+export type BloqueGastoOperativoExportable = {
+  drone: string;
+  items: ItemGastoOperativoExportable[];
+};
+
 export type InformeProyectoExportable = {
   proyecto: string;
   ubicacion: string | null;
@@ -415,6 +428,7 @@ export type InformeProyectoExportable = {
   fechaDesde: string;
   fechaHasta: string;
   filas: FilaInformeExportable[];
+  gastosOperativos: BloqueGastoOperativoExportable[];
 };
 
 function nombreArchivoProyecto(proyecto: string): string {
@@ -491,6 +505,39 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
     headStyles: { fillColor: [21, 128, 61] },
     footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
   });
+
+  let yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  const altoPagina = doc.internal.pageSize.getHeight();
+
+  for (const bloque of informe.gastosOperativos) {
+    if (yGastos > altoPagina - 60) {
+      doc.addPage();
+      yGastos = 15;
+    }
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Gastos operativos — ${bloque.drone}`, 14, yGastos);
+    yGastos += 5;
+
+    const totalBloque = bloque.items.reduce((s, it) => s + it.total, 0);
+
+    autoTable(doc, {
+      startY: yGastos,
+      head: [["Categoría", "Cantidad", "Precio unitario", "Total"]],
+      body: bloque.items.map((it) => [
+        it.etiqueta,
+        String(it.cantidad),
+        formatMoney(it.precio),
+        formatMoney(it.total),
+      ]),
+      foot: [["total", "", "", formatMoney(totalBloque)]],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+      footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+    });
+    yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  }
 
   doc.save(`${nombreArchivoProyecto(informe.proyecto)}.pdf`);
 }

@@ -6,7 +6,15 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { BotonExportarInforme } from "@/components/forms/BotonExportarInforme";
 import { eliminarInformeProyectoAction } from "@/lib/actions/proyectos";
 import { formatMoney, formatDateOnly } from "@/lib/format";
+import { CATEGORIAS_GASTO_OPERATIVO } from "@/lib/proyectoGastos";
 import type { InformeProyectoExportable } from "@/lib/exportar";
+
+type ItemGastoFila = { id: string; categoria: string; cantidad: number; precio: number; total: number };
+type BloqueGastoFila = {
+  id: string;
+  drone: string;
+  proyecto_gastos_operativos_items: { id: string; categoria: string; cantidad: number; precio: number; total: number }[] | null;
+};
 
 export default async function DetalleInformeProyectoPage({
   params,
@@ -17,7 +25,7 @@ export default async function DetalleInformeProyectoPage({
   await requireSection("proyectos");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: filasData }] = await Promise.all([
+  const [{ data: informe }, { data: filasData }, { data: gastosData }] = await Promise.all([
     supabase
       .from("proyecto_informes")
       .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
@@ -26,6 +34,11 @@ export default async function DetalleInformeProyectoPage({
     supabase
       .from("proyecto_filas")
       .select("id, drone, hectareas, precio, total")
+      .eq("informe_id", id)
+      .order("id"),
+    supabase
+      .from("proyecto_gastos_operativos")
+      .select("id, drone, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )")
       .eq("informe_id", id)
       .order("id"),
   ]);
@@ -43,6 +56,27 @@ export default async function DetalleInformeProyectoPage({
   const totalFilas = filas.reduce((s, f) => s + f.total, 0);
   const hectareasFilas = filas.reduce((s, f) => s + f.hectareas, 0);
 
+  // Cada bloque siempre trae sus 7 categorías (garantizado por
+  // crear_informe_proyecto/editar_informe_proyecto), pero se ordenan aquí
+  // en el orden fijo de CATEGORIAS_GASTO_OPERATIVO en vez de confiar en el
+  // orden de inserción.
+  const gastosOperativos = ((gastosData ?? []) as unknown as BloqueGastoFila[]).map((b) => {
+    const itemsPorCategoria = new Map(
+      (b.proyecto_gastos_operativos_items ?? []).map((it) => [it.categoria, it]),
+    );
+    const items: ItemGastoFila[] = CATEGORIAS_GASTO_OPERATIVO.map((c) => {
+      const encontrado = itemsPorCategoria.get(c.valor);
+      return {
+        id: encontrado?.id ?? c.valor,
+        categoria: c.valor,
+        cantidad: Number(encontrado?.cantidad ?? 0),
+        precio: Number(encontrado?.precio ?? 0),
+        total: Number(encontrado?.total ?? 0),
+      };
+    });
+    return { id: b.id, drone: b.drone, items, total: items.reduce((s, it) => s + it.total, 0) };
+  });
+
   const informeExportable: InformeProyectoExportable = {
     proyecto: informe.proyecto as string,
     ubicacion: informe.ubicacion as string | null,
@@ -52,6 +86,16 @@ export default async function DetalleInformeProyectoPage({
     fechaDesde: informe.fecha_desde as string,
     fechaHasta: informe.fecha_hasta as string,
     filas: filas.map((f) => ({ drone: f.drone, hectareas: f.hectareas, precio: f.precio, total: f.total })),
+    gastosOperativos: gastosOperativos.map((b) => ({
+      drone: b.drone,
+      items: b.items.map((it) => ({
+        categoria: it.categoria,
+        etiqueta: CATEGORIAS_GASTO_OPERATIVO.find((c) => c.valor === it.categoria)!.etiqueta,
+        cantidad: it.cantidad,
+        precio: it.precio,
+        total: it.total,
+      })),
+    })),
   };
 
   return (
@@ -146,6 +190,53 @@ export default async function DetalleInformeProyectoPage({
           </table>
         </div>
       </div>
+
+      {gastosOperativos.map((bloque) => (
+        <div
+          key={bloque.id}
+          className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
+        >
+          <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+            Gastos operativos — {bloque.drone}
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-3 py-2 font-medium">Categoría</th>
+                  <th className="px-3 py-2 font-medium">Cantidad</th>
+                  <th className="px-3 py-2 font-medium">Precio unitario</th>
+                  <th className="px-3 py-2 font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bloque.items.map((it) => (
+                  <tr key={it.id} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                    <td className="px-3 py-3 text-green-900 dark:text-green-50">
+                      {CATEGORIAS_GASTO_OPERATIVO.find((c) => c.valor === it.categoria)!.etiqueta}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{it.cantidad}</td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {formatMoney(it.precio)}
+                    </td>
+                    <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
+                      {formatMoney(it.total)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
+                  <td className="px-3 py-2 text-green-900 dark:text-green-50" colSpan={3}>
+                    total
+                  </td>
+                  <td className="px-3 py-2 text-green-700 dark:text-green-400">{formatMoney(bloque.total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      ))}
 
       <div>
         <DeleteButton

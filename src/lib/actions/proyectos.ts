@@ -15,10 +15,12 @@ export async function crearInformeProyectoAction(
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let filas: unknown;
+  let gastosOperativos: unknown;
   try {
     filas = JSON.parse(raw.filas || "[]");
+    gastosOperativos = JSON.parse(raw.gastosOperativos || "[]");
   } catch {
-    return { error: "No se pudieron leer las filas del informe. Intenta de nuevo.", values: raw };
+    return { error: "No se pudieron leer los datos del informe. Intenta de nuevo.", values: raw };
   }
 
   const parsed = informeProyectoSchema.safeParse({
@@ -30,6 +32,7 @@ export async function crearInformeProyectoAction(
     fechaDesde: raw.fechaDesde,
     fechaHasta: raw.fechaHasta,
     filas,
+    gastosOperativos,
   });
 
   if (!parsed.success) {
@@ -49,6 +52,14 @@ export async function crearInformeProyectoAction(
       drone: f.drone,
       hectareas: f.hectareas,
       precio: f.precio,
+    })),
+    p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
+      drone: b.drone,
+      items: b.items.map((it) => ({
+        categoria: it.categoria,
+        cantidad: it.cantidad,
+        precio: it.precio,
+      })),
     })),
   });
 
@@ -71,10 +82,12 @@ export async function editarInformeProyectoAction(
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let filas: unknown;
+  let gastosOperativos: unknown;
   try {
     filas = JSON.parse(raw.filas || "[]");
+    gastosOperativos = JSON.parse(raw.gastosOperativos || "[]");
   } catch {
-    return { error: "No se pudieron leer las filas del informe. Intenta de nuevo.", values: raw };
+    return { error: "No se pudieron leer los datos del informe. Intenta de nuevo.", values: raw };
   }
 
   const parsed = informeProyectoEditSchema.safeParse({
@@ -87,6 +100,7 @@ export async function editarInformeProyectoAction(
     fechaDesde: raw.fechaDesde,
     fechaHasta: raw.fechaHasta,
     filas,
+    gastosOperativos,
   });
 
   if (!parsed.success) {
@@ -107,6 +121,14 @@ export async function editarInformeProyectoAction(
       drone: f.drone,
       hectareas: f.hectareas,
       precio: f.precio,
+    })),
+    p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
+      drone: b.drone,
+      items: b.items.map((it) => ({
+        categoria: it.categoria,
+        cantidad: it.cantidad,
+        precio: it.precio,
+      })),
     })),
   });
 

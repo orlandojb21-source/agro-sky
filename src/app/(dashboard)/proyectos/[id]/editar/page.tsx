@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
+import { ProyectoInformeForm, type PagoPlanillaProyecto } from "@/components/forms/ProyectoInformeForm";
+
+type ItemGastoFila = { categoria: string; cantidad: number; precio: number };
+type BloqueGastoFila = { drone: string; proyecto_gastos_operativos_items: ItemGastoFila[] | null };
 
 export default async function EditarInformeProyectoPage({
   params,
@@ -12,16 +15,28 @@ export default async function EditarInformeProyectoPage({
   await requireSection("proyectos");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: filasData }] = await Promise.all([
+  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: pagosData }] = await Promise.all([
     supabase
       .from("proyecto_informes")
       .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
+    supabase
+      .from("proyecto_gastos_operativos")
+      .select("drone, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
+      .eq("informe_id", id)
+      .order("id"),
+    supabase.from("planilla_pagos").select("descripcion, fecha, monto").eq("tipo_trabajo", "proyecto"),
   ]);
 
   if (!informe) notFound();
+
+  const pagosPlanillaProyecto: PagoPlanillaProyecto[] = (pagosData ?? []).map((p) => ({
+    descripcion: p.descripcion as string,
+    fecha: p.fecha as string,
+    monto: Number(p.monto),
+  }));
 
   return (
     <div>
@@ -31,6 +46,7 @@ export default async function EditarInformeProyectoPage({
       <ProyectoInformeForm
         fechaHoy={informe.fecha_desde as string}
         fechaHastaSugerida={informe.fecha_hasta as string}
+        pagosPlanillaProyecto={pagosPlanillaProyecto}
         valoresIniciales={{
           id: informe.id as string,
           proyecto: informe.proyecto as string,
@@ -44,6 +60,14 @@ export default async function EditarInformeProyectoPage({
             drone: f.drone as string,
             hectareas: Number(f.hectareas),
             precio: Number(f.precio),
+          })),
+          gastosOperativos: ((gastosData ?? []) as unknown as BloqueGastoFila[]).map((b) => ({
+            drone: b.drone,
+            items: (b.proyecto_gastos_operativos_items ?? []).map((it) => ({
+              categoria: it.categoria,
+              cantidad: Number(it.cantidad),
+              precio: Number(it.precio),
+            })),
           })),
         }}
       />
