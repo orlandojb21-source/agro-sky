@@ -105,6 +105,14 @@ export function MovimientoForm({
         ))}
       </SelectField>
 
+      <Field
+        label="# de recibo (acuse de recibido del dinero)"
+        name="numeroRecibo"
+        defaultValue={v?.numeroRecibo ?? valoresIniciales?.numeroRecibo ?? undefined}
+        placeholder="Ej: 0123"
+        required
+      />
+
       <p className="text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
         Gasto (opcional)
       </p>
@@ -120,12 +128,6 @@ export function MovimientoForm({
           </option>
         ))}
       </SelectField>
-      <Field
-        label="# de recibo"
-        name="numeroRecibo"
-        defaultValue={v?.numeroRecibo ?? valoresIniciales?.numeroRecibo ?? undefined}
-        placeholder="Ej: 0123"
-      />
       <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
         Concepto
         <input
