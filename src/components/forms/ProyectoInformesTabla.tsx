@@ -12,10 +12,9 @@ export type InformeProyectoFila = {
   ubicacion: string | null;
   fechaDesde: string;
   fechaHasta: string;
-  hectareas: number;
-  monto: number;
-  gastos: number;
-  ganancia: number;
+  hectareas: number | null;
+  precio: number | null;
+  total: number | null;
 };
 
 type Filtros = {
@@ -71,16 +70,15 @@ export function ProyectoInformesTabla({ informes }: { informes: InformeProyectoF
 
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Semana</th>
                 <th className="px-3 py-2 font-medium">Proyecto</th>
                 <th className="px-3 py-2 font-medium">Ubicación</th>
                 <th className="px-3 py-2 font-medium">Hectáreas</th>
-                <th className="px-3 py-2 font-medium">Monto</th>
-                <th className="px-3 py-2 font-medium">Gastos</th>
-                <th className="px-3 py-2 font-medium">Ganancia</th>
+                <th className="px-3 py-2 font-medium">Precio</th>
+                <th className="px-3 py-2 font-medium">Total</th>
                 <th className="px-3 py-2"></th>
               </tr>
               <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
@@ -109,14 +107,14 @@ export function ProyectoInformesTabla({ informes }: { informes: InformeProyectoF
                     className={inputFiltro}
                   />
                 </th>
-                <th className="px-3 py-2" colSpan={4}></th>
+                <th className="px-3 py-2" colSpan={3}></th>
               </tr>
             </thead>
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {informes.length === 0
@@ -139,19 +137,14 @@ export function ProyectoInformesTabla({ informes }: { informes: InformeProyectoF
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {i.ubicacion ?? "—"}
                     </td>
-                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.hectareas}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {formatMoney(i.monto)}
+                      {i.hectareas ?? "—"}
                     </td>
-                    <td className="px-3 py-3 text-red-700 dark:text-red-400">{formatMoney(i.gastos)}</td>
-                    <td
-                      className={
-                        i.ganancia >= 0
-                          ? "px-3 py-3 font-medium text-green-700 dark:text-green-400"
-                          : "px-3 py-3 font-medium text-red-700 dark:text-red-400"
-                      }
-                    >
-                      {formatMoney(i.ganancia)}
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {i.precio !== null ? formatMoney(i.precio) : "—"}
+                    </td>
+                    <td className="px-3 py-3 font-medium text-green-700 dark:text-green-400">
+                      {i.total !== null ? formatMoney(i.total) : "—"}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
@@ -198,35 +191,25 @@ export function ProyectoInformesTabla({ informes }: { informes: InformeProyectoF
                     <p className="text-xs text-green-700/60 dark:text-green-300/60">{i.ubicacion}</p>
                   )}
                 </div>
-                <p
-                  className={
-                    i.ganancia >= 0
-                      ? "shrink-0 font-medium text-green-700 dark:text-green-400"
-                      : "shrink-0 font-medium text-red-700 dark:text-red-400"
-                  }
-                >
-                  {formatMoney(i.ganancia)}
+                <p className="shrink-0 font-medium text-green-700 dark:text-green-400">
+                  {i.total !== null ? formatMoney(i.total) : "—"}
                 </p>
               </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
+              <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
                     Ha
                   </p>
-                  <p className="text-green-900 dark:text-green-50">{i.hectareas}</p>
+                  <p className="text-green-900 dark:text-green-50">{i.hectareas ?? "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Monto
+                    Precio
                   </p>
-                  <p className="text-green-900 dark:text-green-50">{formatMoney(i.monto)}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
-                    Gastos
+                  <p className="text-green-900 dark:text-green-50">
+                    {i.precio !== null ? formatMoney(i.precio) : "—"}
                   </p>
-                  <p className="text-green-900 dark:text-green-50">{formatMoney(i.gastos)}</p>
                 </div>
               </div>
 
