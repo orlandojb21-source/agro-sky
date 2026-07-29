@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { FormError } from "@/components/ui/FormError";
-import { BotonConfirmarCotizacion } from "@/components/forms/BotonConfirmarCotizacion";
+import { ConfirmarCotizacionForm } from "@/components/forms/ConfirmarCotizacionForm";
 import { eliminarCotizacionAction } from "@/lib/actions/cotizaciones";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 
@@ -216,12 +216,8 @@ export default async function DetalleCotizacionPage({
       </div>
 
       {pendiente && (
-        <div className="flex gap-3">
-          <BotonConfirmarCotizacion
-            id={cotizacion.id as string}
-            label="Confirmar venta"
-            className="rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:opacity-90"
-          />
+        <div className="flex flex-wrap items-end gap-3">
+          <ConfirmarCotizacionForm id={cotizacion.id as string} />
           <DeleteButton
             action={eliminarCotizacionAction.bind(null, cotizacion.id as string)}
             confirmMessage="¿Eliminar esta cotización? Esta acción no se puede deshacer."

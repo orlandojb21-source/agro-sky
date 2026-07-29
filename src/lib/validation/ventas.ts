@@ -21,15 +21,22 @@ export const ventaItemSchema = z
     { message: "La cantidad de un producto debe ser un número entero" },
   );
 
-export const ventaSchema = z.object({
-  fecha: z.string().min(1, "Fecha requerida"),
-  clienteNombre: z.string().trim().min(1, "Nombre del cliente requerido"),
-  clienteDocumento: z.string().trim().optional().default(""),
-  clienteRuc: z.string().trim().optional().default(""),
-  clienteRucDv: z.string().trim().optional().default(""),
-  clienteTelefono: z.string().trim().optional().default(""),
-  clienteDireccion: z.string().trim().optional().default(""),
-  clienteCorreo: z.string().trim().optional().default(""),
-  nota: z.string().trim().optional().default(""),
-  items: z.array(ventaItemSchema).min(1, "Agrega al menos un producto o servicio"),
-});
+export const ventaSchema = z
+  .object({
+    fecha: z.string().min(1, "Fecha requerida"),
+    clienteNombre: z.string().trim().min(1, "Nombre del cliente requerido"),
+    clienteDocumento: z.string().trim().optional().default(""),
+    clienteRuc: z.string().trim().optional().default(""),
+    clienteRucDv: z.string().trim().optional().default(""),
+    clienteTelefono: z.string().trim().optional().default(""),
+    clienteDireccion: z.string().trim().optional().default(""),
+    clienteCorreo: z.string().trim().optional().default(""),
+    nota: z.string().trim().optional().default(""),
+    estadoPago: z.enum(["pagada", "pendiente"]).default("pagada"),
+    fechaVencimiento: z.string().trim().optional().default(""),
+    items: z.array(ventaItemSchema).min(1, "Agrega al menos un producto o servicio"),
+  })
+  .refine((v) => v.estadoPago === "pagada" || v.fechaVencimiento !== "", {
+    message: "Falta la fecha de vencimiento para una venta por cobrar",
+    path: ["fechaVencimiento"],
+  });

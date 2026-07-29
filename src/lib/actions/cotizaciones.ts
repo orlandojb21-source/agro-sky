@@ -78,11 +78,27 @@ export async function crearCotizacionAction(
 // un mensaje de error en vez de lanzar una excepción sin manejar -- este
 // action se invoca desde un <form> simple, no desde useActionState, así
 // que no hay un ActionState al que devolver el error directamente.
-export async function confirmarCotizacionAction(id: string) {
+//
+// El estado de pago se elige en este mismo paso (una cotización no tiene
+// estado de pago propio): por defecto "pagada" cuando el form no manda el
+// campo (ej. el botón rápido de la lista), o lo que venga en formData
+// cuando se confirma desde el detalle con el selector de Pagada/Por cobrar.
+export async function confirmarCotizacionAction(id: string, formData: FormData) {
   await requirePerfil();
+  const estadoPago = formData.get("estadoPago") === "pendiente" ? "pendiente" : "pagada";
+  const fechaVencimiento = String(formData.get("fechaVencimiento") ?? "").trim();
+
+  if (estadoPago === "pendiente" && !fechaVencimiento) {
+    redirect(
+      `/ventas/cotizaciones/${id}?error=${encodeURIComponent("Falta la fecha de vencimiento para una venta por cobrar")}`,
+    );
+  }
+
   const supabase = await createClient();
   const { data: ventaId, error } = await supabase.rpc("confirmar_cotizacion", {
     p_cotizacion_id: id,
+    p_estado_pago: estadoPago,
+    p_fecha_vencimiento: estadoPago === "pendiente" ? fechaVencimiento : null,
   });
 
   if (error) {

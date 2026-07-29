@@ -10,7 +10,9 @@ export default async function VentasPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("ventas")
-    .select("id, numero_factura, fecha, cliente_nombre, subtotal_gravado, subtotal_exento, itbms, total")
+    .select(
+      "id, numero_factura, fecha, cliente_nombre, subtotal_gravado, subtotal_exento, itbms, total, estado_pago, fecha_vencimiento",
+    )
     .order("fecha", { ascending: false });
 
   const ventas: VentaFila[] = (data ?? []).map((v) => ({
@@ -22,6 +24,8 @@ export default async function VentasPage() {
     subtotalExento: Number(v.subtotal_exento),
     itbms: Number(v.itbms),
     total: Number(v.total),
+    estadoPago: v.estado_pago as "pagada" | "pendiente",
+    fechaVencimiento: v.fecha_vencimiento as string | null,
   }));
 
   return (

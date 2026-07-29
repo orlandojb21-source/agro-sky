@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { MarcarCobradaButton } from "@/components/forms/MarcarCobradaButton";
 import { eliminarVentaAction } from "@/lib/actions/ventas";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 
@@ -15,15 +16,41 @@ export type VentaFila = {
   subtotalExento: number;
   itbms: number;
   total: number;
+  estadoPago: "pagada" | "pendiente";
+  fechaVencimiento: string | null;
+};
+
+type EstadoVisible = "pagada" | "pendiente" | "vencida";
+
+// "Vencida" se calcula en vivo (nunca se guarda) comparando contra la fecha
+// de hoy en el navegador -- mismo principio que el saldo de Caja Menuda: no
+// cachear un valor derivado que puede quedar desactualizado.
+function estadoVisible(v: Pick<VentaFila, "estadoPago" | "fechaVencimiento">, hoyISO: string): EstadoVisible {
+  if (v.estadoPago === "pagada") return "pagada";
+  if (v.fechaVencimiento && v.fechaVencimiento < hoyISO) return "vencida";
+  return "pendiente";
+}
+
+const ETIQUETA_ESTADO: Record<EstadoVisible, string> = {
+  pagada: "Pagada",
+  pendiente: "Por cobrar",
+  vencida: "Vencida",
+};
+
+const CLASE_BADGE: Record<EstadoVisible, string> = {
+  pagada: "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400",
+  pendiente: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+  vencida: "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400",
 };
 
 type Filtros = {
   texto: string;
   fechaDesde: string;
   fechaHasta: string;
+  estado: "" | EstadoVisible;
 };
 
-const FILTROS_VACIOS: Filtros = { texto: "", fechaDesde: "", fechaHasta: "" };
+const FILTROS_VACIOS: Filtros = { texto: "", fechaDesde: "", fechaHasta: "", estado: "" };
 
 const inputFiltro =
   "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
@@ -31,7 +58,12 @@ const inputFiltro =
 export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
-  function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
+  // Getters locales (no toISOString, que usa UTC y puede correr la fecha en
+  // Panama cerca de medianoche) -- se ejecuta en el navegador del usuario.
+  const hoy = new Date();
+  const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+
+  function setFiltro<K extends keyof Filtros>(campo: K, valor: Filtros[K]) {
     setFiltros((f) => ({ ...f, [campo]: valor }));
   }
 
@@ -41,9 +73,10 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
       if (texto && !v.clienteNombre.toLowerCase().includes(texto)) return false;
       if (filtros.fechaDesde && v.fecha < filtros.fechaDesde) return false;
       if (filtros.fechaHasta && v.fecha > filtros.fechaHasta) return false;
+      if (filtros.estado && estadoVisible(v, hoyISO) !== filtros.estado) return false;
       return true;
     });
-  }, [ventas, filtros]);
+  }, [ventas, filtros, hoyISO]);
 
   const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
@@ -76,6 +109,7 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                 <th className="px-3 py-2 font-medium">Subtotal exento</th>
                 <th className="px-3 py-2 font-medium">ITBMS</th>
                 <th className="px-3 py-2 font-medium">Total</th>
+                <th className="px-3 py-2 font-medium">Estado</th>
                 <th className="px-3 py-2"></th>
               </tr>
               <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
@@ -105,14 +139,26 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                     className={inputFiltro}
                   />
                 </th>
-                <th className="px-3 py-2" colSpan={4}></th>
+                <th className="px-3 py-2" colSpan={3}></th>
+                <th className="px-3 py-2">
+                  <select
+                    value={filtros.estado}
+                    onChange={(e) => setFiltro("estado", e.target.value as Filtros["estado"])}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todas</option>
+                    <option value="pagada">Pagada</option>
+                    <option value="pendiente">Por cobrar</option>
+                    <option value="vencida">Vencida</option>
+                  </select>
+                </th>
               </tr>
             </thead>
             <tbody>
               {filtradas.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {ventas.length === 0
@@ -148,13 +194,27 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                       {formatMoney(v.total)}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex gap-3">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${CLASE_BADGE[estadoVisible(v, hoyISO)]}`}
+                      >
+                        {ETIQUETA_ESTADO[estadoVisible(v, hoyISO)]}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <Link
                           href={`/ventas/${v.id}`}
                           className="text-sm text-green-700 hover:underline dark:text-green-300"
                         >
                           Ver
                         </Link>
+                        {v.estadoPago === "pendiente" && (
+                          <MarcarCobradaButton
+                            id={v.id}
+                            label="Marcar cobrada"
+                            className="text-sm text-green-700 hover:underline dark:text-green-300"
+                          />
+                        )}
                         <DeleteButton
                           action={eliminarVentaAction.bind(null, v.id)}
                           confirmMessage="¿Eliminar esta venta? El stock de los productos Nuevo/Usado vendidos se devuelve al inventario. Esta acción no se puede deshacer."
@@ -190,9 +250,14 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                   </p>
                   <p className="font-medium text-green-900 dark:text-green-50">{v.clienteNombre}</p>
                 </div>
-                <p className="shrink-0 font-medium text-green-700 dark:text-green-400">
-                  {formatMoney(v.total)}
-                </p>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <p className="font-medium text-green-700 dark:text-green-400">{formatMoney(v.total)}</p>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${CLASE_BADGE[estadoVisible(v, hoyISO)]}`}
+                  >
+                    {ETIQUETA_ESTADO[estadoVisible(v, hoyISO)]}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
@@ -223,6 +288,13 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                 >
                   Ver
                 </Link>
+                {v.estadoPago === "pendiente" && (
+                  <MarcarCobradaButton
+                    id={v.id}
+                    label="Marcar cobrada"
+                    className="text-sm text-green-700 hover:underline dark:text-green-300"
+                  />
+                )}
                 <DeleteButton
                   action={eliminarVentaAction.bind(null, v.id)}
                   confirmMessage="¿Eliminar esta venta? El stock de los productos Nuevo/Usado vendidos se devuelve al inventario. Esta acción no se puede deshacer."

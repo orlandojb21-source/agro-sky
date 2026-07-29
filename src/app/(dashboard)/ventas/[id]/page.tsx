@@ -3,6 +3,7 @@ import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { BotonExportarFactura } from "@/components/forms/BotonExportarFactura";
+import { MarcarCobradaButton } from "@/components/forms/MarcarCobradaButton";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 import type { FacturaExportable } from "@/lib/exportar";
 
@@ -19,7 +20,7 @@ export default async function DetalleVentaPage({
     supabase
       .from("ventas")
       .select(
-        "id, numero_factura, fecha, cliente_nombre, cliente_documento, cliente_ruc, cliente_ruc_dv, cliente_telefono, cliente_direccion, cliente_correo, nota, subtotal_gravado, subtotal_exento, itbms, total",
+        "id, numero_factura, fecha, cliente_nombre, cliente_documento, cliente_ruc, cliente_ruc_dv, cliente_telefono, cliente_direccion, cliente_correo, nota, subtotal_gravado, subtotal_exento, itbms, total, estado_pago, fecha_vencimiento, fecha_cobro",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -31,6 +32,10 @@ export default async function DetalleVentaPage({
   ]);
 
   if (!venta) notFound();
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  const pendiente = venta.estado_pago === "pendiente";
+  const vencida = pendiente && !!venta.fecha_vencimiento && (venta.fecha_vencimiento as string) < hoy;
 
   const factura: FacturaExportable = {
     numeroFactura: venta.numero_factura as number,
@@ -57,10 +62,25 @@ export default async function DetalleVentaPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-green-900 dark:text-green-50">
-          Factura No. {String(venta.numero_factura).padStart(10, "0")} —{" "}
-          {formatDateOnly(venta.fecha as string)}
-        </h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold text-green-900 dark:text-green-50">
+            Factura No. {String(venta.numero_factura).padStart(10, "0")} —{" "}
+            {formatDateOnly(venta.fecha as string)}
+          </h1>
+          {vencida ? (
+            <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">
+              Vencida
+            </span>
+          ) : pendiente ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+              Por cobrar
+            </span>
+          ) : (
+            <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+              Pagada
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <BotonExportarFactura factura={factura} />
           <LinkButton href="/ventas" variant="secondary">
@@ -127,7 +147,33 @@ export default async function DetalleVentaPage({
             <p className="text-green-900 dark:text-green-50">{venta.nota as string}</p>
           </div>
         ) : null}
+        {pendiente && venta.fecha_vencimiento ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              Fecha de vencimiento
+            </p>
+            <p className={vencida ? "text-red-600 dark:text-red-400" : "text-green-900 dark:text-green-50"}>
+              {formatDateOnly(venta.fecha_vencimiento as string)}
+            </p>
+          </div>
+        ) : null}
+        {!pendiente && venta.fecha_cobro ? (
+          <div>
+            <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+              Fecha de cobro
+            </p>
+            <p className="text-green-900 dark:text-green-50">
+              {formatDateOnly(venta.fecha_cobro as string)}
+            </p>
+          </div>
+        ) : null}
       </div>
+
+      {pendiente && (
+        <div>
+          <MarcarCobradaButton id={venta.id as string} />
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">

@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { crearVentaAction } from "@/lib/actions/ventas";
 import { crearCotizacionAction } from "@/lib/actions/cotizaciones";
-import { Field } from "@/components/ui/Field";
+import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import { formatMoney } from "@/lib/format";
@@ -83,6 +83,13 @@ export function VentaForm({
   const [clienteDireccion, setClienteDireccion] = useState(v?.clienteDireccion ?? "");
   const [clienteCorreo, setClienteCorreo] = useState(v?.clienteCorreo ?? "");
 
+  // Estado de pago: exclusivo de ventas reales (una cotizacion no tiene
+  // estado de pago propio -- se elige al confirmarla, no aqui).
+  const [estadoPago, setEstadoPago] = useState<"pagada" | "pendiente">(
+    v?.estadoPago === "pendiente" ? "pendiente" : "pagada",
+  );
+  const [fechaVencimiento, setFechaVencimiento] = useState(v?.fechaVencimiento ?? "");
+
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
   if (state !== prevState) {
@@ -95,6 +102,8 @@ export function VentaForm({
     setClienteTelefono(state.values?.clienteTelefono ?? "");
     setClienteDireccion(state.values?.clienteDireccion ?? "");
     setClienteCorreo(state.values?.clienteCorreo ?? "");
+    setEstadoPago(state.values?.estadoPago === "pendiente" ? "pendiente" : "pagada");
+    setFechaVencimiento(state.values?.fechaVencimiento ?? "");
   }
 
   function cambiarClienteNombre(nombre: string) {
@@ -270,6 +279,29 @@ export function VentaForm({
           onChange={(e) => setClienteCorreo(e.target.value)}
         />
         <Field label="Nota (opcional)" name="nota" defaultValue={v?.nota ?? undefined} />
+        {modo === "venta" && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <SelectField
+              label="Estado de pago"
+              name="estadoPago"
+              defaultValue={estadoPago}
+              onChange={(e) => setEstadoPago(e.target.value as "pagada" | "pendiente")}
+            >
+              <option value="pagada">Pagada</option>
+              <option value="pendiente">Por cobrar</option>
+            </SelectField>
+            {estadoPago === "pendiente" && (
+              <Field
+                label="Fecha de vencimiento"
+                name="fechaVencimiento"
+                type="date"
+                value={fechaVencimiento}
+                onChange={(e) => setFechaVencimiento(e.target.value)}
+                required
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">

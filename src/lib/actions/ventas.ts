@@ -31,6 +31,8 @@ export async function crearVentaAction(
     clienteDireccion: raw.clienteDireccion,
     clienteCorreo: raw.clienteCorreo,
     nota: raw.nota,
+    estadoPago: raw.estadoPago,
+    fechaVencimiento: raw.fechaVencimiento,
     items,
   });
 
@@ -49,6 +51,8 @@ export async function crearVentaAction(
     p_cliente_direccion: parsed.data.clienteDireccion || null,
     p_cliente_correo: parsed.data.clienteCorreo || null,
     p_nota: parsed.data.nota || null,
+    p_estado_pago: parsed.data.estadoPago,
+    p_fecha_vencimiento: parsed.data.estadoPago === "pendiente" ? parsed.data.fechaVencimiento : null,
     p_items: parsed.data.items.map((item) => ({
       tipo: item.tipo,
       producto_id: item.productoId,
@@ -81,4 +85,13 @@ export async function eliminarVentaAction(id: string) {
   revalidatePath("/ventas");
   revalidatePath("/inventario/nuevos");
   revalidatePath("/inventario/usados");
+}
+
+export async function marcarVentaCobradaAction(id: string) {
+  await requirePerfil();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("marcar_venta_cobrada", { p_venta_id: id });
+  if (error) throw new Error(error.message || "No se pudo marcar la factura como cobrada.");
+  revalidatePath("/ventas");
+  revalidatePath(`/ventas/${id}`);
 }
