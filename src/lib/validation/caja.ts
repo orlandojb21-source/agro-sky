@@ -29,18 +29,16 @@ function camposCantidadPorDenominacion(prefijo: string) {
 }
 
 // Un "movimiento" es un gasto simple (nombre/concepto/monto) o una entrega
-// de previsto/viaticos (colaborador/previsto/entregado/vuelto) -- esos campos
-// son opcionales, se guarda con cualquier combinacion que se llene. El
-// numero de recibo si es obligatorio en todo movimiento (acuse de recibido
-// del dinero, pedido explicito del usuario) aunque no haya un gasto de por
-// medio. "monto", "entregado" y "vuelto" se registran por denominacion
-// (billetes y monedas); "previsto" es solo un estimado del dia, no dinero
-// fisico entregado, asi que se queda como un monto simple en dolares.
+// de previsto/viaticos (colaborador/previsto/entregado/vuelto) -- todos los
+// campos son opcionales, se guarda con cualquier combinacion que se llene.
+// "monto", "entregado" y "vuelto" se registran por denominacion (billetes y
+// monedas); "previsto" es solo un estimado del dia, no dinero fisico
+// entregado, asi que se queda como un monto simple en dolares.
 export const gastoSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
   categoria: z.enum(CATEGORIAS_GASTO, { message: "Selecciona una categoría" }),
   nombre: z.string().trim().optional().default(""),
-  numeroRecibo: z.string().trim().min(1, "El número de recibo es requerido"),
+  numeroRecibo: z.string().trim().optional().default(""),
   concepto: z.string().trim().optional().default(""),
   colaborador: z.string().trim().optional().default(""),
   previsto: numeroOpcionalPositivo("El previsto debe ser mayor a cero"),
