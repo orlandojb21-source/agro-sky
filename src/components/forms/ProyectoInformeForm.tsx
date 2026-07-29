@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { crearInformeProyectoAction } from "@/lib/actions/proyectos";
+import { crearInformeProyectoAction, editarInformeProyectoAction } from "@/lib/actions/proyectos";
 import { Field } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -17,14 +17,32 @@ function filaVacia(): FilaDraft {
   return { drone: "", hectareas: "", precio: "" };
 }
 
+export type ValoresInforme = {
+  id: string;
+  proyecto: string;
+  ubicacion: string | null;
+  hectareas: number | null;
+  precio: number | null;
+  total: number | null;
+  fechaDesde: string;
+  fechaHasta: string;
+  filas: { drone: string; hectareas: number; precio: number }[];
+};
+
 export function ProyectoInformeForm({
   fechaHoy,
   fechaHastaSugerida,
+  valoresIniciales,
 }: {
   fechaHoy: string;
   fechaHastaSugerida: string;
+  valoresIniciales?: ValoresInforme;
 }) {
-  const [state, formAction] = useActionState(crearInformeProyectoAction, { error: null });
+  const esEdicion = Boolean(valoresIniciales?.id);
+  const [state, formAction] = useActionState(
+    esEdicion ? editarInformeProyectoAction : crearInformeProyectoAction,
+    { error: null },
+  );
 
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
@@ -35,17 +53,28 @@ export function ProyectoInformeForm({
 
   const v = state.values;
 
-  const [fechaDesde, setFechaDesde] = useState(v?.fechaDesde ?? fechaHoy);
-  const [fechaHasta, setFechaHasta] = useState(v?.fechaHasta ?? fechaHastaSugerida);
+  const [fechaDesde, setFechaDesde] = useState(v?.fechaDesde ?? valoresIniciales?.fechaDesde ?? fechaHoy);
+  const [fechaHasta, setFechaHasta] = useState(
+    v?.fechaHasta ?? valoresIniciales?.fechaHasta ?? fechaHastaSugerida,
+  );
 
   const [filas, setFilas] = useState<FilaDraft[]>(() => {
-    if (!v?.filas) return [filaVacia()];
-    try {
-      const parsed = JSON.parse(v.filas) as FilaDraft[];
-      return parsed.length > 0 ? parsed : [filaVacia()];
-    } catch {
-      return [filaVacia()];
+    if (v?.filas) {
+      try {
+        const parsed = JSON.parse(v.filas) as FilaDraft[];
+        if (parsed.length > 0) return parsed;
+      } catch {
+        // sigue abajo con los valores iniciales / fila vacía
+      }
     }
+    if (valoresIniciales?.filas && valoresIniciales.filas.length > 0) {
+      return valoresIniciales.filas.map((f) => ({
+        drone: f.drone,
+        hectareas: String(f.hectareas),
+        precio: String(f.precio),
+      }));
+    }
+    return [filaVacia()];
   });
 
   function actualizarFila(index: number, campo: keyof FilaDraft, valor: string) {
@@ -70,19 +99,25 @@ export function ProyectoInformeForm({
     <form key={remountKey} action={formAction} className="flex flex-col gap-6">
       <FormError message={state.error} />
       <input type="hidden" name="filas" value={JSON.stringify(filasParaEnviar)} />
+      {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
         <div className="sm:col-span-2">
           <Field
             label="Proyecto"
             name="proyecto"
-            defaultValue={v?.proyecto ?? undefined}
+            defaultValue={v?.proyecto ?? valoresIniciales?.proyecto ?? undefined}
             placeholder="Ej. Ingenio Santa Rosa (Semana 8 Granulado)"
             required
           />
         </div>
         <div className="sm:col-span-2">
-          <Field label="Ubicación" name="ubicacion" defaultValue={v?.ubicacion ?? undefined} placeholder="Ej. El Roble, Aguadulce" />
+          <Field
+            label="Ubicación"
+            name="ubicacion"
+            defaultValue={v?.ubicacion ?? valoresIniciales?.ubicacion ?? undefined}
+            placeholder="Ej. El Roble, Aguadulce"
+          />
         </div>
         <Field
           label="Hectáreas"
@@ -90,7 +125,7 @@ export function ProyectoInformeForm({
           type="number"
           step="0.01"
           min="0"
-          defaultValue={v?.hectareas ?? undefined}
+          defaultValue={v?.hectareas ?? valoresIniciales?.hectareas ?? undefined}
         />
         <Field
           label="Precio"
@@ -98,7 +133,7 @@ export function ProyectoInformeForm({
           type="number"
           step="0.01"
           min="0"
-          defaultValue={v?.precio ?? undefined}
+          defaultValue={v?.precio ?? valoresIniciales?.precio ?? undefined}
         />
         <Field
           label="Total"
@@ -106,7 +141,7 @@ export function ProyectoInformeForm({
           type="number"
           step="0.01"
           min="0"
-          defaultValue={v?.total ?? undefined}
+          defaultValue={v?.total ?? valoresIniciales?.total ?? undefined}
         />
         <div className="grid grid-cols-2 gap-3 sm:col-span-2">
           <Field
@@ -203,8 +238,8 @@ export function ProyectoInformeForm({
       </div>
 
       <div className="flex gap-3">
-        <SubmitButton>Guardar informe</SubmitButton>
-        <LinkButton href="/proyectos" variant="secondary">
+        <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar informe"}</SubmitButton>
+        <LinkButton href={esEdicion ? `/proyectos/${valoresIniciales!.id}` : "/proyectos"} variant="secondary">
           Cancelar
         </LinkButton>
       </div>

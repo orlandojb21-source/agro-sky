@@ -3,8 +3,10 @@ import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { BotonExportarInforme } from "@/components/forms/BotonExportarInforme";
 import { eliminarInformeProyectoAction } from "@/lib/actions/proyectos";
 import { formatMoney, formatDateOnly } from "@/lib/format";
+import type { InformeProyectoExportable } from "@/lib/exportar";
 
 export default async function DetalleInformeProyectoPage({
   params,
@@ -41,6 +43,17 @@ export default async function DetalleInformeProyectoPage({
   const totalFilas = filas.reduce((s, f) => s + f.total, 0);
   const hectareasFilas = filas.reduce((s, f) => s + f.hectareas, 0);
 
+  const informeExportable: InformeProyectoExportable = {
+    proyecto: informe.proyecto as string,
+    ubicacion: informe.ubicacion as string | null,
+    hectareas: informe.hectareas === null ? null : Number(informe.hectareas),
+    precio: informe.precio === null ? null : Number(informe.precio),
+    total: informe.total === null ? null : Number(informe.total),
+    fechaDesde: informe.fecha_desde as string,
+    fechaHasta: informe.fecha_hasta as string,
+    filas: filas.map((f) => ({ drone: f.drone, hectareas: f.hectareas, precio: f.precio, total: f.total })),
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -53,9 +66,15 @@ export default async function DetalleInformeProyectoPage({
             {formatDateOnly(informe.fecha_desde as string)} al {formatDateOnly(informe.fecha_hasta as string)}
           </p>
         </div>
-        <LinkButton href="/proyectos" variant="secondary">
-          Volver
-        </LinkButton>
+        <div className="flex flex-wrap gap-2">
+          <BotonExportarInforme informe={informeExportable} />
+          <LinkButton href={`/proyectos/${id}/editar`} variant="secondary">
+            Editar
+          </LinkButton>
+          <LinkButton href="/proyectos" variant="secondary">
+            Volver
+          </LinkButton>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-3 dark:border-green-900/40 dark:bg-green-950/10">

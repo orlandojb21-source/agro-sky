@@ -404,6 +404,97 @@ export async function exportarOrdenCompraPDF(orden: OrdenCompraExportable) {
   doc.save(`agro-sky-orden-compra-${String(orden.numeroOrden).padStart(4, "0")}.pdf`);
 }
 
+export type FilaInformeExportable = { drone: string; hectareas: number; precio: number; total: number };
+
+export type InformeProyectoExportable = {
+  proyecto: string;
+  ubicacion: string | null;
+  hectareas: number | null;
+  precio: number | null;
+  total: number | null;
+  fechaDesde: string;
+  fechaHasta: string;
+  filas: FilaInformeExportable[];
+};
+
+function nombreArchivoProyecto(proyecto: string): string {
+  return `agro-sky-proyecto-${proyecto.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+// Mismo formato carta vertical con letterhead que la Factura/Orden de
+// Compra. El encabezado (Proyecto/Ubicacion/Hectareas/Precio/Total/Fecha)
+// se imprime tal como se llenó a mano, no se recalcula a partir de las
+// filas -- mismo principio que en el formulario.
+export async function exportarInformeProyectoPDF(informe: InformeProyectoExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text(informe.proyecto, 14, 20);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let yInforme = 30;
+  for (const linea of [
+    `Ubicación: ${informe.ubicacion ?? "—"}`,
+    `Hectáreas: ${informe.hectareas ?? "—"}`,
+    `Precio: ${informe.precio !== null ? formatMoney(informe.precio) : "—"}`,
+    `Total: ${informe.total !== null ? formatMoney(informe.total) : "—"}`,
+    `Fecha: ${formatDateOnly(informe.fechaDesde)} al ${formatDateOnly(informe.fechaHasta)}`,
+  ]) {
+    doc.text(linea, 14, yInforme);
+    yInforme += 6;
+  }
+
+  const startY = Math.max(yInforme, yEmpresa) + 6;
+
+  const totalFilas = informe.filas.reduce((s, f) => s + f.total, 0);
+  const hectareasFilas = informe.filas.reduce((s, f) => s + f.hectareas, 0);
+
+  autoTable(doc, {
+    startY,
+    head: [["Drone", "HA", "Precio", "Total"]],
+    body: informe.filas.map((f) => [
+      f.drone,
+      String(f.hectareas),
+      formatMoney(f.precio),
+      formatMoney(f.total),
+    ]),
+    foot: [["total", String(hectareasFilas), "", formatMoney(totalFilas)]],
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [21, 128, 61] },
+    footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+  });
+
+  doc.save(`${nombreArchivoProyecto(informe.proyecto)}.pdf`);
+}
+
 export type MovimientoExportable = {
   fecha: string;
   tipo: "gasto" | "reposicion";
