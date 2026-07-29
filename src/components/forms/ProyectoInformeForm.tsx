@@ -29,6 +29,7 @@ function bloqueGastoVacio(): BloqueGastoDraft {
 }
 
 export type PagoPlanillaProyecto = { descripcion: string; fecha: string; monto: number };
+export type GastoViaticoCajaMenuda = { concepto: string; fecha: string; monto: number };
 
 export type ValoresInforme = {
   id: string;
@@ -61,11 +62,13 @@ export function ProyectoInformeForm({
   fechaHoy,
   fechaHastaSugerida,
   pagosPlanillaProyecto = [],
+  gastosViaticosCajaMenuda = [],
   valoresIniciales,
 }: {
   fechaHoy: string;
   fechaHastaSugerida: string;
   pagosPlanillaProyecto?: PagoPlanillaProyecto[];
+  gastosViaticosCajaMenuda?: GastoViaticoCajaMenuda[];
   valoresIniciales?: ValoresInforme;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -126,6 +129,7 @@ export function ProyectoInformeForm({
   });
 
   const [mensajePlanilla, setMensajePlanilla] = useState<Record<number, string>>({});
+  const [mensajeViaticos, setMensajeViaticos] = useState<Record<number, string>>({});
 
   function actualizarFila(index: number, campo: keyof FilaDraft, valor: string) {
     setFilas((prev) => prev.map((f, i) => (i === index ? { ...f, [campo]: valor } : f)));
@@ -146,6 +150,11 @@ export function ProyectoInformeForm({
   function quitarBloqueGasto(index: number) {
     setGastosOperativos((prev) => prev.filter((_, i) => i !== index));
     setMensajePlanilla((prev) => {
+      const siguiente = { ...prev };
+      delete siguiente[index];
+      return siguiente;
+    });
+    setMensajeViaticos((prev) => {
       const siguiente = { ...prev };
       delete siguiente[index];
       return siguiente;
@@ -202,6 +211,43 @@ export function ProyectoInformeForm({
         coincidencias.length > 0
           ? `${coincidencias.length} pago${coincidencias.length === 1 ? "" : "s"} de planilla encontrado${coincidencias.length === 1 ? "" : "s"}, total ${formatMoney(total)}`
           : "No se encontraron pagos de planilla que coincidan (revisa que el nombre del proyecto sea idéntico al de la Descripción del pago)",
+    }));
+  }
+
+  // Trae de caja_gastos (categoría "Viáticos") la suma de los movimientos
+  // reales de este proyecto: fecha dentro de la semana del informe, y el
+  // Concepto del movimiento aparece contenido dentro del nombre del
+  // Proyecto (ej. Concepto "Ingenio Santa Rosa" encaja dentro de un
+  // Proyecto "Ingenio Santa Rosa (Semana 8 Granulado)") -- a diferencia de
+  // Planilla, aquí el usuario pidió explícitamente que no haga falta una
+  // coincidencia exacta, la fecha ya acota bastante la búsqueda. El
+  // resultado sigue siendo editable a mano después.
+  function traerDeCajaMenuda(bloqueIndex: number) {
+    const nombreProyecto = proyecto.trim().toLowerCase();
+    const coincidencias = gastosViaticosCajaMenuda.filter((g) => {
+      const concepto = g.concepto.trim().toLowerCase();
+      return concepto !== "" && nombreProyecto.includes(concepto) && g.fecha >= fechaDesde && g.fecha <= fechaHasta;
+    });
+    const total = coincidencias.reduce((s, g) => s + g.monto, 0);
+
+    setGastosOperativos((prev) =>
+      prev.map((b, i) =>
+        i !== bloqueIndex
+          ? b
+          : {
+              ...b,
+              items: b.items.map((it) =>
+                it.categoria === "viaticos" ? { ...it, cantidad: "1", precio: String(total) } : it,
+              ),
+            },
+      ),
+    );
+    setMensajeViaticos((prev) => ({
+      ...prev,
+      [bloqueIndex]:
+        coincidencias.length > 0
+          ? `${coincidencias.length} movimiento${coincidencias.length === 1 ? "" : "s"} de Caja Menuda encontrado${coincidencias.length === 1 ? "" : "s"}, total ${formatMoney(total)}`
+          : "No se encontraron movimientos de Caja Menuda que coincidan (revisa que el Concepto mencione el nombre del proyecto)",
     }));
   }
 
@@ -452,6 +498,15 @@ export function ProyectoInformeForm({
                               Traer de Planilla
                             </button>
                           )}
+                          {item.categoria === "viaticos" && (
+                            <button
+                              type="button"
+                              onClick={() => traerDeCajaMenuda(bi)}
+                              className="whitespace-nowrap text-sm text-green-700 hover:underline dark:text-green-300"
+                            >
+                              Traer de Caja Menuda
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -472,6 +527,9 @@ export function ProyectoInformeForm({
 
             {mensajePlanilla[bi] && (
               <p className="text-xs text-green-700/80 dark:text-green-300/80">{mensajePlanilla[bi]}</p>
+            )}
+            {mensajeViaticos[bi] && (
+              <p className="text-xs text-green-700/80 dark:text-green-300/80">{mensajeViaticos[bi]}</p>
             )}
           </div>
         );
