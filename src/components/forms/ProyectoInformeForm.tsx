@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { crearInformeProyectoAction, editarInformeProyectoAction } from "@/lib/actions/proyectos";
+import {
+  crearInformeProyectoAction,
+  editarInformeProyectoAction,
+  buscarPagosPlanillaProyectoAction,
+  buscarViaticosCajaMenudaAction,
+} from "@/lib/actions/proyectos";
 import { Field } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -27,9 +32,6 @@ function bloqueGastoVacio(): BloqueGastoDraft {
     items: CATEGORIAS_GASTO_OPERATIVO.map((c) => ({ categoria: c.valor, cantidad: "", precio: "" })),
   };
 }
-
-export type PagoPlanillaProyecto = { descripcion: string; fecha: string; monto: number };
-export type GastoViaticoCajaMenuda = { concepto: string; fecha: string; monto: number };
 
 export type ValoresInforme = {
   id: string;
@@ -61,14 +63,10 @@ function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number])
 export function ProyectoInformeForm({
   fechaHoy,
   fechaHastaSugerida,
-  pagosPlanillaProyecto = [],
-  gastosViaticosCajaMenuda = [],
   valoresIniciales,
 }: {
   fechaHoy: string;
   fechaHastaSugerida: string;
-  pagosPlanillaProyecto?: PagoPlanillaProyecto[];
-  gastosViaticosCajaMenuda?: GastoViaticoCajaMenuda[];
   valoresIniciales?: ValoresInforme;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -130,6 +128,8 @@ export function ProyectoInformeForm({
 
   const [mensajePlanilla, setMensajePlanilla] = useState<Record<number, string>>({});
   const [mensajeViaticos, setMensajeViaticos] = useState<Record<number, string>>({});
+  const [buscandoPlanilla, setBuscandoPlanilla] = useState<Record<number, boolean>>({});
+  const [buscandoViaticos, setBuscandoViaticos] = useState<Record<number, boolean>>({});
 
   function actualizarFila(index: number, campo: keyof FilaDraft, valor: string) {
     setFilas((prev) => prev.map((f, i) => (i === index ? { ...f, [campo]: valor } : f)));
@@ -180,19 +180,7 @@ export function ProyectoInformeForm({
     );
   }
 
-  // Trae de planilla_pagos reales la suma de lo pagado para este proyecto:
-  // tipo_trabajo = 'proyecto' (ya filtrado al armar pagosPlanillaProyecto),
-  // fecha dentro de la semana del informe, y la Descripción del pago
-  // coincide EXACTAMENTE con el nombre del proyecto -- los 3 criterios que
-  // pidió el usuario. El resultado se sugiere pero se puede corregir a mano
-  // después, igual que el CSS/Seguro Educativo de Planilla.
-  function traerDePlanilla(bloqueIndex: number) {
-    const nombreProyecto = proyecto.trim();
-    const coincidencias = pagosPlanillaProyecto.filter(
-      (p) => p.descripcion.trim() === nombreProyecto && p.fecha >= fechaDesde && p.fecha <= fechaHasta,
-    );
-    const total = coincidencias.reduce((s, p) => s + p.monto, 0);
-
+  function llenarCategoria(bloqueIndex: number, categoria: string, total: number) {
     setGastosOperativos((prev) =>
       prev.map((b, i) =>
         i !== bloqueIndex
@@ -200,55 +188,67 @@ export function ProyectoInformeForm({
           : {
               ...b,
               items: b.items.map((it) =>
-                it.categoria === "planilla" ? { ...it, cantidad: "1", precio: String(total) } : it,
+                it.categoria === categoria ? { ...it, cantidad: "1", precio: String(total) } : it,
               ),
             },
       ),
     );
-    setMensajePlanilla((prev) => ({
-      ...prev,
-      [bloqueIndex]:
-        coincidencias.length > 0
-          ? `${coincidencias.length} pago${coincidencias.length === 1 ? "" : "s"} de planilla encontrado${coincidencias.length === 1 ? "" : "s"}, total ${formatMoney(total)}`
-          : "No se encontraron pagos de planilla que coincidan (revisa que el nombre del proyecto sea idéntico al de la Descripción del pago)",
-    }));
   }
 
-  // Trae de caja_gastos (categoría "Viáticos") la suma de los movimientos
-  // reales de este proyecto: fecha dentro de la semana del informe, y el
-  // Concepto del movimiento aparece contenido dentro del nombre del
-  // Proyecto (ej. Concepto "Ingenio Santa Rosa" encaja dentro de un
-  // Proyecto "Ingenio Santa Rosa (Semana 8 Granulado)") -- a diferencia de
-  // Planilla, aquí el usuario pidió explícitamente que no haga falta una
-  // coincidencia exacta, la fecha ya acota bastante la búsqueda. El
-  // resultado sigue siendo editable a mano después.
-  function traerDeCajaMenuda(bloqueIndex: number) {
-    const nombreProyecto = proyecto.trim().toLowerCase();
-    const coincidencias = gastosViaticosCajaMenuda.filter((g) => {
-      const concepto = g.concepto.trim().toLowerCase();
-      return concepto !== "" && nombreProyecto.includes(concepto) && g.fecha >= fechaDesde && g.fecha <= fechaHasta;
-    });
-    const total = coincidencias.reduce((s, g) => s + g.monto, 0);
+  // Busca en tiempo real en el servidor (nunca en una lista cargada al abrir
+  // la página) -- así funciona sin importar si el pago de planilla se
+  // registró antes o después de abrir este formulario. Tipo de trabajo
+  // "Proyecto", fecha dentro de la semana, Descripción idéntica al nombre
+  // del proyecto -- los 3 criterios que pidió el usuario. El resultado se
+  // sugiere pero se puede corregir a mano después.
+  async function traerDePlanilla(bloqueIndex: number) {
+    setBuscandoPlanilla((prev) => ({ ...prev, [bloqueIndex]: true }));
+    try {
+      const { total, cantidad } = await buscarPagosPlanillaProyectoAction(proyecto, fechaDesde, fechaHasta);
+      llenarCategoria(bloqueIndex, "planilla", total);
+      setMensajePlanilla((prev) => ({
+        ...prev,
+        [bloqueIndex]:
+          cantidad > 0
+            ? `${cantidad} pago${cantidad === 1 ? "" : "s"} de planilla encontrado${cantidad === 1 ? "" : "s"}, total ${formatMoney(total)}`
+            : "No se encontraron pagos de planilla que coincidan (revisa que el nombre del proyecto sea idéntico al de la Descripción del pago)",
+      }));
+    } catch (err) {
+      setMensajePlanilla((prev) => ({
+        ...prev,
+        [bloqueIndex]: err instanceof Error ? err.message : "No se pudo buscar en Planilla. Intenta de nuevo.",
+      }));
+    } finally {
+      setBuscandoPlanilla((prev) => ({ ...prev, [bloqueIndex]: false }));
+    }
+  }
 
-    setGastosOperativos((prev) =>
-      prev.map((b, i) =>
-        i !== bloqueIndex
-          ? b
-          : {
-              ...b,
-              items: b.items.map((it) =>
-                it.categoria === "viaticos" ? { ...it, cantidad: "1", precio: String(total) } : it,
-              ),
-            },
-      ),
-    );
-    setMensajeViaticos((prev) => ({
-      ...prev,
-      [bloqueIndex]:
-        coincidencias.length > 0
-          ? `${coincidencias.length} movimiento${coincidencias.length === 1 ? "" : "s"} de Caja Menuda encontrado${coincidencias.length === 1 ? "" : "s"}, total ${formatMoney(total)}`
-          : "No se encontraron movimientos de Caja Menuda que coincidan (revisa que el Concepto mencione el nombre del proyecto)",
-    }));
+  // Mismo principio que Planilla pero contra Caja Menuda (categoría
+  // "Viáticos"): fecha dentro de la semana, y el Concepto CONTENIDO en el
+  // nombre del proyecto (no exacto -- pedido explícito del usuario, ya que
+  // el nombre del proyecto suele traer texto extra, ej. Concepto "Ingenio
+  // Santa Rosa" encaja dentro de un Proyecto "Ingenio Santa Rosa (Semana 8
+  // Granulado)"). El resultado sigue siendo editable a mano después.
+  async function traerDeCajaMenuda(bloqueIndex: number) {
+    setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: true }));
+    try {
+      const { total, cantidad } = await buscarViaticosCajaMenudaAction(proyecto, fechaDesde, fechaHasta);
+      llenarCategoria(bloqueIndex, "viaticos", total);
+      setMensajeViaticos((prev) => ({
+        ...prev,
+        [bloqueIndex]:
+          cantidad > 0
+            ? `${cantidad} movimiento${cantidad === 1 ? "" : "s"} de Caja Menuda encontrado${cantidad === 1 ? "" : "s"}, total ${formatMoney(total)}`
+            : "No se encontraron movimientos de Caja Menuda que coincidan (revisa que el Concepto mencione el nombre del proyecto)",
+      }));
+    } catch (err) {
+      setMensajeViaticos((prev) => ({
+        ...prev,
+        [bloqueIndex]: err instanceof Error ? err.message : "No se pudo buscar en Caja Menuda. Intenta de nuevo.",
+      }));
+    } finally {
+      setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: false }));
+    }
   }
 
   const filasParaEnviar = filas.map((f) => ({
@@ -493,18 +493,20 @@ export function ProyectoInformeForm({
                             <button
                               type="button"
                               onClick={() => traerDePlanilla(bi)}
-                              className="whitespace-nowrap text-sm text-green-700 hover:underline dark:text-green-300"
+                              disabled={buscandoPlanilla[bi] || !proyecto.trim()}
+                              className="whitespace-nowrap text-sm text-green-700 hover:underline disabled:opacity-40 dark:text-green-300"
                             >
-                              Traer de Planilla
+                              {buscandoPlanilla[bi] ? "Buscando..." : "Traer de Planilla"}
                             </button>
                           )}
                           {item.categoria === "viaticos" && (
                             <button
                               type="button"
                               onClick={() => traerDeCajaMenuda(bi)}
-                              className="whitespace-nowrap text-sm text-green-700 hover:underline dark:text-green-300"
+                              disabled={buscandoViaticos[bi] || !proyecto.trim()}
+                              className="whitespace-nowrap text-sm text-green-700 hover:underline disabled:opacity-40 dark:text-green-300"
                             >
-                              Traer de Caja Menuda
+                              {buscandoViaticos[bi] ? "Buscando..." : "Traer de Caja Menuda"}
                             </button>
                           )}
                         </td>

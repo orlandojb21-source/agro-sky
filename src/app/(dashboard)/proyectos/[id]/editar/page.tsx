@@ -1,11 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import {
-  ProyectoInformeForm,
-  type PagoPlanillaProyecto,
-  type GastoViaticoCajaMenuda,
-} from "@/components/forms/ProyectoInformeForm";
+import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
 
 type ItemGastoFila = { categoria: string; cantidad: number; precio: number };
 type BloqueGastoFila = { drone: string; proyecto_gastos_operativos_items: ItemGastoFila[] | null };
@@ -19,38 +15,21 @@ export default async function EditarInformeProyectoPage({
   await requireSection("proyectos");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: pagosData }, { data: viaticosData }] =
-    await Promise.all([
-      supabase
-        .from("proyecto_informes")
-        .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
-        .eq("id", id)
-        .maybeSingle(),
-      supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
-      supabase
-        .from("proyecto_gastos_operativos")
-        .select("drone, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
-        .eq("informe_id", id)
-        .order("id"),
-      supabase.from("planilla_pagos").select("descripcion, fecha, monto").eq("tipo_trabajo", "proyecto"),
-      supabase.from("caja_gastos").select("concepto, fecha, monto").eq("categoria", "Viáticos"),
-    ]);
+  const [{ data: informe }, { data: filasData }, { data: gastosData }] = await Promise.all([
+    supabase
+      .from("proyecto_informes")
+      .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
+    supabase
+      .from("proyecto_gastos_operativos")
+      .select("drone, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
+      .eq("informe_id", id)
+      .order("id"),
+  ]);
 
   if (!informe) notFound();
-
-  const pagosPlanillaProyecto: PagoPlanillaProyecto[] = (pagosData ?? []).map((p) => ({
-    descripcion: p.descripcion as string,
-    fecha: p.fecha as string,
-    monto: Number(p.monto),
-  }));
-
-  const gastosViaticosCajaMenuda: GastoViaticoCajaMenuda[] = (viaticosData ?? [])
-    .filter((g) => g.concepto)
-    .map((g) => ({
-      concepto: g.concepto as string,
-      fecha: g.fecha as string,
-      monto: Number(g.monto),
-    }));
 
   return (
     <div>
@@ -60,8 +39,6 @@ export default async function EditarInformeProyectoPage({
       <ProyectoInformeForm
         fechaHoy={informe.fecha_desde as string}
         fechaHastaSugerida={informe.fecha_hasta as string}
-        pagosPlanillaProyecto={pagosPlanillaProyecto}
-        gastosViaticosCajaMenuda={gastosViaticosCajaMenuda}
         valoresIniciales={{
           id: informe.id as string,
           proyecto: informe.proyecto as string,

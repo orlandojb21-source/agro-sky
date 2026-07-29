@@ -151,3 +151,59 @@ export async function eliminarInformeProyectoAction(id: string) {
   if (error) throw new Error(error.message || "No se pudo eliminar el informe.");
   revalidatePath("/proyectos");
 }
+
+export type ResultadoBusquedaAuto = { total: number; cantidad: number };
+
+// Busca en tiempo real (no en una lista cargada al abrir la página) para que
+// funcione sin importar si el pago de planilla/movimiento de Caja Menuda se
+// registró antes o después de abrir el formulario del informe. Mismos 3
+// criterios que pidió el usuario para Planilla: tipo de trabajo "Proyecto",
+// fecha dentro de la semana, Descripción idéntica al nombre del proyecto.
+export async function buscarPagosPlanillaProyectoAction(
+  proyecto: string,
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<ResultadoBusquedaAuto> {
+  await requirePerfil();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("planilla_pagos")
+    .select("monto")
+    .eq("tipo_trabajo", "proyecto")
+    .eq("descripcion", proyecto.trim())
+    .gte("fecha", fechaDesde)
+    .lte("fecha", fechaHasta);
+
+  if (error) throw new Error(error.message || "No se pudo buscar en Planilla.");
+
+  const filas = data ?? [];
+  return { total: filas.reduce((s, p) => s + Number(p.monto), 0), cantidad: filas.length };
+}
+
+// Mismos 3 criterios que Planilla pero para Caja Menuda: categoría
+// "Viáticos", fecha dentro de la semana, y el Concepto CONTENIDO en el
+// nombre del proyecto (no exacto -- pedido explícito del usuario, ya que el
+// nombre del proyecto suele traer texto extra).
+export async function buscarViaticosCajaMenudaAction(
+  proyecto: string,
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<ResultadoBusquedaAuto> {
+  await requirePerfil();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("caja_gastos")
+    .select("concepto, monto")
+    .eq("categoria", "Viáticos")
+    .gte("fecha", fechaDesde)
+    .lte("fecha", fechaHasta);
+
+  if (error) throw new Error(error.message || "No se pudo buscar en Caja Menuda.");
+
+  const nombreProyecto = proyecto.trim().toLowerCase();
+  const coincidencias = (data ?? []).filter((g) => {
+    const concepto = (g.concepto ?? "").trim().toLowerCase();
+    return concepto !== "" && nombreProyecto.includes(concepto);
+  });
+  return { total: coincidencias.reduce((s, g) => s + Number(g.monto), 0), cantidad: coincidencias.length };
+}
