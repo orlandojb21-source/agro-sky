@@ -13,6 +13,7 @@ type ItemGastoFila = { id: string; categoria: string; cantidad: number; precio: 
 type BloqueGastoFila = {
   id: string;
   drone: string;
+  operador: string | null;
   proyecto_gastos_operativos_items: { id: string; categoria: string; cantidad: number; precio: number; total: number }[] | null;
 };
 
@@ -38,7 +39,7 @@ export default async function DetalleInformeProyectoPage({
       .order("id"),
     supabase
       .from("proyecto_gastos_operativos")
-      .select("id, drone, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )")
+      .select("id, drone, operador, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )")
       .eq("informe_id", id)
       .order("id"),
   ]);
@@ -74,7 +75,13 @@ export default async function DetalleInformeProyectoPage({
         total: Number(encontrado?.total ?? 0),
       };
     });
-    return { id: b.id, drone: b.drone, items, total: items.reduce((s, it) => s + it.total, 0) };
+    return {
+      id: b.id,
+      drone: b.drone,
+      operador: b.operador,
+      items,
+      total: items.reduce((s, it) => s + it.total, 0),
+    };
   });
 
   const informeExportable: InformeProyectoExportable = {
@@ -88,6 +95,7 @@ export default async function DetalleInformeProyectoPage({
     filas: filas.map((f) => ({ drone: f.drone, hectareas: f.hectareas, precio: f.precio, total: f.total })),
     gastosOperativos: gastosOperativos.map((b) => ({
       drone: b.drone,
+      operador: b.operador,
       items: b.items.map((it) => ({
         categoria: it.categoria,
         etiqueta: CATEGORIAS_GASTO_OPERATIVO.find((c) => c.valor === it.categoria)!.etiqueta,
@@ -198,6 +206,7 @@ export default async function DetalleInformeProyectoPage({
         >
           <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
             Gastos operativos — {bloque.drone}
+            {bloque.operador ? ` (${bloque.operador})` : ""}
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-sm">

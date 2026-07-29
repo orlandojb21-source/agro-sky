@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
 
 type ItemGastoFila = { categoria: string; cantidad: number; precio: number };
-type BloqueGastoFila = { drone: string; proyecto_gastos_operativos_items: ItemGastoFila[] | null };
+type BloqueGastoFila = {
+  drone: string;
+  operador: string | null;
+  proyecto_gastos_operativos_items: ItemGastoFila[] | null;
+};
 
 export default async function EditarInformeProyectoPage({
   params,
@@ -15,21 +19,25 @@ export default async function EditarInformeProyectoPage({
   await requireSection("proyectos");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: filasData }, { data: gastosData }] = await Promise.all([
-    supabase
-      .from("proyecto_informes")
-      .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
-    supabase
-      .from("proyecto_gastos_operativos")
-      .select("drone, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
-      .eq("informe_id", id)
-      .order("id"),
-  ]);
+  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: colaboradoresData }] =
+    await Promise.all([
+      supabase
+        .from("proyecto_informes")
+        .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
+      supabase
+        .from("proyecto_gastos_operativos")
+        .select("drone, operador, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
+        .eq("informe_id", id)
+        .order("id"),
+      supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
+    ]);
 
   if (!informe) notFound();
+
+  const colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
 
   return (
     <div>
@@ -39,6 +47,7 @@ export default async function EditarInformeProyectoPage({
       <ProyectoInformeForm
         fechaHoy={informe.fecha_desde as string}
         fechaHastaSugerida={informe.fecha_hasta as string}
+        colaboradoresCampo={colaboradoresCampo}
         valoresIniciales={{
           id: informe.id as string,
           proyecto: informe.proyecto as string,
@@ -55,6 +64,7 @@ export default async function EditarInformeProyectoPage({
           })),
           gastosOperativos: ((gastosData ?? []) as unknown as BloqueGastoFila[]).map((b) => ({
             drone: b.drone,
+            operador: b.operador,
             items: (b.proyecto_gastos_operativos_items ?? []).map((it) => ({
               categoria: it.categoria,
               cantidad: Number(it.cantidad),

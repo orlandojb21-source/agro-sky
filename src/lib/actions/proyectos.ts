@@ -55,6 +55,7 @@ export async function crearInformeProyectoAction(
     })),
     p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
       drone: b.drone,
+      operador: b.operador || null,
       items: b.items.map((it) => ({
         categoria: it.categoria,
         cantidad: it.cantidad,
@@ -124,6 +125,7 @@ export async function editarInformeProyectoAction(
     })),
     p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
       drone: b.drone,
+      operador: b.operador || null,
       items: b.items.map((it) => ({
         categoria: it.categoria,
         cantidad: it.cantidad,
@@ -156,23 +158,30 @@ export type ResultadoBusquedaAuto = { total: number; cantidad: number };
 
 // Busca en tiempo real (no en una lista cargada al abrir la página) para que
 // funcione sin importar si el pago de planilla/movimiento de Caja Menuda se
-// registró antes o después de abrir el formulario del informe. Mismos 3
-// criterios que pidió el usuario para Planilla: tipo de trabajo "Proyecto",
-// fecha dentro de la semana, Descripción idéntica al nombre del proyecto.
+// registró antes o después de abrir el formulario del informe. 3 criterios
+// que pidió el usuario para Planilla: tipo de trabajo "Proyecto", fecha
+// dentro de la semana, Descripción idéntica al nombre del proyecto, y
+// opcionalmente el Operador del drone = colaborador del pago (exacto).
 export async function buscarPagosPlanillaProyectoAction(
   proyecto: string,
   fechaDesde: string,
   fechaHasta: string,
+  operador: string,
 ): Promise<ResultadoBusquedaAuto> {
   await requirePerfil();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let consulta = supabase
     .from("planilla_pagos")
     .select("monto")
     .eq("tipo_trabajo", "proyecto")
     .eq("descripcion", proyecto.trim())
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
+  if (operador.trim()) {
+    consulta = consulta.eq("colaborador", operador.trim());
+  }
+
+  const { data, error } = await consulta;
 
   if (error) throw new Error(error.message || "No se pudo buscar en Planilla.");
 
@@ -180,23 +189,30 @@ export async function buscarPagosPlanillaProyectoAction(
   return { total: filas.reduce((s, p) => s + Number(p.monto), 0), cantidad: filas.length };
 }
 
-// Mismos 3 criterios que Planilla pero para Caja Menuda: categoría
-// "Viáticos", fecha dentro de la semana, y el Concepto CONTENIDO en el
-// nombre del proyecto (no exacto -- pedido explícito del usuario, ya que el
-// nombre del proyecto suele traer texto extra).
+// Mismo principio que Planilla pero para Caja Menuda: categoría "Viáticos",
+// fecha dentro de la semana, el Concepto CONTENIDO en el nombre del
+// proyecto (no exacto -- pedido explícito del usuario), y opcionalmente el
+// Operador del drone = "Nombre" del movimiento (a quién se le entregó el
+// dinero, exacto).
 export async function buscarViaticosCajaMenudaAction(
   proyecto: string,
   fechaDesde: string,
   fechaHasta: string,
+  operador: string,
 ): Promise<ResultadoBusquedaAuto> {
   await requirePerfil();
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let consulta = supabase
     .from("caja_gastos")
     .select("concepto, monto")
     .eq("categoria", "Viáticos")
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
+  if (operador.trim()) {
+    consulta = consulta.eq("nombre", operador.trim());
+  }
+
+  const { data, error } = await consulta;
 
   if (error) throw new Error(error.message || "No se pudo buscar en Caja Menuda.");
 

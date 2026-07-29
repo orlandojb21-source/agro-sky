@@ -416,6 +416,7 @@ export type ItemGastoOperativoExportable = {
 
 export type BloqueGastoOperativoExportable = {
   drone: string;
+  operador: string | null;
   items: ItemGastoOperativoExportable[];
 };
 
@@ -517,7 +518,7 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
 
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`Gastos operativos — ${bloque.drone}`, 14, yGastos);
+    doc.text(`Gastos operativos — ${bloque.drone}${bloque.operador ? ` (${bloque.operador})` : ""}`, 14, yGastos);
     yGastos += 5;
 
     const totalBloque = bloque.items.reduce((s, it) => s + it.total, 0);

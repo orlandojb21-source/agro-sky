@@ -8,7 +8,7 @@ import {
   buscarPagosPlanillaProyectoAction,
   buscarViaticosCajaMenudaAction,
 } from "@/lib/actions/proyectos";
-import { Field } from "@/components/ui/Field";
+import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import { formatMoney } from "@/lib/format";
@@ -24,11 +24,12 @@ function filaVacia(): FilaDraft {
 }
 
 type ItemGastoDraft = { categoria: string; cantidad: string; precio: string };
-type BloqueGastoDraft = { drone: string; items: ItemGastoDraft[] };
+type BloqueGastoDraft = { drone: string; operador: string; items: ItemGastoDraft[] };
 
 function bloqueGastoVacio(): BloqueGastoDraft {
   return {
     drone: "",
+    operador: "",
     items: CATEGORIAS_GASTO_OPERATIVO.map((c) => ({ categoria: c.valor, cantidad: "", precio: "" })),
   };
 }
@@ -43,12 +44,17 @@ export type ValoresInforme = {
   fechaDesde: string;
   fechaHasta: string;
   filas: { drone: string; hectareas: number; precio: number }[];
-  gastosOperativos: { drone: string; items: { categoria: string; cantidad: number; precio: number }[] }[];
+  gastosOperativos: {
+    drone: string;
+    operador: string | null;
+    items: { categoria: string; cantidad: number; precio: number }[];
+  }[];
 };
 
 function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number]): BloqueGastoDraft {
   return {
     drone: inicial.drone,
+    operador: inicial.operador ?? "",
     items: CATEGORIAS_GASTO_OPERATIVO.map((c) => {
       const encontrado = inicial.items.find((it) => it.categoria === c.valor);
       return {
@@ -63,10 +69,12 @@ function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number])
 export function ProyectoInformeForm({
   fechaHoy,
   fechaHastaSugerida,
+  colaboradoresCampo = [],
   valoresIniciales,
 }: {
   fechaHoy: string;
   fechaHastaSugerida: string;
+  colaboradoresCampo?: string[];
   valoresIniciales?: ValoresInforme;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -165,6 +173,10 @@ export function ProyectoInformeForm({
     setGastosOperativos((prev) => prev.map((b, i) => (i === bloqueIndex ? { ...b, drone: valor } : b)));
   }
 
+  function actualizarOperador(bloqueIndex: number, valor: string) {
+    setGastosOperativos((prev) => prev.map((b, i) => (i === bloqueIndex ? { ...b, operador: valor } : b)));
+  }
+
   function actualizarItemGasto(
     bloqueIndex: number,
     itemIndex: number,
@@ -199,12 +211,14 @@ export function ProyectoInformeForm({
   // la página) -- así funciona sin importar si el pago de planilla se
   // registró antes o después de abrir este formulario. Tipo de trabajo
   // "Proyecto", fecha dentro de la semana, Descripción idéntica al nombre
-  // del proyecto -- los 3 criterios que pidió el usuario. El resultado se
-  // sugiere pero se puede corregir a mano después.
+  // del proyecto, y (si se eligió) Operador = colaborador del pago -- los
+  // criterios que pidió el usuario. El resultado se sugiere pero se puede
+  // corregir a mano después.
   async function traerDePlanilla(bloqueIndex: number) {
     setBuscandoPlanilla((prev) => ({ ...prev, [bloqueIndex]: true }));
     try {
-      const { total, cantidad } = await buscarPagosPlanillaProyectoAction(proyecto, fechaDesde, fechaHasta);
+      const operador = gastosOperativos[bloqueIndex]?.operador ?? "";
+      const { total, cantidad } = await buscarPagosPlanillaProyectoAction(proyecto, fechaDesde, fechaHasta, operador);
       llenarCategoria(bloqueIndex, "planilla", total);
       setMensajePlanilla((prev) => ({
         ...prev,
@@ -224,15 +238,18 @@ export function ProyectoInformeForm({
   }
 
   // Mismo principio que Planilla pero contra Caja Menuda (categoría
-  // "Viáticos"): fecha dentro de la semana, y el Concepto CONTENIDO en el
+  // "Viáticos"): fecha dentro de la semana, el Concepto CONTENIDO en el
   // nombre del proyecto (no exacto -- pedido explícito del usuario, ya que
   // el nombre del proyecto suele traer texto extra, ej. Concepto "Ingenio
   // Santa Rosa" encaja dentro de un Proyecto "Ingenio Santa Rosa (Semana 8
-  // Granulado)"). El resultado sigue siendo editable a mano después.
+  // Granulado)"), y (si se eligió) Operador = "Nombre" del movimiento (a
+  // quién se le entregó el dinero). El resultado sigue siendo editable a
+  // mano después.
   async function traerDeCajaMenuda(bloqueIndex: number) {
     setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: true }));
     try {
-      const { total, cantidad } = await buscarViaticosCajaMenudaAction(proyecto, fechaDesde, fechaHasta);
+      const operador = gastosOperativos[bloqueIndex]?.operador ?? "";
+      const { total, cantidad } = await buscarViaticosCajaMenudaAction(proyecto, fechaDesde, fechaHasta, operador);
       llenarCategoria(bloqueIndex, "viaticos", total);
       setMensajeViaticos((prev) => ({
         ...prev,
@@ -259,6 +276,7 @@ export function ProyectoInformeForm({
 
   const gastosOperativosParaEnviar = gastosOperativos.map((b) => ({
     drone: b.drone,
+    operador: b.operador,
     items: b.items.map((it) => ({
       categoria: it.categoria,
       cantidad: Number(it.cantidad) || 0,
@@ -428,16 +446,31 @@ export function ProyectoInformeForm({
             key={bi}
             className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
           >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="flex flex-1 flex-col gap-1 text-sm text-green-900 dark:text-green-100">
-                Drone
-                <input
-                  value={bloque.drone}
-                  onChange={(e) => actualizarNombreDrone(bi, e.target.value)}
-                  placeholder="Ej. AGRO SKY 1"
-                  className={`${CLASE_INPUT} max-w-xs`}
-                />
-              </label>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="flex flex-wrap gap-3">
+                <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+                  Drone
+                  <input
+                    value={bloque.drone}
+                    onChange={(e) => actualizarNombreDrone(bi, e.target.value)}
+                    placeholder="Ej. AGRO SKY 1"
+                    className={`${CLASE_INPUT} max-w-xs`}
+                  />
+                </label>
+                <SelectField
+                  label="Operador"
+                  name={`operador-${bi}`}
+                  defaultValue={bloque.operador}
+                  onChange={(e) => actualizarOperador(bi, e.target.value)}
+                >
+                  <option value="">Selecciona...</option>
+                  {colaboradoresCampo.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
               <button
                 type="button"
                 onClick={() => quitarBloqueGasto(bi)}
