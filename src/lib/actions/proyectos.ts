@@ -158,9 +158,11 @@ export type ResultadoBusquedaAuto = { total: number; cantidad: number };
 
 // Busca en tiempo real (no en una lista cargada al abrir la página) para que
 // funcione sin importar si el pago de planilla/movimiento de Caja Menuda se
-// registró antes o después de abrir el formulario del informe. 3 criterios
-// que pidió el usuario para Planilla: tipo de trabajo "Proyecto", fecha
-// dentro de la semana, Descripción idéntica al nombre del proyecto, y
+// registró antes o después de abrir el formulario del informe. Criterios:
+// tipo de trabajo "Proyecto", fecha dentro de la semana, Descripción
+// CONTENIDA en el nombre del proyecto (antes se exigía exacta, pero un
+// espacio o mayúscula de más hacía que nunca coincidiera con datos reales
+// -- el usuario pidió que sea igual de flexible que Caja Menuda), y
 // opcionalmente el Operador del drone = colaborador del pago (exacto).
 export async function buscarPagosPlanillaProyectoAction(
   proyecto: string,
@@ -172,9 +174,8 @@ export async function buscarPagosPlanillaProyectoAction(
   const supabase = await createClient();
   let consulta = supabase
     .from("planilla_pagos")
-    .select("monto")
+    .select("descripcion, monto")
     .eq("tipo_trabajo", "proyecto")
-    .eq("descripcion", proyecto.trim())
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
   if (operador.trim()) {
@@ -185,8 +186,12 @@ export async function buscarPagosPlanillaProyectoAction(
 
   if (error) throw new Error(error.message || "No se pudo buscar en Planilla.");
 
-  const filas = data ?? [];
-  return { total: filas.reduce((s, p) => s + Number(p.monto), 0), cantidad: filas.length };
+  const nombreProyecto = proyecto.trim().toLowerCase();
+  const coincidencias = (data ?? []).filter((p) => {
+    const descripcion = (p.descripcion ?? "").trim().toLowerCase();
+    return descripcion !== "" && nombreProyecto.includes(descripcion);
+  });
+  return { total: coincidencias.reduce((s, p) => s + Number(p.monto), 0), cantidad: coincidencias.length };
 }
 
 // Mismo principio que Planilla pero para Caja Menuda: categoría "Viáticos",

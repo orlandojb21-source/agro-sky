@@ -210,10 +210,11 @@ export function ProyectoInformeForm({
   // Busca en tiempo real en el servidor (nunca en una lista cargada al abrir
   // la página) -- así funciona sin importar si el pago de planilla se
   // registró antes o después de abrir este formulario. Tipo de trabajo
-  // "Proyecto", fecha dentro de la semana, Descripción idéntica al nombre
-  // del proyecto, y (si se eligió) Operador = colaborador del pago -- los
-  // criterios que pidió el usuario. El resultado se sugiere pero se puede
-  // corregir a mano después.
+  // "Proyecto", fecha dentro de la semana, Descripción CONTENIDA en el
+  // nombre del proyecto (no exacta -- un espacio o mayúscula de más no debe
+  // impedir el match), y (si se eligió) Operador = colaborador del pago --
+  // los criterios que pidió el usuario. El resultado se sugiere pero se
+  // puede corregir a mano después.
   async function traerDePlanilla(bloqueIndex: number) {
     setBuscandoPlanilla((prev) => ({ ...prev, [bloqueIndex]: true }));
     try {
@@ -225,7 +226,7 @@ export function ProyectoInformeForm({
         [bloqueIndex]:
           cantidad > 0
             ? `${cantidad} pago${cantidad === 1 ? "" : "s"} de planilla encontrado${cantidad === 1 ? "" : "s"}, total ${formatMoney(total)}`
-            : "No se encontraron pagos de planilla que coincidan (revisa que el nombre del proyecto sea idéntico al de la Descripción del pago)",
+            : "No se encontraron pagos de planilla que coincidan (revisa que la Descripción del pago mencione el nombre del proyecto)",
       }));
     } catch (err) {
       setMensajePlanilla((prev) => ({
