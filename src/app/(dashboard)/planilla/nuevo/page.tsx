@@ -1,36 +1,24 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { esSoporteOJefe } from "@/lib/roles";
-import { PagoPlanillaForm } from "@/components/forms/PagoPlanillaForm";
+import { AsistenciaForm } from "@/components/forms/AsistenciaForm";
 
-export default async function NuevoPagoPlanillaPage() {
-  const perfil = await requireSection("planilla");
+export default async function NuevaAsistenciaPage() {
+  await requireSection("planilla");
 
   const supabase = await createClient();
   const { data } = await supabase
     .from("colaboradores")
-    .select("nombre, tipo, salario, aplica_deducciones")
+    .select("nombre")
+    .eq("tipo", "campo")
     .order("nombre");
-  let colaboradores = (data ?? []).map((c) => ({
-    nombre: c.nombre as string,
-    tipo: c.tipo as "fijo" | "campo",
-    salario: c.salario === null ? null : Number(c.salario),
-    aplicaDeducciones: c.aplica_deducciones as boolean,
-  }));
-
-  // El administrador no puede registrar pagos de colaboradores Fijos --
-  // ni siquiera aparecen como opción para elegir (reforzado también a
-  // nivel de RLS en la base de datos, esto es solo la UI).
-  if (!esSoporteOJefe(perfil.rol)) {
-    colaboradores = colaboradores.filter((c) => c.tipo !== "fijo");
-  }
+  const colaboradores = (data ?? []).map((c) => ({ nombre: c.nombre as string }));
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">
-        Nuevo registro de planilla
+        Nueva asistencia
       </h1>
-      <PagoPlanillaForm fechaHoy={new Date().toISOString().slice(0, 10)} colaboradores={colaboradores} />
+      <AsistenciaForm fechaHoy={new Date().toISOString().slice(0, 10)} colaboradores={colaboradores} />
     </div>
   );
 }

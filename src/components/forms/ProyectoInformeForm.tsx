@@ -5,7 +5,6 @@ import { useActionState } from "react";
 import {
   crearInformeProyectoAction,
   editarInformeProyectoAction,
-  buscarPagosPlanillaProyectoAction,
   buscarViaticosCajaMenudaAction,
 } from "@/lib/actions/proyectos";
 import { Field, SelectField } from "@/components/ui/Field";
@@ -137,9 +136,7 @@ export function ProyectoInformeForm({
     return [];
   });
 
-  const [mensajePlanilla, setMensajePlanilla] = useState<Record<number, string>>({});
   const [mensajeViaticos, setMensajeViaticos] = useState<Record<number, string>>({});
-  const [buscandoPlanilla, setBuscandoPlanilla] = useState<Record<number, boolean>>({});
   const [buscandoViaticos, setBuscandoViaticos] = useState<Record<number, boolean>>({});
 
   function actualizarFila(index: number, campo: keyof FilaDraft, valor: string) {
@@ -160,11 +157,6 @@ export function ProyectoInformeForm({
 
   function quitarBloqueGasto(index: number) {
     setGastosOperativos((prev) => prev.filter((_, i) => i !== index));
-    setMensajePlanilla((prev) => {
-      const siguiente = { ...prev };
-      delete siguiente[index];
-      return siguiente;
-    });
     setMensajeViaticos((prev) => {
       const siguiente = { ...prev };
       delete siguiente[index];
@@ -242,39 +234,9 @@ export function ProyectoInformeForm({
   }
 
   // Busca en tiempo real en el servidor (nunca en una lista cargada al abrir
-  // la página) -- así funciona sin importar si el pago de planilla se
-  // registró antes o después de abrir este formulario. Tipo de trabajo
-  // "Proyecto", fecha dentro de la semana, Descripción CONTENIDA en el
-  // nombre del proyecto (no exacta -- un espacio o mayúscula de más no debe
-  // impedir el match), y (si se dio) el colaborador del pago debe ser
-  // alguien del Equipo de Campo (Operador o algún Ayudante) -- los
-  // criterios que pidió el usuario. El resultado se sugiere pero se puede
-  // corregir a mano después.
-  async function traerDePlanilla(bloqueIndex: number) {
-    setBuscandoPlanilla((prev) => ({ ...prev, [bloqueIndex]: true }));
-    try {
-      const equipo = equipoDelBloque(bloqueIndex);
-      const { total, cantidad } = await buscarPagosPlanillaProyectoAction(proyecto, fechaDesde, fechaHasta, equipo);
-      llenarCategoria(bloqueIndex, "planilla", total);
-      setMensajePlanilla((prev) => ({
-        ...prev,
-        [bloqueIndex]:
-          cantidad > 0
-            ? `${cantidad} pago${cantidad === 1 ? "" : "s"} de planilla encontrado${cantidad === 1 ? "" : "s"}, total ${formatMoney(total)}`
-            : "No se encontraron pagos de planilla que coincidan (revisa que la Descripción del pago mencione el nombre del proyecto)",
-      }));
-    } catch (err) {
-      setMensajePlanilla((prev) => ({
-        ...prev,
-        [bloqueIndex]: err instanceof Error ? err.message : "No se pudo buscar en Planilla. Intenta de nuevo.",
-      }));
-    } finally {
-      setBuscandoPlanilla((prev) => ({ ...prev, [bloqueIndex]: false }));
-    }
-  }
-
-  // Mismo principio que Planilla pero contra Caja Menuda (categoría
-  // "Viáticos"): fecha dentro de la semana, el Concepto CONTENIDO en el
+  // la página) -- así funciona sin importar si el movimiento de Caja Menuda
+  // se registró antes o después de abrir este formulario. Categoría
+  // "Viáticos", fecha dentro de la semana, el Concepto CONTENIDO en el
   // nombre del proyecto (no exacto -- pedido explícito del usuario, ya que
   // el nombre del proyecto suele traer texto extra, ej. Concepto "Ingenio
   // Santa Rosa" encaja dentro de un Proyecto "Ingenio Santa Rosa (Semana 8
@@ -598,16 +560,6 @@ export function ProyectoInformeForm({
                           {formatMoney(totalItem)}
                         </td>
                         <td className="px-2 py-2">
-                          {item.categoria === "planilla" && (
-                            <button
-                              type="button"
-                              onClick={() => traerDePlanilla(bi)}
-                              disabled={buscandoPlanilla[bi] || !proyecto.trim()}
-                              className="whitespace-nowrap text-sm text-green-700 hover:underline disabled:opacity-40 dark:text-green-300"
-                            >
-                              {buscandoPlanilla[bi] ? "Buscando..." : "Traer de Planilla"}
-                            </button>
-                          )}
                           {item.categoria === "viaticos" && (
                             <button
                               type="button"
@@ -636,9 +588,6 @@ export function ProyectoInformeForm({
               </table>
             </div>
 
-            {mensajePlanilla[bi] && (
-              <p className="text-xs text-green-700/80 dark:text-green-300/80">{mensajePlanilla[bi]}</p>
-            )}
             {mensajeViaticos[bi] && (
               <p className="text-xs text-green-700/80 dark:text-green-300/80">{mensajeViaticos[bi]}</p>
             )}

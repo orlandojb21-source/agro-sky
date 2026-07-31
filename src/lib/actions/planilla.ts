@@ -23,6 +23,7 @@ export async function crearPagoAction(
   const { error } = await supabase.from("planilla_pagos").insert({
     colaborador: parsed.data.colaborador,
     fecha: parsed.data.fecha,
+    fecha_desde: parsed.data.fechaDesde || null,
     descripcion: parsed.data.descripcion,
     monto: parsed.data.monto,
     tipo_trabajo: parsed.data.tipoTrabajo || null,
@@ -39,8 +40,8 @@ export async function crearPagoAction(
 
   if (error) return { error: "No se pudo guardar el pago. Intenta de nuevo.", values: raw };
 
-  revalidatePath("/planilla");
-  redirect("/planilla");
+  revalidatePath("/planilla/pagos");
+  redirect("/planilla/pagos");
 }
 
 export async function editarPagoAction(
@@ -61,6 +62,7 @@ export async function editarPagoAction(
     .update({
       colaborador: parsed.data.colaborador,
       fecha: parsed.data.fecha,
+      fecha_desde: parsed.data.fechaDesde || null,
       descripcion: parsed.data.descripcion,
       monto: parsed.data.monto,
       tipo_trabajo: parsed.data.tipoTrabajo || null,
@@ -73,8 +75,8 @@ export async function editarPagoAction(
 
   if (error) return { error: "No se pudo actualizar el pago. Intenta de nuevo.", values: raw };
 
-  revalidatePath("/planilla");
-  redirect("/planilla");
+  revalidatePath("/planilla/pagos");
+  redirect("/planilla/pagos");
 }
 
 export async function eliminarPagoAction(id: string) {
@@ -82,5 +84,5 @@ export async function eliminarPagoAction(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("planilla_pagos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el pago.");
-  revalidatePath("/planilla");
+  revalidatePath("/planilla/pagos");
 }

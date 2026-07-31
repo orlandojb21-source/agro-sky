@@ -43,10 +43,9 @@ export function canAccess(rol: Rol | null | undefined, seccion: Seccion): boolea
   return SECTION_ACCESS[seccion].includes(rol);
 }
 
-// No usado actualmente en ningun lado (Caja Menuda volvio a estar abierta a
-// los 3 roles). Se deja definida para cuando se agregue un rol nuevo mas
-// restringido -- ese es el caso en el que de verdad hace falta distinguir
-// soporte/jefe del resto, no los 3 roles de hoy.
+// Distingue soporte/jefe del resto dentro de una seccion que sigue abierta
+// a los 3 roles pero donde una parte (ej. Pagos de Planilla, aprobar
+// Fijos) es exclusiva de soporte/jefe.
 export function esSoporteOJefe(rol: Rol | null | undefined): boolean {
   return rol === "soporte" || rol === "jefe";
 }

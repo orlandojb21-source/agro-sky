@@ -39,6 +39,7 @@ export async function crearColaboradorAction(
 
   revalidatePath("/planilla/colaboradores");
   revalidatePath("/planilla");
+  revalidatePath("/planilla/pagos");
   return { error: null, success: true };
 }
 
@@ -69,6 +70,7 @@ export async function editarColaboradorAction(
 
   revalidatePath("/planilla/colaboradores");
   revalidatePath("/planilla");
+  revalidatePath("/planilla/pagos");
   redirect("/planilla/colaboradores");
 }
 
@@ -79,4 +81,5 @@ export async function eliminarColaboradorAction(id: string) {
   if (error) throw new Error("No se pudo eliminar el colaborador.");
   revalidatePath("/planilla/colaboradores");
   revalidatePath("/planilla");
+  revalidatePath("/planilla/pagos");
 }

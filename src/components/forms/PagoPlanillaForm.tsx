@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { crearPagoAction, editarPagoAction } from "@/lib/actions/planilla";
+import { obtenerResumenAsistenciaAction, type ResumenAsistencia } from "@/lib/actions/asistencia";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -25,10 +26,11 @@ type ValoresPago = {
   id?: string;
   colaborador: string;
   fecha: string;
+  fechaDesde?: string | null;
   descripcion: string;
   monto: number;
-  tipoTrabajo?: "proyecto" | "taller" | null;
-  jornada?: "completo" | "medio" | null;
+  tipoTrabajo?: "proyecto" | "oficina" | null;
+  jornada?: "completo" | "medio" | "proyecto" | null;
   css?: number | null;
   seguroEducativo?: number | null;
   bonificacion?: number | null;
@@ -63,14 +65,17 @@ export function PagoPlanillaForm({
   // Si se edita un pago de un colaborador que ya se eliminó de la lista
   // administrable, se agrega igual como opción para no cambiarle el
   // colaborador sin querer al abrir el formulario -- su tipo se infiere de
-  // si el pago ya tenía tipoTrabajo/jornada guardados (campo) o no (fijo).
+  // si el pago ya tenía tipoTrabajo/jornada (Campo histórico) o fechaDesde
+  // (Campo, quincena) guardados, o ninguno de los dos (Fijo).
   const opciones: ColaboradorOpcion[] = useMemo(() => {
     if (
       valoresIniciales?.colaborador &&
       !colaboradores.some((c) => c.nombre === valoresIniciales.colaborador)
     ) {
       const tipoInferido: ColaboradorOpcion["tipo"] =
-        valoresIniciales.tipoTrabajo || valoresIniciales.jornada ? "campo" : "fijo";
+        valoresIniciales.tipoTrabajo || valoresIniciales.jornada || valoresIniciales.fechaDesde
+          ? "campo"
+          : "fijo";
       return [
         { nombre: valoresIniciales.colaborador, tipo: tipoInferido, salario: null, aplicaDeducciones: true },
         ...colaboradores,
@@ -100,10 +105,18 @@ export function PagoPlanillaForm({
     return { monto, css, seguroEducativo };
   }
 
+  const fechaHastaInicial = v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy;
+  const fechaDesdeInicial = v?.fechaDesde ?? valoresIniciales?.fechaDesde ?? "";
+
   const [colaboradorSeleccionado, setColaboradorSeleccionado] = useState(colaboradorInicial);
   const [montoTexto, setMontoTexto] = useState(() => datosIniciales(colaboradorInicial).monto);
   const [cssTexto, setCssTexto] = useState(() => datosIniciales(colaboradorInicial).css);
   const [seguroTexto, setSeguroTexto] = useState(() => datosIniciales(colaboradorInicial).seguroEducativo);
+  const [fechaDesdeTexto, setFechaDesdeTexto] = useState(fechaDesdeInicial);
+  const [fechaHastaTexto, setFechaHastaTexto] = useState(fechaHastaInicial);
+  const [resumenAsistencia, setResumenAsistencia] = useState<ResumenAsistencia | null>(null);
+  const [buscandoResumen, setBuscandoResumen] = useState(false);
+  const [errorResumen, setErrorResumen] = useState<string | null>(null);
 
   if (state !== prevState) {
     setPrevState(state);
@@ -113,6 +126,10 @@ export function PagoPlanillaForm({
     setMontoTexto(iniciales.monto);
     setCssTexto(iniciales.css);
     setSeguroTexto(iniciales.seguroEducativo);
+    setFechaDesdeTexto(fechaDesdeInicial);
+    setFechaHastaTexto(fechaHastaInicial);
+    setResumenAsistencia(null);
+    setErrorResumen(null);
   }
 
   function cambiarColaborador(nombre: string) {
@@ -121,6 +138,27 @@ export function PagoPlanillaForm({
     setMontoTexto(iniciales.monto);
     setCssTexto(iniciales.css);
     setSeguroTexto(iniciales.seguroEducativo);
+    setFechaDesdeTexto(fechaDesdeInicial);
+    setFechaHastaTexto(fechaHastaInicial);
+    setResumenAsistencia(null);
+    setErrorResumen(null);
+  }
+
+  async function verResumenAsistencia() {
+    setBuscandoResumen(true);
+    setErrorResumen(null);
+    try {
+      const resultado = await obtenerResumenAsistenciaAction(
+        colaboradorSeleccionado,
+        fechaDesdeTexto,
+        fechaHastaTexto,
+      );
+      setResumenAsistencia(resultado);
+    } catch (err) {
+      setErrorResumen(err instanceof Error ? err.message : "No se pudo consultar la asistencia.");
+    } finally {
+      setBuscandoResumen(false);
+    }
   }
 
   // Las deducciones siempre siguen al monto mientras se está escribiendo --
@@ -136,6 +174,13 @@ export function PagoPlanillaForm({
   const colaboradorActual = opciones.find((c) => c.nombre === colaboradorSeleccionado);
   const esCampo = colaboradorActual?.tipo === "campo";
   const esFijo = colaboradorActual?.tipo === "fijo";
+  // Un pago de Campo histórico (de antes de este cambio) todavía tiene
+  // tipoTrabajo/jornada guardados -- ya no se capturan en pagos nuevos
+  // (eso ahora vive en Asistencia), pero tampoco se pueden perder al
+  // editarlo, así que se muestran como fecha única + valores fijos en vez
+  // del par Fecha desde/hasta + resumen de asistencia.
+  const esHistoricoCampo =
+    esEdicion && esCampo && Boolean(valoresIniciales?.tipoTrabajo || valoresIniciales?.jornada);
   // CSS/Seguro Educativo no aplican a todos los colaboradores Fijos --
   // depende de la situación legal de cada persona, marcada en Colaboradores.
   // Si se está editando un pago que YA tenía estos valores guardados, los
@@ -179,35 +224,76 @@ export function PagoPlanillaForm({
         </SelectField>
       )}
 
-      <Field
-        label="Fecha"
-        name="fecha"
-        type="date"
-        defaultValue={v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy}
-        required
-      />
-
-      {esCampo && (
-        <div className="grid grid-cols-2 gap-4">
-          <SelectField
-            label="Tipo de trabajo"
-            name="tipoTrabajo"
-            defaultValue={v?.tipoTrabajo ?? valoresIniciales?.tipoTrabajo ?? "proyecto"}
+      {esHistoricoCampo ? (
+        <>
+          <Field
+            label="Fecha"
+            name="fecha"
+            type="date"
+            defaultValue={v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy}
             required
-          >
-            <option value="proyecto">Proyecto</option>
-            <option value="taller">Taller</option>
-          </SelectField>
-          <SelectField
-            label="Jornada"
-            name="jornada"
-            defaultValue={v?.jornada ?? valoresIniciales?.jornada ?? "completo"}
-            required
-          >
-            <option value="completo">Día completo</option>
-            <option value="medio">Medio día</option>
-          </SelectField>
+          />
+          {/* Pago histórico de Campo (día por día, de antes de este
+              cambio) -- tipoTrabajo/jornada ya no se editan, pero se
+              reenvían tal cual para no borrarlos al guardar. */}
+          <input type="hidden" name="tipoTrabajo" value={valoresIniciales?.tipoTrabajo ?? ""} />
+          <input type="hidden" name="jornada" value={valoresIniciales?.jornada ?? ""} />
+        </>
+      ) : esCampo ? (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-4">
+            <Field
+              label="Fecha desde"
+              name="fechaDesde"
+              type="date"
+              value={fechaDesdeTexto}
+              onChange={(e) => {
+                setFechaDesdeTexto(e.target.value);
+                setResumenAsistencia(null);
+              }}
+              required
+            />
+            <Field
+              label="Fecha hasta"
+              name="fecha"
+              type="date"
+              value={fechaHastaTexto}
+              onChange={(e) => {
+                setFechaHastaTexto(e.target.value);
+                setResumenAsistencia(null);
+              }}
+              required
+            />
+          </div>
+          <div className="rounded-lg border border-green-100 p-3 dark:border-green-900/40">
+            <button
+              type="button"
+              onClick={verResumenAsistencia}
+              disabled={buscandoResumen || !colaboradorSeleccionado || !fechaDesdeTexto || !fechaHastaTexto}
+              className="rounded-lg border border-green-300 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-50 dark:border-green-700 dark:text-green-200 dark:hover:bg-green-950/40"
+            >
+              {buscandoResumen ? "Buscando..." : "Ver asistencia del período"}
+            </button>
+            {errorResumen && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errorResumen}</p>}
+            {resumenAsistencia && (
+              <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
+                {resumenAsistencia.totalDias === 0
+                  ? "No hay asistencia registrada en este período."
+                  : `${resumenAsistencia.totalDias} día(s) registrados — ${resumenAsistencia.porTipo
+                      .map((t) => `${t.etiqueta}: ${t.dias}`)
+                      .join(" · ")}`}
+              </p>
+            )}
+          </div>
         </div>
+      ) : (
+        <Field
+          label="Fecha"
+          name="fecha"
+          type="date"
+          defaultValue={v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy}
+          required
+        />
       )}
 
       <Field
@@ -266,7 +352,7 @@ export function PagoPlanillaForm({
 
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar pago"}</SubmitButton>
-        <LinkButton href="/planilla" variant="secondary">
+        <LinkButton href="/planilla/pagos" variant="secondary">
           Cancelar
         </LinkButton>
       </div>

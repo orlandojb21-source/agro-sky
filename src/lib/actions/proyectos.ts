@@ -187,42 +187,8 @@ function coincideConProyecto(textoLibre: string, proyecto: string): boolean {
   );
 }
 
-// Busca en tiempo real (no en una lista cargada al abrir la página) para que
-// funcione sin importar si el pago de planilla se registró antes o después
-// de abrir el formulario del informe. Criterios: tipo de trabajo
-// "Proyecto", fecha dentro de la semana, Descripción relacionada con el
-// nombre del proyecto (ver coincideConProyecto), y opcionalmente el
-// Equipo de Campo (Operador + Ayudantes) -- si se dio, el colaborador del
-// pago debe ser alguno de ellos (no solo el Operador, pedido explícito del
-// usuario: el gasto lo hace todo el equipo, no una sola persona).
-export async function buscarPagosPlanillaProyectoAction(
-  proyecto: string,
-  fechaDesde: string,
-  fechaHasta: string,
-  equipo: string[],
-): Promise<ResultadoBusquedaAuto> {
-  await requirePerfil();
-  const supabase = await createClient();
-  let consulta = supabase
-    .from("planilla_pagos")
-    .select("descripcion, monto")
-    .eq("tipo_trabajo", "proyecto")
-    .gte("fecha", fechaDesde)
-    .lte("fecha", fechaHasta);
-  const nombresEquipo = equipo.map((n) => n.trim()).filter((n) => n !== "");
-  if (nombresEquipo.length > 0) {
-    consulta = consulta.in("colaborador", nombresEquipo);
-  }
-
-  const { data, error } = await consulta;
-
-  if (error) throw new Error(error.message || "No se pudo buscar en Planilla.");
-
-  const coincidencias = (data ?? []).filter((p) => coincideConProyecto(p.descripcion ?? "", proyecto));
-  return { total: coincidencias.reduce((s, p) => s + Number(p.monto), 0), cantidad: coincidencias.length };
-}
-
-// Mismo principio que Planilla pero para Caja Menuda: categoría "Viáticos",
+// Mismo principio que se usaba para Planilla (ver historial de este
+// archivo) pero para Caja Menuda: categoría "Viáticos",
 // fecha dentro de la semana, el Concepto relacionado con el nombre del
 // proyecto (ver coincideConProyecto), y opcionalmente el Equipo de Campo
 // (Operador + Ayudantes) = "Nombre" del movimiento (a quién se le entregó

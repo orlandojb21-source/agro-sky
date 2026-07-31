@@ -3,23 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
-import { BotonExportarTalonario } from "@/components/forms/BotonExportarTalonario";
-import { eliminarPagoAction } from "@/lib/actions/planilla";
-import { formatMoney, formatDateOnly } from "@/lib/format";
+import { eliminarAsistenciaAction } from "@/lib/actions/asistencia";
+import { formatDateOnly } from "@/lib/format";
 
-export type PagoFila = {
+export type AsistenciaFila = {
   id: string;
   colaborador: string;
   fecha: string;
-  fechaDesde: string | null;
+  tipoTrabajo: "proyecto" | "oficina";
+  jornada: "completo" | "medio" | "proyecto";
   descripcion: string;
-  monto: number;
-  tipoTrabajo: "proyecto" | "oficina" | null;
-  jornada: "completo" | "medio" | "proyecto" | null;
-  esFijo: boolean;
-  css: number | null;
-  seguroEducativo: number | null;
-  bonificacion: number | null;
 };
 
 const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "oficina", string> = {
@@ -32,23 +25,11 @@ const ETIQUETA_JORNADA: Record<"completo" | "medio" | "proyecto", string> = {
   proyecto: "Proyecto",
 };
 
-function detalleTrabajo(p: PagoFila): string {
-  if (p.esFijo) {
-    return p.bonificacion ? `Bonificación: ${formatMoney(p.bonificacion)}` : "—";
-  }
-  // Un pago de Campo nuevo (quincena) cubre un rango -- ya no tiene
-  // tipoTrabajo/jornada (eso vive en Asistencia), así que se muestra el
-  // rango en su lugar.
-  if (p.fechaDesde) return `Quincena: ${formatDateOnly(p.fechaDesde)} al ${formatDateOnly(p.fecha)}`;
-  if (!p.tipoTrabajo && !p.jornada) return "—";
-  // Un pago histórico de Campo (día por día, de antes de este cambio).
-  // Para Proyecto, jornada siempre vale "proyecto" -- mostrarlo junto al
+function detalleAsistencia(a: AsistenciaFila): string {
+  // Para Proyecto, la jornada siempre vale "proyecto" -- mostrarla junto al
   // tipo de trabajo sería redundante ("Proyecto · Proyecto").
-  const partes = [
-    p.tipoTrabajo ? ETIQUETA_TIPO_TRABAJO[p.tipoTrabajo] : null,
-    p.jornada && p.jornada !== "proyecto" ? ETIQUETA_JORNADA[p.jornada] : null,
-  ].filter(Boolean);
-  return partes.join(" · ");
+  if (a.jornada === "proyecto") return ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo];
+  return `${ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo]} · ${ETIQUETA_JORNADA[a.jornada]}`;
 }
 
 type Filtros = {
@@ -76,17 +57,13 @@ const inputFiltroMovil =
 const etiquetaFiltroMovil =
   "flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70";
 
-export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
+export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
-  // El filtro por colaborador se arma con los nombres que realmente
-  // aparecen en los pagos cargados -- no depende de la lista administrable
-  // de colaboradores, asi que sigue funcionando igual aunque alguien borre
-  // un colaborador con pagos historicos.
   const nombresColaboradores = useMemo(
-    () => Array.from(new Set(pagos.map((p) => p.colaborador))).sort((a, b) => a.localeCompare(b)),
-    [pagos],
+    () => Array.from(new Set(asistencia.map((a) => a.colaborador))).sort((a, b) => a.localeCompare(b)),
+    [asistencia],
   );
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
@@ -94,19 +71,19 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
   }
 
   const filtrados = useMemo(() => {
-    return pagos.filter((p) => {
-      if (filtros.colaborador && p.colaborador !== filtros.colaborador) return false;
-      if (filtros.tipoTrabajo && p.tipoTrabajo !== filtros.tipoTrabajo) return false;
+    return asistencia.filter((a) => {
+      if (filtros.colaborador && a.colaborador !== filtros.colaborador) return false;
+      if (filtros.tipoTrabajo && a.tipoTrabajo !== filtros.tipoTrabajo) return false;
 
       const texto = filtros.texto.trim().toLowerCase();
-      if (texto && !p.descripcion.toLowerCase().includes(texto)) return false;
+      if (texto && !a.descripcion.toLowerCase().includes(texto)) return false;
 
-      if (filtros.fechaDesde && p.fecha < filtros.fechaDesde) return false;
-      if (filtros.fechaHasta && p.fecha > filtros.fechaHasta) return false;
+      if (filtros.fechaDesde && a.fecha < filtros.fechaDesde) return false;
+      if (filtros.fechaHasta && a.fecha > filtros.fechaHasta) return false;
 
       return true;
     });
-  }, [pagos, filtros]);
+  }, [asistencia, filtros]);
 
   const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
@@ -128,7 +105,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
           </button>
         )}
         <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {pagos.length} pagos
+          {filtrados.length} de {asistencia.length} registros
         </span>
       </div>
 
@@ -198,14 +175,13 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
       {/* Vista de escritorio: tabla con filtros integrados en el encabezado */}
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[800px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
                 <th className="px-3 py-2 font-medium">Colaborador</th>
                 <th className="px-3 py-2 font-medium">Detalle</th>
                 <th className="px-3 py-2 font-medium">Descripción</th>
-                <th className="px-3 py-2 font-medium">Monto</th>
                 <th className="px-3 py-2"></th>
               </tr>
               <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
@@ -260,63 +236,47 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                   />
                 </th>
                 <th className="px-3 py-2"></th>
-                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
-                    {pagos.length === 0
-                      ? "Todavía no hay pagos registrados."
-                      : "Ningún pago coincide con los filtros."}
+                    {asistencia.length === 0
+                      ? "Todavía no hay asistencia registrada."
+                      : "Ningún registro coincide con los filtros."}
                   </td>
                 </tr>
               ) : (
-                filtrados.map((p) => (
+                filtrados.map((a) => (
                   <tr
-                    key={p.id}
+                    key={a.id}
                     className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
                   >
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {formatDateOnly(p.fecha)}
+                      {formatDateOnly(a.fecha)}
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
-                      {p.colaborador}
+                      {a.colaborador}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {detalleTrabajo(p)}
+                      {detalleAsistencia(a)}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {p.descripcion}
-                    </td>
-                    <td className="px-3 py-3 font-medium text-green-700 dark:text-green-400">
-                      {formatMoney(p.monto)}
+                      {a.descripcion}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
-                        {p.esFijo && (
-                          <BotonExportarTalonario
-                            talonario={{
-                              colaboradorNombre: p.colaborador,
-                              fecha: p.fecha,
-                              salarioBruto: p.monto,
-                              bonificacion: p.bonificacion ?? 0,
-                              css: p.css ?? 0,
-                              seguroEducativo: p.seguroEducativo ?? 0,
-                            }}
-                          />
-                        )}
                         <Link
-                          href={`/planilla/pagos/${p.id}/editar`}
+                          href={`/planilla/${a.id}/editar`}
                           className="text-sm text-green-700 hover:underline dark:text-green-300"
                         >
                           Editar
                         </Link>
-                        <DeleteButton action={eliminarPagoAction.bind(null, p.id)} />
+                        <DeleteButton action={eliminarAsistenciaAction.bind(null, a.id)} />
                       </div>
                     </td>
                   </tr>
@@ -327,62 +287,39 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
         </div>
       </div>
 
-      {/* Vista de movil: una tarjeta por pago */}
+      {/* Vista de movil: una tarjeta por registro */}
       <div className="flex flex-col gap-3 sm:hidden">
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
-            {pagos.length === 0
-              ? "Todavía no hay pagos registrados."
-              : "Ningún pago coincide con los filtros."}
+            {asistencia.length === 0
+              ? "Todavía no hay asistencia registrada."
+              : "Ningún registro coincide con los filtros."}
           </div>
         ) : (
-          filtrados.map((p) => (
+          filtrados.map((a) => (
             <div
-              key={p.id}
+              key={a.id}
               className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
-                    {formatDateOnly(p.fecha)}
+                    {formatDateOnly(a.fecha)}
                   </p>
-                  <p className="font-medium text-green-900 dark:text-green-50">
-                    {p.colaborador}
-                  </p>
-                  {(p.tipoTrabajo || p.jornada || p.bonificacion || p.fechaDesde) && (
-                    <p className="text-xs text-green-700/70 dark:text-green-300/70">
-                      {detalleTrabajo(p)}
-                    </p>
-                  )}
-                  <p className="text-sm text-green-800/80 dark:text-green-200/80">
-                    {p.descripcion}
-                  </p>
+                  <p className="font-medium text-green-900 dark:text-green-50">{a.colaborador}</p>
+                  <p className="text-xs text-green-700/70 dark:text-green-300/70">{detalleAsistencia(a)}</p>
+                  <p className="text-sm text-green-800/80 dark:text-green-200/80">{a.descripcion}</p>
                 </div>
-                <p className="shrink-0 font-medium text-green-700 dark:text-green-400">
-                  {formatMoney(p.monto)}
-                </p>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                {p.esFijo && (
-                  <BotonExportarTalonario
-                    talonario={{
-                      colaboradorNombre: p.colaborador,
-                      fecha: p.fecha,
-                      salarioBruto: p.monto,
-                      bonificacion: p.bonificacion ?? 0,
-                      css: p.css ?? 0,
-                      seguroEducativo: p.seguroEducativo ?? 0,
-                    }}
-                  />
-                )}
                 <Link
-                  href={`/planilla/pagos/${p.id}/editar`}
+                  href={`/planilla/${a.id}/editar`}
                   className="text-sm text-green-700 hover:underline dark:text-green-300"
                 >
                   Editar
                 </Link>
-                <DeleteButton action={eliminarPagoAction.bind(null, p.id)} />
+                <DeleteButton action={eliminarAsistenciaAction.bind(null, a.id)} />
               </div>
             </div>
           ))
