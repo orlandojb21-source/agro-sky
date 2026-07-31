@@ -29,6 +29,7 @@ export const itemGastoOperativoSchema = z.object({
 export const bloqueGastoOperativoSchema = z.object({
   drone: z.string().trim().min(1, "Falta el nombre del drone para los gastos operativos"),
   operador: z.string().trim().optional().default(""),
+  ayudantes: z.array(z.string().trim().min(1)).default([]),
   items: z.array(itemGastoOperativoSchema).default([]),
 });
 

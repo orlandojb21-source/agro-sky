@@ -13,3 +13,13 @@ export const CATEGORIAS_GASTO_OPERATIVO = [
 ] as const;
 
 export type CategoriaGastoOperativo = (typeof CATEGORIAS_GASTO_OPERATIVO)[number]["valor"];
+
+// Texto para mostrar el Equipo de Campo (Operador + Ayudantes) de un bloque
+// de Gastos Operativos, usado tanto en el detalle del informe como en el
+// PDF exportado -- un solo lugar para no repetir el formato en los dos.
+export function textoEquipoDeCampo(operador: string | null, ayudantes: string[]): string {
+  const partes: string[] = [];
+  if (operador) partes.push(`Operador: ${operador}`);
+  if (ayudantes.length > 0) partes.push(`Ayudantes: ${ayudantes.join(", ")}`);
+  return partes.join(" — ");
+}

@@ -7,6 +7,7 @@ type ItemGastoFila = { categoria: string; cantidad: number; precio: number };
 type BloqueGastoFila = {
   drone: string;
   operador: string | null;
+  ayudantes: string[] | null;
   proyecto_gastos_operativos_items: ItemGastoFila[] | null;
 };
 
@@ -29,7 +30,7 @@ export default async function EditarInformeProyectoPage({
       supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
       supabase
         .from("proyecto_gastos_operativos")
-        .select("drone, operador, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
+        .select("drone, operador, ayudantes, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
         .eq("informe_id", id)
         .order("id"),
       supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
@@ -65,6 +66,7 @@ export default async function EditarInformeProyectoPage({
           gastosOperativos: ((gastosData ?? []) as unknown as BloqueGastoFila[]).map((b) => ({
             drone: b.drone,
             operador: b.operador,
+            ayudantes: b.ayudantes ?? [],
             items: (b.proyecto_gastos_operativos_items ?? []).map((it) => ({
               categoria: it.categoria,
               cantidad: Number(it.cantidad),

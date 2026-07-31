@@ -6,7 +6,7 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { BotonExportarInforme } from "@/components/forms/BotonExportarInforme";
 import { eliminarInformeProyectoAction } from "@/lib/actions/proyectos";
 import { formatMoney, formatDateOnly } from "@/lib/format";
-import { CATEGORIAS_GASTO_OPERATIVO } from "@/lib/proyectoGastos";
+import { CATEGORIAS_GASTO_OPERATIVO, textoEquipoDeCampo } from "@/lib/proyectoGastos";
 import type { InformeProyectoExportable } from "@/lib/exportar";
 
 type ItemGastoFila = { id: string; categoria: string; cantidad: number; precio: number; total: number };
@@ -14,6 +14,7 @@ type BloqueGastoFila = {
   id: string;
   drone: string;
   operador: string | null;
+  ayudantes: string[] | null;
   proyecto_gastos_operativos_items: { id: string; categoria: string; cantidad: number; precio: number; total: number }[] | null;
 };
 
@@ -39,7 +40,9 @@ export default async function DetalleInformeProyectoPage({
       .order("id"),
     supabase
       .from("proyecto_gastos_operativos")
-      .select("id, drone, operador, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )")
+      .select(
+        "id, drone, operador, ayudantes, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )",
+      )
       .eq("informe_id", id)
       .order("id"),
   ]);
@@ -79,6 +82,7 @@ export default async function DetalleInformeProyectoPage({
       id: b.id,
       drone: b.drone,
       operador: b.operador,
+      ayudantes: b.ayudantes ?? [],
       items,
       total: items.reduce((s, it) => s + it.total, 0),
     };
@@ -96,6 +100,7 @@ export default async function DetalleInformeProyectoPage({
     gastosOperativos: gastosOperativos.map((b) => ({
       drone: b.drone,
       operador: b.operador,
+      ayudantes: b.ayudantes,
       items: b.items.map((it) => ({
         categoria: it.categoria,
         etiqueta: CATEGORIAS_GASTO_OPERATIVO.find((c) => c.valor === it.categoria)!.etiqueta,
@@ -206,7 +211,10 @@ export default async function DetalleInformeProyectoPage({
         >
           <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
             Gastos operativos — {bloque.drone}
-            {bloque.operador ? ` (${bloque.operador})` : ""}
+            {(() => {
+              const equipo = textoEquipoDeCampo(bloque.operador, bloque.ayudantes);
+              return equipo ? ` (${equipo})` : "";
+            })()}
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-sm">

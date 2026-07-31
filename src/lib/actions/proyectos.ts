@@ -56,6 +56,7 @@ export async function crearInformeProyectoAction(
     p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
       drone: b.drone,
       operador: b.operador || null,
+      ayudantes: b.ayudantes,
       items: b.items.map((it) => ({
         categoria: it.categoria,
         cantidad: it.cantidad,
@@ -126,6 +127,7 @@ export async function editarInformeProyectoAction(
     p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
       drone: b.drone,
       operador: b.operador || null,
+      ayudantes: b.ayudantes,
       items: b.items.map((it) => ({
         categoria: it.categoria,
         cantidad: it.cantidad,
@@ -190,12 +192,14 @@ function coincideConProyecto(textoLibre: string, proyecto: string): boolean {
 // de abrir el formulario del informe. Criterios: tipo de trabajo
 // "Proyecto", fecha dentro de la semana, Descripción relacionada con el
 // nombre del proyecto (ver coincideConProyecto), y opcionalmente el
-// Operador del drone = colaborador del pago (exacto).
+// Equipo de Campo (Operador + Ayudantes) -- si se dio, el colaborador del
+// pago debe ser alguno de ellos (no solo el Operador, pedido explícito del
+// usuario: el gasto lo hace todo el equipo, no una sola persona).
 export async function buscarPagosPlanillaProyectoAction(
   proyecto: string,
   fechaDesde: string,
   fechaHasta: string,
-  operador: string,
+  equipo: string[],
 ): Promise<ResultadoBusquedaAuto> {
   await requirePerfil();
   const supabase = await createClient();
@@ -205,8 +209,9 @@ export async function buscarPagosPlanillaProyectoAction(
     .eq("tipo_trabajo", "proyecto")
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
-  if (operador.trim()) {
-    consulta = consulta.eq("colaborador", operador.trim());
+  const nombresEquipo = equipo.map((n) => n.trim()).filter((n) => n !== "");
+  if (nombresEquipo.length > 0) {
+    consulta = consulta.in("colaborador", nombresEquipo);
   }
 
   const { data, error } = await consulta;
@@ -219,13 +224,14 @@ export async function buscarPagosPlanillaProyectoAction(
 
 // Mismo principio que Planilla pero para Caja Menuda: categoría "Viáticos",
 // fecha dentro de la semana, el Concepto relacionado con el nombre del
-// proyecto (ver coincideConProyecto), y opcionalmente el Operador del
-// drone = "Nombre" del movimiento (a quién se le entregó el dinero, exacto).
+// proyecto (ver coincideConProyecto), y opcionalmente el Equipo de Campo
+// (Operador + Ayudantes) = "Nombre" del movimiento (a quién se le entregó
+// el dinero) -- debe ser alguno de ellos.
 export async function buscarViaticosCajaMenudaAction(
   proyecto: string,
   fechaDesde: string,
   fechaHasta: string,
-  operador: string,
+  equipo: string[],
 ): Promise<ResultadoBusquedaAuto> {
   await requirePerfil();
   const supabase = await createClient();
@@ -235,8 +241,9 @@ export async function buscarViaticosCajaMenudaAction(
     .eq("categoria", "Viáticos")
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
-  if (operador.trim()) {
-    consulta = consulta.eq("nombre", operador.trim());
+  const nombresEquipo = equipo.map((n) => n.trim()).filter((n) => n !== "");
+  if (nombresEquipo.length > 0) {
+    consulta = consulta.in("nombre", nombresEquipo);
   }
 
   const { data, error } = await consulta;

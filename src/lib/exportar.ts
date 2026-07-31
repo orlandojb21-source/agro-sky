@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoney, formatDateOnly } from "@/lib/format";
+import { textoEquipoDeCampo } from "@/lib/proyectoGastos";
 
 export type FilaExportable = {
   numeroParte: string;
@@ -417,6 +418,7 @@ export type ItemGastoOperativoExportable = {
 export type BloqueGastoOperativoExportable = {
   drone: string;
   operador: string | null;
+  ayudantes: string[];
   items: ItemGastoOperativoExportable[];
 };
 
@@ -516,10 +518,13 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
       yGastos = 15;
     }
 
+    const equipo = textoEquipoDeCampo(bloque.operador, bloque.ayudantes);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text(`Gastos operativos — ${bloque.drone}${bloque.operador ? ` (${bloque.operador})` : ""}`, 14, yGastos);
-    yGastos += 5;
+    const tituloBloque = `Gastos operativos — ${bloque.drone}${equipo ? ` (${equipo})` : ""}`;
+    const lineasTitulo = doc.splitTextToSize(tituloBloque, anchoPagina - 28) as string[];
+    doc.text(lineasTitulo, 14, yGastos);
+    yGastos += lineasTitulo.length * 5;
 
     const totalBloque = bloque.items.reduce((s, it) => s + it.total, 0);
 

@@ -24,12 +24,13 @@ function filaVacia(): FilaDraft {
 }
 
 type ItemGastoDraft = { categoria: string; cantidad: string; precio: string };
-type BloqueGastoDraft = { drone: string; operador: string; items: ItemGastoDraft[] };
+type BloqueGastoDraft = { drone: string; operador: string; ayudantes: string[]; items: ItemGastoDraft[] };
 
 function bloqueGastoVacio(): BloqueGastoDraft {
   return {
     drone: "",
     operador: "",
+    ayudantes: [],
     items: CATEGORIAS_GASTO_OPERATIVO.map((c) => ({ categoria: c.valor, cantidad: "", precio: "" })),
   };
 }
@@ -47,6 +48,7 @@ export type ValoresInforme = {
   gastosOperativos: {
     drone: string;
     operador: string | null;
+    ayudantes: string[];
     items: { categoria: string; cantidad: number; precio: number }[];
   }[];
 };
@@ -55,6 +57,7 @@ function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number])
   return {
     drone: inicial.drone,
     operador: inicial.operador ?? "",
+    ayudantes: inicial.ayudantes.length > 0 ? inicial.ayudantes : [],
     items: CATEGORIAS_GASTO_OPERATIVO.map((c) => {
       const encontrado = inicial.items.find((it) => it.categoria === c.valor);
       return {
@@ -177,6 +180,28 @@ export function ProyectoInformeForm({
     setGastosOperativos((prev) => prev.map((b, i) => (i === bloqueIndex ? { ...b, operador: valor } : b)));
   }
 
+  function agregarAyudante(bloqueIndex: number) {
+    setGastosOperativos((prev) =>
+      prev.map((b, i) => (i === bloqueIndex ? { ...b, ayudantes: [...b.ayudantes, ""] } : b)),
+    );
+  }
+
+  function actualizarAyudante(bloqueIndex: number, ayudanteIndex: number, valor: string) {
+    setGastosOperativos((prev) =>
+      prev.map((b, i) =>
+        i !== bloqueIndex
+          ? b
+          : { ...b, ayudantes: b.ayudantes.map((a, j) => (j === ayudanteIndex ? valor : a)) },
+      ),
+    );
+  }
+
+  function quitarAyudante(bloqueIndex: number, ayudanteIndex: number) {
+    setGastosOperativos((prev) =>
+      prev.map((b, i) => (i === bloqueIndex ? { ...b, ayudantes: b.ayudantes.filter((_, j) => j !== ayudanteIndex) } : b)),
+    );
+  }
+
   function actualizarItemGasto(
     bloqueIndex: number,
     itemIndex: number,
@@ -207,19 +232,29 @@ export function ProyectoInformeForm({
     );
   }
 
+  // Junta al Operador + Ayudantes del bloque en un solo equipo, para buscar
+  // pagos/movimientos de cualquiera de ellos (el gasto lo hace todo el
+  // equipo de campo, no una sola persona -- pedido explícito del usuario).
+  function equipoDelBloque(bloqueIndex: number): string[] {
+    const bloque = gastosOperativos[bloqueIndex];
+    if (!bloque) return [];
+    return [bloque.operador, ...bloque.ayudantes].filter((n) => n.trim() !== "");
+  }
+
   // Busca en tiempo real en el servidor (nunca en una lista cargada al abrir
   // la página) -- así funciona sin importar si el pago de planilla se
   // registró antes o después de abrir este formulario. Tipo de trabajo
   // "Proyecto", fecha dentro de la semana, Descripción CONTENIDA en el
   // nombre del proyecto (no exacta -- un espacio o mayúscula de más no debe
-  // impedir el match), y (si se eligió) Operador = colaborador del pago --
-  // los criterios que pidió el usuario. El resultado se sugiere pero se
-  // puede corregir a mano después.
+  // impedir el match), y (si se dio) el colaborador del pago debe ser
+  // alguien del Equipo de Campo (Operador o algún Ayudante) -- los
+  // criterios que pidió el usuario. El resultado se sugiere pero se puede
+  // corregir a mano después.
   async function traerDePlanilla(bloqueIndex: number) {
     setBuscandoPlanilla((prev) => ({ ...prev, [bloqueIndex]: true }));
     try {
-      const operador = gastosOperativos[bloqueIndex]?.operador ?? "";
-      const { total, cantidad } = await buscarPagosPlanillaProyectoAction(proyecto, fechaDesde, fechaHasta, operador);
+      const equipo = equipoDelBloque(bloqueIndex);
+      const { total, cantidad } = await buscarPagosPlanillaProyectoAction(proyecto, fechaDesde, fechaHasta, equipo);
       llenarCategoria(bloqueIndex, "planilla", total);
       setMensajePlanilla((prev) => ({
         ...prev,
@@ -243,14 +278,14 @@ export function ProyectoInformeForm({
   // nombre del proyecto (no exacto -- pedido explícito del usuario, ya que
   // el nombre del proyecto suele traer texto extra, ej. Concepto "Ingenio
   // Santa Rosa" encaja dentro de un Proyecto "Ingenio Santa Rosa (Semana 8
-  // Granulado)"), y (si se eligió) Operador = "Nombre" del movimiento (a
-  // quién se le entregó el dinero). El resultado sigue siendo editable a
-  // mano después.
+  // Granulado)"), y (si se dio) el "Nombre" del movimiento (a quién se le
+  // entregó el dinero) debe ser alguien del Equipo de Campo. El resultado
+  // sigue siendo editable a mano después.
   async function traerDeCajaMenuda(bloqueIndex: number) {
     setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: true }));
     try {
-      const operador = gastosOperativos[bloqueIndex]?.operador ?? "";
-      const { total, cantidad } = await buscarViaticosCajaMenudaAction(proyecto, fechaDesde, fechaHasta, operador);
+      const equipo = equipoDelBloque(bloqueIndex);
+      const { total, cantidad } = await buscarViaticosCajaMenudaAction(proyecto, fechaDesde, fechaHasta, equipo);
       llenarCategoria(bloqueIndex, "viaticos", total);
       setMensajeViaticos((prev) => ({
         ...prev,
@@ -278,6 +313,7 @@ export function ProyectoInformeForm({
   const gastosOperativosParaEnviar = gastosOperativos.map((b) => ({
     drone: b.drone,
     operador: b.operador,
+    ayudantes: b.ayudantes.map((a) => a.trim()).filter((a) => a !== ""),
     items: b.items.map((it) => ({
       categoria: it.categoria,
       cantidad: Number(it.cantidad) || 0,
@@ -447,8 +483,8 @@ export function ProyectoInformeForm({
             key={bi}
             className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
           >
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-3">
                 <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
                   Drone
                   <input
@@ -458,19 +494,58 @@ export function ProyectoInformeForm({
                     className={`${CLASE_INPUT} max-w-xs`}
                   />
                 </label>
-                <SelectField
-                  label="Operador"
-                  name={`operador-${bi}`}
-                  defaultValue={bloque.operador}
-                  onChange={(e) => actualizarOperador(bi, e.target.value)}
-                >
-                  <option value="">Selecciona...</option>
-                  {colaboradoresCampo.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </SelectField>
+
+                <div className="rounded-lg border border-green-100 p-3 dark:border-green-900/40">
+                  <p className="text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                    Equipo de Campo
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-end gap-3">
+                    <SelectField
+                      label="Operador"
+                      name={`operador-${bi}`}
+                      defaultValue={bloque.operador}
+                      onChange={(e) => actualizarOperador(bi, e.target.value)}
+                    >
+                      <option value="">Selecciona...</option>
+                      {colaboradoresCampo.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </SelectField>
+                    {bloque.ayudantes.map((ayudante, ai) => (
+                      <div key={ai} className="flex items-end gap-1">
+                        <SelectField
+                          label={`Ayudante ${ai + 1}`}
+                          name={`ayudante-${bi}-${ai}`}
+                          defaultValue={ayudante}
+                          onChange={(e) => actualizarAyudante(bi, ai, e.target.value)}
+                        >
+                          <option value="">Selecciona...</option>
+                          {colaboradoresCampo.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </SelectField>
+                        <button
+                          type="button"
+                          onClick={() => quitarAyudante(bi, ai)}
+                          className="pb-2 text-sm text-red-600 hover:underline dark:text-red-400"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => agregarAyudante(bi)}
+                    className="mt-2 rounded-lg border border-green-200 px-3 py-1 text-xs text-green-800 hover:bg-green-50 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
+                  >
+                    + Agregar ayudante
+                  </button>
+                </div>
               </div>
               <button
                 type="button"
