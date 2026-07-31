@@ -156,14 +156,41 @@ export async function eliminarInformeProyectoAction(id: string) {
 
 export type ResultadoBusquedaAuto = { total: number; cantidad: number };
 
+// El nombre del proyecto suele traer un descriptor de semana entre
+// paréntesis (ej. "Ingenio Santa Rosa (Semana 8 Granulado)") -- el "nombre
+// central" es la parte antes del paréntesis, el cliente en sí.
+function nombreCentralProyecto(proyecto: string): string {
+  const indice = proyecto.indexOf("(");
+  return (indice === -1 ? proyecto : proyecto.slice(0, indice)).trim().toLowerCase();
+}
+
+// Compara un texto libre (Descripción de un pago de planilla, o Concepto de
+// un movimiento de Caja Menuda) contra el nombre del proyecto del informe,
+// de forma flexible en cualquier dirección: puede que el texto libre sea
+// solo el nombre del cliente, que el nombre del proyecto completo aparezca
+// dentro del texto libre, o que el texto libre mezcle el nombre del cliente
+// con otras palabras (ej. "proyecto Ingenio Santa Rosa - comida") -- en ese
+// último caso ninguno de los dos contiene por completo al otro, así que se
+// busca el nombre central del proyecto (sin el descriptor de semana) dentro
+// del texto libre.
+function coincideConProyecto(textoLibre: string, proyecto: string): boolean {
+  const texto = textoLibre.trim().toLowerCase();
+  if (texto === "") return false;
+  const proyectoCompleto = proyecto.trim().toLowerCase();
+  const central = nombreCentralProyecto(proyecto);
+  return (
+    proyectoCompleto.includes(texto) ||
+    texto.includes(proyectoCompleto) ||
+    (central !== "" && texto.includes(central))
+  );
+}
+
 // Busca en tiempo real (no en una lista cargada al abrir la página) para que
-// funcione sin importar si el pago de planilla/movimiento de Caja Menuda se
-// registró antes o después de abrir el formulario del informe. Criterios:
-// tipo de trabajo "Proyecto", fecha dentro de la semana, Descripción
-// CONTENIDA en el nombre del proyecto (antes se exigía exacta, pero un
-// espacio o mayúscula de más hacía que nunca coincidiera con datos reales
-// -- el usuario pidió que sea igual de flexible que Caja Menuda), y
-// opcionalmente el Operador del drone = colaborador del pago (exacto).
+// funcione sin importar si el pago de planilla se registró antes o después
+// de abrir el formulario del informe. Criterios: tipo de trabajo
+// "Proyecto", fecha dentro de la semana, Descripción relacionada con el
+// nombre del proyecto (ver coincideConProyecto), y opcionalmente el
+// Operador del drone = colaborador del pago (exacto).
 export async function buscarPagosPlanillaProyectoAction(
   proyecto: string,
   fechaDesde: string,
@@ -186,19 +213,14 @@ export async function buscarPagosPlanillaProyectoAction(
 
   if (error) throw new Error(error.message || "No se pudo buscar en Planilla.");
 
-  const nombreProyecto = proyecto.trim().toLowerCase();
-  const coincidencias = (data ?? []).filter((p) => {
-    const descripcion = (p.descripcion ?? "").trim().toLowerCase();
-    return descripcion !== "" && nombreProyecto.includes(descripcion);
-  });
+  const coincidencias = (data ?? []).filter((p) => coincideConProyecto(p.descripcion ?? "", proyecto));
   return { total: coincidencias.reduce((s, p) => s + Number(p.monto), 0), cantidad: coincidencias.length };
 }
 
 // Mismo principio que Planilla pero para Caja Menuda: categoría "Viáticos",
-// fecha dentro de la semana, el Concepto CONTENIDO en el nombre del
-// proyecto (no exacto -- pedido explícito del usuario), y opcionalmente el
-// Operador del drone = "Nombre" del movimiento (a quién se le entregó el
-// dinero, exacto).
+// fecha dentro de la semana, el Concepto relacionado con el nombre del
+// proyecto (ver coincideConProyecto), y opcionalmente el Operador del
+// drone = "Nombre" del movimiento (a quién se le entregó el dinero, exacto).
 export async function buscarViaticosCajaMenudaAction(
   proyecto: string,
   fechaDesde: string,
@@ -221,10 +243,6 @@ export async function buscarViaticosCajaMenudaAction(
 
   if (error) throw new Error(error.message || "No se pudo buscar en Caja Menuda.");
 
-  const nombreProyecto = proyecto.trim().toLowerCase();
-  const coincidencias = (data ?? []).filter((g) => {
-    const concepto = (g.concepto ?? "").trim().toLowerCase();
-    return concepto !== "" && nombreProyecto.includes(concepto);
-  });
+  const coincidencias = (data ?? []).filter((g) => coincideConProyecto(g.concepto ?? "", proyecto));
   return { total: coincidencias.reduce((s, g) => s + Number(g.monto), 0), cantidad: coincidencias.length };
 }
