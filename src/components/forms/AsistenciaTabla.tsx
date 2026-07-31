@@ -10,11 +10,16 @@ export type AsistenciaFila = {
   id: string;
   colaborador: string;
   fecha: string;
+  rolDia: "operador" | "ayudante";
   tipoTrabajo: "proyecto" | "oficina";
   jornada: "completo" | "medio" | "proyecto";
   descripcion: string;
 };
 
+const ETIQUETA_ROL: Record<"operador" | "ayudante", string> = {
+  operador: "Operador",
+  ayudante: "Ayudante",
+};
 const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "oficina", string> = {
   proyecto: "Proyecto",
   oficina: "Oficina",
@@ -27,13 +32,15 @@ const ETIQUETA_JORNADA: Record<"completo" | "medio" | "proyecto", string> = {
 
 function detalleAsistencia(a: AsistenciaFila): string {
   // Para Proyecto, la jornada siempre vale "proyecto" -- mostrarla junto al
-  // tipo de trabajo sería redundante ("Proyecto · Proyecto").
+  // tipo de trabajo sería redundante ("Proyecto · Proyecto"). El Rol vive en
+  // su propia columna/línea, no se repite aquí.
   if (a.jornada === "proyecto") return ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo];
   return `${ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo]} · ${ETIQUETA_JORNADA[a.jornada]}`;
 }
 
 type Filtros = {
   colaborador: string;
+  rolDia: string;
   tipoTrabajo: string;
   texto: string;
   fechaDesde: string;
@@ -42,6 +49,7 @@ type Filtros = {
 
 const FILTROS_VACIOS: Filtros = {
   colaborador: "",
+  rolDia: "",
   tipoTrabajo: "",
   texto: "",
   fechaDesde: "",
@@ -73,6 +81,7 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
   const filtrados = useMemo(() => {
     return asistencia.filter((a) => {
       if (filtros.colaborador && a.colaborador !== filtros.colaborador) return false;
+      if (filtros.rolDia && a.rolDia !== filtros.rolDia) return false;
       if (filtros.tipoTrabajo && a.tipoTrabajo !== filtros.tipoTrabajo) return false;
 
       const texto = filtros.texto.trim().toLowerCase();
@@ -129,6 +138,18 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
             </select>
           </label>
           <label className={etiquetaFiltroMovil}>
+            Rol
+            <select
+              value={filtros.rolDia}
+              onChange={(e) => setFiltro("rolDia", e.target.value)}
+              className={inputFiltroMovil}
+            >
+              <option value="">Todos</option>
+              <option value="operador">Operador</option>
+              <option value="ayudante">Ayudante</option>
+            </select>
+          </label>
+          <label className={etiquetaFiltroMovil}>
             Tipo de trabajo
             <select
               value={filtros.tipoTrabajo}
@@ -175,11 +196,12 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
       {/* Vista de escritorio: tabla con filtros integrados en el encabezado */}
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-sm">
+          <table className="w-full min-w-[880px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
                 <th className="px-3 py-2 font-medium">Colaborador</th>
+                <th className="px-3 py-2 font-medium">Rol</th>
                 <th className="px-3 py-2 font-medium">Detalle</th>
                 <th className="px-3 py-2 font-medium">Descripción</th>
                 <th className="px-3 py-2"></th>
@@ -217,6 +239,17 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
                 </th>
                 <th className="px-3 py-2">
                   <select
+                    value={filtros.rolDia}
+                    onChange={(e) => setFiltro("rolDia", e.target.value)}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todos</option>
+                    <option value="operador">Operador</option>
+                    <option value="ayudante">Ayudante</option>
+                  </select>
+                </th>
+                <th className="px-3 py-2">
+                  <select
                     value={filtros.tipoTrabajo}
                     onChange={(e) => setFiltro("tipoTrabajo", e.target.value)}
                     className={inputFiltro}
@@ -242,7 +275,7 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {asistencia.length === 0
@@ -261,6 +294,9 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                       {a.colaborador}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {ETIQUETA_ROL[a.rolDia]}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {detalleAsistencia(a)}
@@ -307,7 +343,9 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
                     {formatDateOnly(a.fecha)}
                   </p>
                   <p className="font-medium text-green-900 dark:text-green-50">{a.colaborador}</p>
-                  <p className="text-xs text-green-700/70 dark:text-green-300/70">{detalleAsistencia(a)}</p>
+                  <p className="text-xs text-green-700/70 dark:text-green-300/70">
+                    {ETIQUETA_ROL[a.rolDia]} · {detalleAsistencia(a)}
+                  </p>
                   <p className="text-sm text-green-800/80 dark:text-green-200/80">{a.descripcion}</p>
                 </div>
               </div>

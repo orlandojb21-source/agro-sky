@@ -7,6 +7,10 @@ import { jornadaCoincideConTipoTrabajo } from "@/lib/validation/planilla";
 const asistenciaBase = z.object({
   colaborador: z.string().trim().min(1, "Selecciona un colaborador"),
   fecha: z.string().min(1, "Fecha requerida"),
+  // Un mismo colaborador de Campo puede ser Operador un día y Ayudante
+  // otro -- no es una propiedad fija suya, se marca cada vez. Las tarifas
+  // de pago (Oficina y Proyecto) dependen de este rol.
+  rolDia: z.enum(["operador", "ayudante"], { message: "Selecciona si es Operador o Ayudante" }),
   tipoTrabajo: z.enum(["proyecto", "oficina"], { message: "Selecciona el tipo de trabajo" }),
   jornada: z.enum(["completo", "medio", "proyecto"], { message: "Selecciona la jornada" }),
   descripcion: z.string().trim().min(1, "Descripción requerida"),

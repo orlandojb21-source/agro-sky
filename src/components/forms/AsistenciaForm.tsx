@@ -12,6 +12,7 @@ type ValoresAsistencia = {
   id?: string;
   colaborador: string;
   fecha: string;
+  rolDia: "operador" | "ayudante";
   tipoTrabajo: "proyecto" | "oficina";
   jornada: "completo" | "medio" | "proyecto";
   descripcion: string;
@@ -86,6 +87,16 @@ export function AsistenciaForm({
         defaultValue={v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy}
         required
       />
+
+      <SelectField
+        label="Rol"
+        name="rolDia"
+        defaultValue={v?.rolDia ?? valoresIniciales?.rolDia ?? "operador"}
+        required
+      >
+        <option value="operador">Operador</option>
+        <option value="ayudante">Ayudante</option>
+      </SelectField>
 
       <div className="grid grid-cols-2 gap-4">
         <SelectField

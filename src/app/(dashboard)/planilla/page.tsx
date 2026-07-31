@@ -10,13 +10,14 @@ export default async function AsistenciaPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("planilla_asistencia")
-    .select("id, colaborador, fecha, tipo_trabajo, jornada, descripcion")
+    .select("id, colaborador, fecha, rol_dia, tipo_trabajo, jornada, descripcion")
     .order("fecha", { ascending: false });
 
   const asistencia: AsistenciaFila[] = (data ?? []).map((a) => ({
     id: a.id as string,
     colaborador: a.colaborador as string,
     fecha: a.fecha as string,
+    rolDia: a.rol_dia as "operador" | "ayudante",
     tipoTrabajo: a.tipo_trabajo as "proyecto" | "oficina",
     jornada: a.jornada as "completo" | "medio" | "proyecto",
     descripcion: a.descripcion as string,
@@ -26,7 +27,7 @@ export default async function AsistenciaPage() {
     <div>
       <PageHeader
         title="Asistencia"
-        description="Registro diario de Campo: tipo de trabajo y jornada, sin monto. El pago de la quincena se registra en Pagos."
+        description="Registro diario de Campo: rol, tipo de trabajo y jornada, sin monto. El pago de la quincena se registra en Pagos."
         action={
           <div className="flex gap-2">
             <LinkButton href="/planilla/colaboradores" variant="secondary">

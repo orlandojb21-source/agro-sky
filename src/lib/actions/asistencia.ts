@@ -23,6 +23,7 @@ export async function crearAsistenciaAction(
   const { error } = await supabase.from("planilla_asistencia").insert({
     colaborador: parsed.data.colaborador,
     fecha: parsed.data.fecha,
+    rol_dia: parsed.data.rolDia,
     tipo_trabajo: parsed.data.tipoTrabajo,
     jornada: parsed.data.jornada,
     descripcion: parsed.data.descripcion,
@@ -53,6 +54,7 @@ export async function editarAsistenciaAction(
     .update({
       colaborador: parsed.data.colaborador,
       fecha: parsed.data.fecha,
+      rol_dia: parsed.data.rolDia,
       tipo_trabajo: parsed.data.tipoTrabajo,
       jornada: parsed.data.jornada,
       descripcion: parsed.data.descripcion,
