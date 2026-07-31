@@ -5,14 +5,19 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { ColaboradorForm } from "@/components/forms/ColaboradorForm";
+import { ColaboradorFormToggle } from "@/components/forms/ColaboradorFormToggle";
 import { eliminarColaboradorAction } from "@/lib/actions/colaboradores";
 import { formatMoney } from "@/lib/format";
+
+const BUCKET_FOTOS = "colaboradores-fotos";
+const DURACION_URL_FIRMADA_SEG = 3600;
 
 type ColaboradorFila = {
   id: string;
   nombre: string;
   salario: number | null;
   aplicaDeducciones: boolean;
+  fotoUrl: string | null;
 };
 
 function ListaColaboradores({
@@ -36,14 +41,28 @@ function ListaColaboradores({
           <ul className="divide-y divide-green-50 dark:divide-green-900/30">
             {colaboradores.map((c) => (
               <li key={c.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <span className="font-medium text-green-900 dark:text-green-50">{c.nombre}</span>
-                  {c.salario !== null && (
-                    <span className="ml-2 text-sm text-green-700/70 dark:text-green-300/70">
-                      {formatMoney(c.salario)} quincenal
-                      {!c.aplicaDeducciones && " — sin CSS/Seguro Educativo"}
+                <div className="flex items-center gap-3">
+                  {c.fotoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.fotoUrl}
+                      alt={c.nombre}
+                      className="h-9 w-9 rounded-full border border-green-200 object-cover dark:border-green-800"
+                    />
+                  ) : (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                      {c.nombre.charAt(0).toUpperCase()}
                     </span>
                   )}
+                  <div>
+                    <span className="font-medium text-green-900 dark:text-green-50">{c.nombre}</span>
+                    {c.salario !== null && (
+                      <span className="ml-2 text-sm text-green-700/70 dark:text-green-300/70">
+                        {formatMoney(c.salario)} quincenal
+                        {!c.aplicaDeducciones && " — sin CSS/Seguro Educativo"}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <Link
@@ -72,8 +91,21 @@ export default async function ColaboradoresPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("colaboradores")
-    .select("id, nombre, tipo, salario, aplica_deducciones")
+    .select("id, nombre, tipo, salario, aplica_deducciones, foto_ruta")
     .order("nombre");
+
+  const rutasFoto = (data ?? [])
+    .map((c) => c.foto_ruta as string | null)
+    .filter((ruta): ruta is string => Boolean(ruta));
+  const urlsFirmadas = new Map<string, string>();
+  if (rutasFoto.length > 0) {
+    const { data: firmadas } = await supabase.storage
+      .from(BUCKET_FOTOS)
+      .createSignedUrls(rutasFoto, DURACION_URL_FIRMADA_SEG);
+    for (const f of firmadas ?? []) {
+      if (f.signedUrl) urlsFirmadas.set(f.path ?? "", f.signedUrl);
+    }
+  }
 
   const colaboradores = (data ?? []).map((c) => ({
     id: c.id as string,
@@ -81,6 +113,7 @@ export default async function ColaboradoresPage() {
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
     aplicaDeducciones: c.aplica_deducciones as boolean,
+    fotoUrl: c.foto_ruta ? (urlsFirmadas.get(c.foto_ruta as string) ?? null) : null,
   }));
   const fijos = colaboradores.filter((c) => c.tipo === "fijo");
   const campo = colaboradores.filter((c) => c.tipo === "campo");
@@ -97,7 +130,9 @@ export default async function ColaboradoresPage() {
         }
       />
 
-      <ColaboradorForm />
+      <ColaboradorFormToggle>
+        <ColaboradorForm />
+      </ColaboradorFormToggle>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <ListaColaboradores titulo="Fijos (salario quincenal)" colaboradores={fijos} />

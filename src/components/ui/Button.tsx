@@ -17,16 +17,20 @@ export function SubmitButton({
   children,
   variant = "primary",
   className = "",
+  disabled = false,
 }: {
   children: React.ReactNode;
   variant?: Variant;
   className?: string;
+  // Se suma a "pending" (ej. para bloquear el envío mientras algo async
+  // ajeno al form action todavía está en curso, como subir una foto).
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className={`rounded-full px-5 py-2.5 text-sm font-medium shadow-sm transition disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${className}`}
     >
       {pending ? "Guardando..." : children}
