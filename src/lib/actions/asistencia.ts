@@ -84,12 +84,23 @@ export async function eliminarAsistenciaAction(id: string) {
   revalidatePath("/planilla");
 }
 
+export type DetalleDiaAsistencia = {
+  fecha: string;
+  rolDia: RolDia;
+  tipoTrabajo: "oficina" | "proyecto";
+  jornada: Jornada | null;
+  tipoProyecto: TipoProyecto | null;
+  hectareas: number | null;
+  monto: number;
+};
+
 export type ResumenAsistencia = {
   totalDias: number;
   totalSugerido: number;
   diasOficina: number;
   diasProyecto: number;
   hectareasProyecto: number;
+  detalle: DetalleDiaAsistencia[];
 };
 
 // Se llama directo desde el formulario de Pago (no vinculado a un <form>,
@@ -149,18 +160,41 @@ export async function obtenerResumenAsistenciaAction(
   let diasOficina = 0;
   let diasProyecto = 0;
   let hectareasProyecto = 0;
+  const detalle: DetalleDiaAsistencia[] = [];
 
   for (const dia of dias ?? []) {
     if (dia.tipo_trabajo === "oficina") {
       diasOficina += 1;
-      totalSugerido += calcularPagoOficina(dia.rol_dia as RolDia, dia.jornada as Jornada);
+      const monto = calcularPagoOficina(dia.rol_dia as RolDia, dia.jornada as Jornada);
+      totalSugerido += monto;
+      detalle.push({
+        fecha: dia.fecha,
+        rolDia: dia.rol_dia as RolDia,
+        tipoTrabajo: "oficina",
+        jornada: dia.jornada as Jornada,
+        tipoProyecto: null,
+        hectareas: null,
+        monto,
+      });
     } else if (dia.tipo_trabajo === "proyecto" && dia.tipo_proyecto) {
       diasProyecto += 1;
       const hectareasDia = hectareasPorFecha.get(dia.fecha) ?? 0;
       hectareasProyecto += hectareasDia;
-      totalSugerido += calcularPagoProyecto(dia.rol_dia as RolDia, dia.tipo_proyecto as TipoProyecto, hectareasDia);
+      const monto = calcularPagoProyecto(dia.rol_dia as RolDia, dia.tipo_proyecto as TipoProyecto, hectareasDia);
+      totalSugerido += monto;
+      detalle.push({
+        fecha: dia.fecha,
+        rolDia: dia.rol_dia as RolDia,
+        tipoTrabajo: "proyecto",
+        jornada: null,
+        tipoProyecto: dia.tipo_proyecto as TipoProyecto,
+        hectareas: hectareasDia,
+        monto,
+      });
     }
   }
+
+  detalle.sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   return {
     totalDias: dias?.length ?? 0,
@@ -168,5 +202,6 @@ export async function obtenerResumenAsistenciaAction(
     diasOficina,
     diasProyecto,
     hectareasProyecto,
+    detalle,
   };
 }

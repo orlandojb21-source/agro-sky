@@ -6,7 +6,7 @@ import { obtenerResumenAsistenciaAction, type ResumenAsistencia } from "@/lib/ac
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDateOnly } from "@/lib/format";
 
 // Deducciones legales de Panama sobre el salario bruto de un colaborador
 // Fijo (confirmado por el usuario). Solo se usan para sugerir un valor
@@ -281,18 +281,54 @@ export function PagoPlanillaForm({
             </button>
             {errorResumen && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errorResumen}</p>}
             {resumenAsistencia && (
-              <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
-                {resumenAsistencia.totalDias === 0 ? (
-                  "No hay asistencia registrada en este período."
-                ) : (
-                  <>
-                    {resumenAsistencia.totalDias} día(s) registrados — Total sugerido:{" "}
-                    <strong>{formatMoney(resumenAsistencia.totalSugerido)}</strong> ({resumenAsistencia.diasOficina}{" "}
-                    día(s) Oficina, {resumenAsistencia.diasProyecto} día(s) Proyecto con{" "}
-                    {resumenAsistencia.hectareasProyecto} hectáreas)
-                  </>
+              <>
+                <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
+                  {resumenAsistencia.totalDias === 0 ? (
+                    "No hay asistencia registrada en este período."
+                  ) : (
+                    <>
+                      {resumenAsistencia.totalDias} día(s) registrados — Total sugerido:{" "}
+                      <strong>{formatMoney(resumenAsistencia.totalSugerido)}</strong> ({resumenAsistencia.diasOficina}{" "}
+                      día(s) Oficina, {resumenAsistencia.diasProyecto} día(s) Proyecto con{" "}
+                      {resumenAsistencia.hectareasProyecto} hectáreas)
+                    </>
+                  )}
+                </p>
+                {resumenAsistencia.detalle.length > 0 && (
+                  <div className="mt-2 overflow-x-auto">
+                    <table className="w-full min-w-[420px] text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-green-100 uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                          <th className="px-2 py-1 font-medium">Fecha</th>
+                          <th className="px-2 py-1 font-medium">Rol</th>
+                          <th className="px-2 py-1 font-medium">Detalle</th>
+                          <th className="px-2 py-1 font-medium">Monto</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {resumenAsistencia.detalle.map((d, i) => (
+                          <tr key={i} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                            <td className="px-2 py-1 text-green-800/80 dark:text-green-200/80">
+                              {formatDateOnly(d.fecha)}
+                            </td>
+                            <td className="px-2 py-1 text-green-800/80 dark:text-green-200/80">
+                              {d.rolDia === "operador" ? "Operador" : "Ayudante"}
+                            </td>
+                            <td className="px-2 py-1 text-green-800/80 dark:text-green-200/80">
+                              {d.tipoTrabajo === "oficina"
+                                ? `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`
+                                : `Proyecto — ${d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular"} (${d.hectareas} ha)`}
+                            </td>
+                            <td className="px-2 py-1 font-medium text-green-900 dark:text-green-50">
+                              {formatMoney(d.monto)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </p>
+              </>
             )}
           </div>
         </div>
