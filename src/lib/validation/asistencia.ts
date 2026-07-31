@@ -13,17 +13,36 @@ const asistenciaBase = z.object({
   rolDia: z.enum(["operador", "ayudante"], { message: "Selecciona si es Operador o Ayudante" }),
   tipoTrabajo: z.enum(["proyecto", "oficina"], { message: "Selecciona el tipo de trabajo" }),
   jornada: z.enum(["completo", "medio", "proyecto"], { message: "Selecciona la jornada" }),
+  // Solo aplica cuando tipoTrabajo es "proyecto" -- determina la tarifa
+  // del cálculo de incentivos (ver lib/calculoIncentivos.ts).
+  tipoProyecto: z.enum(["ingenio_santa_rosa", "particular"]).optional().or(z.literal("")),
   descripcion: z.string().trim().min(1, "Descripción requerida"),
 });
 
-export const asistenciaSchema = asistenciaBase.refine(jornadaCoincideConTipoTrabajo, {
-  message: "La jornada no coincide con el tipo de trabajo seleccionado",
-  path: ["jornada"],
-});
+function tipoProyectoCoincideConTipoTrabajo(data: { tipoTrabajo?: string; tipoProyecto?: string }): boolean {
+  if (data.tipoTrabajo === "proyecto") {
+    return data.tipoProyecto === "ingenio_santa_rosa" || data.tipoProyecto === "particular";
+  }
+  return !data.tipoProyecto;
+}
+
+export const asistenciaSchema = asistenciaBase
+  .refine(jornadaCoincideConTipoTrabajo, {
+    message: "La jornada no coincide con el tipo de trabajo seleccionado",
+    path: ["jornada"],
+  })
+  .refine(tipoProyectoCoincideConTipoTrabajo, {
+    message: "Selecciona si es Ingenio Santa Rosa o Trabajo Particular",
+    path: ["tipoProyecto"],
+  });
 
 export const asistenciaEditSchema = asistenciaBase
   .extend({ id: z.string().uuid() })
   .refine(jornadaCoincideConTipoTrabajo, {
     message: "La jornada no coincide con el tipo de trabajo seleccionado",
     path: ["jornada"],
+  })
+  .refine(tipoProyectoCoincideConTipoTrabajo, {
+    message: "Selecciona si es Ingenio Santa Rosa o Trabajo Particular",
+    path: ["tipoProyecto"],
   });

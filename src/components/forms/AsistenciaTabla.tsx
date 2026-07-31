@@ -13,6 +13,7 @@ export type AsistenciaFila = {
   rolDia: "operador" | "ayudante";
   tipoTrabajo: "proyecto" | "oficina";
   jornada: "completo" | "medio" | "proyecto";
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   descripcion: string;
 };
 
@@ -29,13 +30,20 @@ const ETIQUETA_JORNADA: Record<"completo" | "medio" | "proyecto", string> = {
   medio: "Medio día",
   proyecto: "Proyecto",
 };
+const ETIQUETA_TIPO_PROYECTO: Record<"ingenio_santa_rosa" | "particular", string> = {
+  ingenio_santa_rosa: "Ingenio Santa Rosa",
+  particular: "Trabajo Particular",
+};
 
 function detalleAsistencia(a: AsistenciaFila): string {
   // Para Proyecto, la jornada siempre vale "proyecto" -- mostrarla junto al
   // tipo de trabajo sería redundante ("Proyecto · Proyecto"). El Rol vive en
   // su propia columna/línea, no se repite aquí.
-  if (a.jornada === "proyecto") return ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo];
-  return `${ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo]} · ${ETIQUETA_JORNADA[a.jornada]}`;
+  const trabajo =
+    a.jornada === "proyecto"
+      ? ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo]
+      : `${ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo]} · ${ETIQUETA_JORNADA[a.jornada]}`;
+  return a.tipoProyecto ? `${trabajo} (${ETIQUETA_TIPO_PROYECTO[a.tipoProyecto]})` : trabajo;
 }
 
 type Filtros = {

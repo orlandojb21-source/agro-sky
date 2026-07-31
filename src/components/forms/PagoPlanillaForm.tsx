@@ -6,6 +6,7 @@ import { obtenerResumenAsistenciaAction, type ResumenAsistencia } from "@/lib/ac
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
+import { formatMoney } from "@/lib/format";
 
 // Deducciones legales de Panama sobre el salario bruto de un colaborador
 // Fijo (confirmado por el usuario). Solo se usan para sugerir un valor
@@ -144,6 +145,9 @@ export function PagoPlanillaForm({
     setErrorResumen(null);
   }
 
+  // El monto se pre-llena con el cálculo sugerido, pero sigue totalmente
+  // editable después -- el jefe puede ajustarlo a mano si hace falta,
+  // nunca se guarda sin que él lo confirme.
   async function verResumenAsistencia() {
     setBuscandoResumen(true);
     setErrorResumen(null);
@@ -154,6 +158,7 @@ export function PagoPlanillaForm({
         fechaHastaTexto,
       );
       setResumenAsistencia(resultado);
+      setMontoTexto(String(resultado.totalSugerido));
     } catch (err) {
       setErrorResumen(err instanceof Error ? err.message : "No se pudo consultar la asistencia.");
     } finally {
@@ -272,16 +277,21 @@ export function PagoPlanillaForm({
               disabled={buscandoResumen || !colaboradorSeleccionado || !fechaDesdeTexto || !fechaHastaTexto}
               className="rounded-lg border border-green-300 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-50 dark:border-green-700 dark:text-green-200 dark:hover:bg-green-950/40"
             >
-              {buscandoResumen ? "Buscando..." : "Ver asistencia del período"}
+              {buscandoResumen ? "Calculando..." : "Calcular pago sugerido"}
             </button>
             {errorResumen && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errorResumen}</p>}
             {resumenAsistencia && (
               <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
-                {resumenAsistencia.totalDias === 0
-                  ? "No hay asistencia registrada en este período."
-                  : `${resumenAsistencia.totalDias} día(s) registrados — ${resumenAsistencia.porTipo
-                      .map((t) => `${t.etiqueta}: ${t.dias}`)
-                      .join(" · ")}`}
+                {resumenAsistencia.totalDias === 0 ? (
+                  "No hay asistencia registrada en este período."
+                ) : (
+                  <>
+                    {resumenAsistencia.totalDias} día(s) registrados — Total sugerido:{" "}
+                    <strong>{formatMoney(resumenAsistencia.totalSugerido)}</strong> ({resumenAsistencia.diasOficina}{" "}
+                    día(s) Oficina, {resumenAsistencia.diasProyecto} día(s) Proyecto con{" "}
+                    {resumenAsistencia.hectareasProyecto} hectáreas)
+                  </>
+                )}
               </p>
             )}
           </div>

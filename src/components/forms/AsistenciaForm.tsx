@@ -15,6 +15,7 @@ type ValoresAsistencia = {
   rolDia: "operador" | "ayudante";
   tipoTrabajo: "proyecto" | "oficina";
   jornada: "completo" | "medio" | "proyecto";
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   descripcion: string;
 };
 
@@ -45,6 +46,7 @@ export function AsistenciaForm({
   // Oficina, la jornada de Oficina que se sugiere no debe arrancar en
   // "proyecto" (esa jornada no aplica a Oficina).
   const jornadaOficinaInicial = jornadaInicial === "proyecto" ? "completo" : jornadaInicial;
+  const tipoProyectoInicial = v?.tipoProyecto ?? valoresIniciales?.tipoProyecto ?? "ingenio_santa_rosa";
 
   const [tipoTrabajoSeleccionado, setTipoTrabajoSeleccionado] = useState(tipoTrabajoInicial);
 
@@ -124,6 +126,13 @@ export function AsistenciaForm({
           </SelectField>
         )}
       </div>
+
+      {tipoTrabajoSeleccionado === "proyecto" && (
+        <SelectField label="Tipo de proyecto" name="tipoProyecto" defaultValue={tipoProyectoInicial} required>
+          <option value="ingenio_santa_rosa">Ingenio Santa Rosa</option>
+          <option value="particular">Trabajo Particular</option>
+        </SelectField>
+      )}
 
       <Field
         label="Descripción"
