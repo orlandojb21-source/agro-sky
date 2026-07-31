@@ -756,3 +756,164 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
   const nombreSlug = talonario.colaboradorNombre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   doc.save(`agro-sky-talonario-${nombreSlug}-${talonario.fecha}.pdf`);
 }
+
+export type InformeCampoExportable = {
+  cliente: string;
+  fecha: string;
+  finca: string;
+  horaInicio: string;
+  horaFin: string;
+  meteorologia: string;
+  modeloDrone: string;
+  dosisPorHectarea: number;
+  operador: string;
+  ayudantes: string[];
+  nombreFirmaAgro: string | null;
+  firmaAgroUrl: string | null;
+  nombreFirmaCliente: string | null;
+  firmaClienteUrl: string | null;
+  parcelas: { numeroParcela: string; hectareas: number }[];
+  productos: { productoActivo: string; ltsPorHectarea: number }[];
+};
+
+// Carga cualquier URL (ej. una URL firmada de Storage) como base64 vía un
+// canvas -- mismo principio que cargarLogoBase64(), pero para una imagen
+// que no es el logo fijo del proyecto (aquí, una firma dibujada).
+async function cargarImagenBase64(url: string): Promise<string | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = "anonymous";
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("No se pudo cargar la imagen"));
+      el.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
+function nombreArchivoInformeCampo(cliente: string, fecha: string): string {
+  return `agro-sky-informe-campo-${cliente.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${fecha}`;
+}
+
+export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text("Informe de Campo", 14, 20);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const equipo = textoEquipoDeCampo(informe.operador, informe.ayudantes);
+  let yInforme = 30;
+  for (const linea of [
+    `Cliente: ${informe.cliente}`,
+    `Fecha: ${formatDateOnly(informe.fecha)}`,
+    `Finca: ${informe.finca}`,
+    `Hora: ${informe.horaInicio.slice(0, 5)} a ${informe.horaFin.slice(0, 5)}`,
+    `Meteorología: ${informe.meteorologia}`,
+    `Modelo de Drone: ${informe.modeloDrone}`,
+    `Dosis por Hectárea: ${informe.dosisPorHectarea}`,
+    equipo,
+  ]) {
+    doc.text(linea, 14, yInforme);
+    yInforme += 6;
+  }
+
+  const startY = Math.max(yInforme, yEmpresa) + 6;
+
+  const totalHectareas = informe.parcelas.reduce((s, p) => s + p.hectareas, 0);
+
+  autoTable(doc, {
+    startY,
+    head: [["Parcela #", "Hectáreas"]],
+    body: informe.parcelas.map((p) => [p.numeroParcela, String(p.hectareas)]),
+    foot: [["total", String(totalHectareas)]],
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [21, 128, 61] },
+    footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+  });
+
+  let y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Producto activo", "Lts por Hectárea"]],
+    body: informe.productos.map((p) => [p.productoActivo, String(p.ltsPorHectarea)]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [21, 128, 61] },
+  });
+
+  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+
+  const altoPagina = doc.internal.pageSize.getHeight();
+  if (y > altoPagina - 70) {
+    doc.addPage();
+    y = 20;
+  }
+
+  const anchoFirma = 80;
+  const altoFirma = 28;
+  const columnas = [
+    { x: 14, nombre: informe.nombreFirmaAgro, url: informe.firmaAgroUrl, etiqueta: "Encargado Agro Sky Corp" },
+    {
+      x: anchoPagina - 14 - anchoFirma,
+      nombre: informe.nombreFirmaCliente,
+      url: informe.firmaClienteUrl,
+      etiqueta: "Encargado por parte del cliente",
+    },
+  ];
+
+  for (const col of columnas) {
+    if (col.url) {
+      const firmaBase64 = await cargarImagenBase64(col.url);
+      if (firmaBase64) {
+        doc.addImage(firmaBase64, "PNG", col.x, y, anchoFirma, altoFirma);
+      }
+    }
+    doc.setDrawColor(150, 150, 150);
+    doc.line(col.x, y + altoFirma + 2, col.x + anchoFirma, y + altoFirma + 2);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(col.nombre ?? "", col.x, y + altoFirma + 7);
+    doc.setFontSize(8);
+    doc.text(col.etiqueta, col.x, y + altoFirma + 12);
+  }
+
+  doc.save(`${nombreArchivoInformeCampo(informe.cliente, informe.fecha)}.pdf`);
+}
