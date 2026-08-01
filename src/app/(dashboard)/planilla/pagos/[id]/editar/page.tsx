@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { esSoporteOJefe } from "@/lib/roles";
@@ -11,9 +11,6 @@ export default async function EditarPagoPlanillaPage({
 }) {
   const { id } = await params;
   const perfil = await requireSection("planilla");
-  if (!esSoporteOJefe(perfil.rol)) {
-    redirect("/unauthorized");
-  }
 
   const supabase = await createClient();
   const [{ data: pago }, { data: colaboradoresData }] = await Promise.all([
@@ -27,14 +24,21 @@ export default async function EditarPagoPlanillaPage({
     supabase.from("colaboradores").select("nombre, tipo, salario, aplica_deducciones").order("nombre"),
   ]);
 
+  // Si el administrador entra directo a la URL de un pago Fijo, RLS
+  // (migración 0049) ya no le devuelve la fila -- llega null aquí igual
+  // que si el pago no existiera.
   if (!pago) notFound();
 
-  const colaboradores = (colaboradoresData ?? []).map((c) => ({
+  let colaboradores = (colaboradoresData ?? []).map((c) => ({
     nombre: c.nombre as string,
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
     aplicaDeducciones: c.aplica_deducciones as boolean,
   }));
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    colaboradores = colaboradores.filter((c) => c.tipo !== "fijo");
+  }
 
   return (
     <div>

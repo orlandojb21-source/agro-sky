@@ -23,6 +23,19 @@ export type ColaboradorOpcion = {
   aplicaDeducciones: boolean;
 };
 
+type DetalleDiaEditable = {
+  fecha: string;
+  rolDia: "operador" | "ayudante";
+  tipoTrabajo: "oficina" | "proyecto";
+  jornada: "completo" | "medio" | null;
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
+  hectareas: number | null;
+  // El cálculo llega como número, pero se guarda como texto para poder
+  // editarlo a mano en el input -- "por cualquier cosa" (pedido del
+  // usuario), sin dejar de sumar al total.
+  monto: string;
+};
+
 type ValoresPago = {
   id?: string;
   colaborador: string;
@@ -116,6 +129,7 @@ export function PagoPlanillaForm({
   const [fechaDesdeTexto, setFechaDesdeTexto] = useState(fechaDesdeInicial);
   const [fechaHastaTexto, setFechaHastaTexto] = useState(fechaHastaInicial);
   const [resumenAsistencia, setResumenAsistencia] = useState<ResumenAsistencia | null>(null);
+  const [detalleAsistencia, setDetalleAsistencia] = useState<DetalleDiaEditable[]>([]);
   const [buscandoResumen, setBuscandoResumen] = useState(false);
   const [errorResumen, setErrorResumen] = useState<string | null>(null);
 
@@ -130,6 +144,7 @@ export function PagoPlanillaForm({
     setFechaDesdeTexto(fechaDesdeInicial);
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
+    setDetalleAsistencia([]);
     setErrorResumen(null);
   }
 
@@ -142,12 +157,16 @@ export function PagoPlanillaForm({
     setFechaDesdeTexto(fechaDesdeInicial);
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
+    setDetalleAsistencia([]);
     setErrorResumen(null);
   }
 
   // El monto se pre-llena con el cálculo sugerido, pero sigue totalmente
   // editable después -- el jefe puede ajustarlo a mano si hace falta,
-  // nunca se guarda sin que él lo confirme.
+  // nunca se guarda sin que él lo confirme. Lo mismo aplica a cada día del
+  // detalle (pedido del usuario): se puede ajustar uno solo por cualquier
+  // motivo, y el total (y el campo Monto) se recalcula sumando lo que
+  // quede en cada fila, ya editada o no.
   async function verResumenAsistencia() {
     setBuscandoResumen(true);
     setErrorResumen(null);
@@ -158,12 +177,20 @@ export function PagoPlanillaForm({
         fechaHastaTexto,
       );
       setResumenAsistencia(resultado);
+      setDetalleAsistencia(resultado.detalle.map((d) => ({ ...d, monto: String(d.monto) })));
       setMontoTexto(String(resultado.totalSugerido));
     } catch (err) {
       setErrorResumen(err instanceof Error ? err.message : "No se pudo consultar la asistencia.");
     } finally {
       setBuscandoResumen(false);
     }
+  }
+
+  function actualizarMontoDetalle(index: number, valor: string) {
+    const nuevoDetalle = detalleAsistencia.map((d, i) => (i === index ? { ...d, monto: valor } : d));
+    setDetalleAsistencia(nuevoDetalle);
+    const total = nuevoDetalle.reduce((s, d) => s + (Number(d.monto) || 0), 0);
+    setMontoTexto(String(Math.round(total * 100) / 100));
   }
 
   // Las deducciones siempre siguen al monto mientras se está escribiendo --
@@ -255,6 +282,7 @@ export function PagoPlanillaForm({
               onChange={(e) => {
                 setFechaDesdeTexto(e.target.value);
                 setResumenAsistencia(null);
+                setDetalleAsistencia([]);
               }}
               required
             />
@@ -266,6 +294,7 @@ export function PagoPlanillaForm({
               onChange={(e) => {
                 setFechaHastaTexto(e.target.value);
                 setResumenAsistencia(null);
+                setDetalleAsistencia([]);
               }}
               required
             />
@@ -288,15 +317,17 @@ export function PagoPlanillaForm({
                   ) : (
                     <>
                       {resumenAsistencia.totalDias} día(s) registrados — Total sugerido:{" "}
-                      <strong>{formatMoney(resumenAsistencia.totalSugerido)}</strong> ({resumenAsistencia.diasOficina}{" "}
-                      día(s) Oficina, {resumenAsistencia.diasProyecto} día(s) Proyecto con{" "}
-                      {resumenAsistencia.hectareasProyecto} hectáreas)
+                      <strong>
+                        {formatMoney(detalleAsistencia.reduce((s, d) => s + (Number(d.monto) || 0), 0))}
+                      </strong>{" "}
+                      ({resumenAsistencia.diasOficina} día(s) Oficina, {resumenAsistencia.diasProyecto} día(s)
+                      Proyecto con {resumenAsistencia.hectareasProyecto} hectáreas)
                     </>
                   )}
                 </p>
-                {resumenAsistencia.detalle.length > 0 && (
+                {detalleAsistencia.length > 0 && (
                   <div className="mt-2 overflow-x-auto">
-                    <table className="w-full min-w-[420px] text-left text-xs">
+                    <table className="w-full min-w-[460px] text-left text-xs">
                       <thead>
                         <tr className="border-b border-green-100 uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
                           <th className="px-2 py-1 font-medium">Fecha</th>
@@ -306,7 +337,7 @@ export function PagoPlanillaForm({
                         </tr>
                       </thead>
                       <tbody>
-                        {resumenAsistencia.detalle.map((d, i) => (
+                        {detalleAsistencia.map((d, i) => (
                           <tr key={i} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
                             <td className="px-2 py-1 text-green-800/80 dark:text-green-200/80">
                               {formatDateOnly(d.fecha)}
@@ -319,13 +350,24 @@ export function PagoPlanillaForm({
                                 ? `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`
                                 : `Proyecto — ${d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular"} (${d.hectareas} ha)`}
                             </td>
-                            <td className="px-2 py-1 font-medium text-green-900 dark:text-green-50">
-                              {formatMoney(d.monto)}
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={d.monto}
+                                onChange={(e) => actualizarMontoDetalle(i, e.target.value)}
+                                className="w-24 rounded-md border border-green-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
+                              />
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    <p className="mt-1 text-[11px] text-green-700/60 dark:text-green-300/60">
+                      Cada monto se puede ajustar a mano -- el campo &quot;Monto pagado&quot; de abajo se recalcula sumando
+                      esta tabla.
+                    </p>
                   </div>
                 )}
               </>

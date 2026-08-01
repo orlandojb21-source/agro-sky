@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { esSoporteOJefe } from "@/lib/roles";
@@ -54,12 +53,11 @@ function TarjetaResumen({
 
 export default async function PagosPlanillaPage() {
   const perfil = await requireSection("planilla");
-  // Pagos es exclusivo de jefe/soporte -- el administrador solo administra
-  // Asistencia (/planilla). Reforzado también a nivel de RLS en la base de
-  // datos, esto es solo la UI.
-  if (!esSoporteOJefe(perfil.rol)) {
-    redirect("/unauthorized");
-  }
+  // El administrador gestiona pagos de Campo (no de Fijo, eso sigue siendo
+  // exclusivo de jefe/soporte) -- reforzado a nivel de RLS (migración
+  // 0049), así que la consulta de abajo ya le devuelve solo pagos de Campo
+  // sin necesidad de filtrar nada aquí.
+  const puedeVerFijos = esSoporteOJefe(perfil.rol);
 
   const supabase = await createClient();
   const { data: colaboradoresData } = await supabase
@@ -114,12 +112,14 @@ export default async function PagosPlanillaPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <TarjetaResumen
-            titulo="Fijos — pagado este mes"
-            colaboradores={fijos}
-            porColaborador={totalesMes.porColaborador}
-          />
+        <div className={`grid grid-cols-1 gap-4 ${puedeVerFijos ? "lg:grid-cols-2" : ""}`}>
+          {puedeVerFijos && (
+            <TarjetaResumen
+              titulo="Fijos — pagado este mes"
+              colaboradores={fijos}
+              porColaborador={totalesMes.porColaborador}
+            />
+          )}
           <TarjetaResumen
             titulo="Campo — pagado este mes"
             colaboradores={campo}

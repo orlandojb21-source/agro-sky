@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { esSoporteOJefe } from "@/lib/roles";
@@ -6,21 +5,25 @@ import { PagoPlanillaForm } from "@/components/forms/PagoPlanillaForm";
 
 export default async function NuevoPagoPlanillaPage() {
   const perfil = await requireSection("planilla");
-  if (!esSoporteOJefe(perfil.rol)) {
-    redirect("/unauthorized");
-  }
 
   const supabase = await createClient();
   const { data } = await supabase
     .from("colaboradores")
     .select("nombre, tipo, salario, aplica_deducciones")
     .order("nombre");
-  const colaboradores = (data ?? []).map((c) => ({
+  let colaboradores = (data ?? []).map((c) => ({
     nombre: c.nombre as string,
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
     aplicaDeducciones: c.aplica_deducciones as boolean,
   }));
+
+  // El administrador solo gestiona pagos de Campo -- ni siquiera aparecen
+  // los Fijos como opción para elegir (reforzado también a nivel de RLS,
+  // migración 0049, esto es solo la UI).
+  if (!esSoporteOJefe(perfil.rol)) {
+    colaboradores = colaboradores.filter((c) => c.tipo !== "fijo");
+  }
 
   return (
     <div>
