@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { InformeCampoForm } from "@/components/forms/InformeCampoForm";
 
@@ -12,7 +11,6 @@ export default async function EditarInformeCampoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("informes-campo");
 
   const supabase = await createClient();
   const [{ data: informe }, { data: parcelasData }, { data: productosData }, { data: colaboradoresData }] =

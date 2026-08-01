@@ -74,8 +74,8 @@ export async function crearInformeCampoAction(
     return { error: error.message || "No se pudo guardar el informe. Intenta de nuevo.", values: raw };
   }
 
-  revalidatePath("/informes-campo");
-  redirect(`/informes-campo/${informeId}`);
+  revalidatePath("/informes/campo");
+  redirect(`/informes/campo/${informeId}`);
 }
 
 export async function editarInformeCampoAction(
@@ -147,9 +147,9 @@ export async function editarInformeCampoAction(
     return { error: error.message || "No se pudo actualizar el informe. Intenta de nuevo.", values: raw };
   }
 
-  revalidatePath("/informes-campo");
-  revalidatePath(`/informes-campo/${parsed.data.id}`);
-  redirect(`/informes-campo/${parsed.data.id}`);
+  revalidatePath("/informes/campo");
+  revalidatePath(`/informes/campo/${parsed.data.id}`);
+  redirect(`/informes/campo/${parsed.data.id}`);
 }
 
 export async function eliminarInformeCampoAction(id: string) {
@@ -174,5 +174,5 @@ export async function eliminarInformeCampoAction(id: string) {
     await supabase.storage.from("informes-campo-firmas").remove(rutas);
   }
 
-  revalidatePath("/informes-campo");
+  revalidatePath("/informes/campo");
 }

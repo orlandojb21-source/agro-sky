@@ -1,12 +1,9 @@
-import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { InformesCampoTabla, type InformeCampoFila } from "@/components/forms/InformesCampoTabla";
 
 export default async function InformesCampoPage() {
-  await requireSection("informes-campo");
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("informes_campo")
@@ -30,7 +27,7 @@ export default async function InformesCampoPage() {
       <PageHeader
         title="Informes de Campo"
         description="Informe diario de vuelo que se envía al cliente."
-        action={<LinkButton href="/informes-campo/nuevo">+ Nuevo informe</LinkButton>}
+        action={<LinkButton href="/informes/campo/nuevo">+ Nuevo informe</LinkButton>}
       />
       <InformesCampoTabla informes={informes} />
     </div>

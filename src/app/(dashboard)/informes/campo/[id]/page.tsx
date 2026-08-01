@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
@@ -18,7 +17,6 @@ export default async function DetalleInformeCampoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("informes-campo");
 
   const supabase = await createClient();
   const [{ data: informe }, { data: parcelasData }, { data: productosData }] = await Promise.all([
@@ -91,10 +89,10 @@ export default async function DetalleInformeCampoPage({
         </div>
         <div className="flex flex-wrap gap-2">
           <BotonExportarInformeCampo informe={informeExportable} />
-          <LinkButton href={`/informes-campo/${id}/editar`} variant="secondary">
+          <LinkButton href={`/informes/campo/${id}/editar`} variant="secondary">
             Editar
           </LinkButton>
-          <LinkButton href="/informes-campo" variant="secondary">
+          <LinkButton href="/informes/campo" variant="secondary">
             Volver
           </LinkButton>
         </div>
@@ -130,12 +128,6 @@ export default async function DetalleInformeCampoPage({
             Modelo de Drone
           </p>
           <p className="text-green-900 dark:text-green-50">{informe.modelo_drone as string}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-            Dosis por Hectárea
-          </p>
-          <p className="text-green-900 dark:text-green-50">{Number(informe.dosis_por_hectarea)}</p>
         </div>
         <div className="col-span-2 sm:col-span-4">
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">

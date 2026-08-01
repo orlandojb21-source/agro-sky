@@ -18,7 +18,7 @@ export type Seccion =
   | "ventas"
   | "balance"
   | "proyectos"
-  | "informes-campo"
+  | "informes"
   | "usuarios";
 
 // "soporte" es el rol tecnico (soporte de la app, no de atencion al
@@ -36,7 +36,7 @@ export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   // Administrador ya no ve Balance -- pedido explicito del usuario.
   balance: ["jefe", "soporte"],
   proyectos: ["administrador", "jefe", "soporte"],
-  "informes-campo": ["administrador", "jefe", "soporte"],
+  informes: ["administrador", "jefe", "soporte"],
   usuarios: ["soporte", "jefe"],
 };
 

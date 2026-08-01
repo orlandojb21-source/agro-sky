@@ -138,7 +138,7 @@ export function InformesCampoTabla({ informes }: { informes: InformeCampoFila[] 
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
                         <Link
-                          href={`/informes-campo/${i.id}`}
+                          href={`/informes/campo/${i.id}`}
                           className="text-sm text-green-700 hover:underline dark:text-green-300"
                         >
                           Ver
@@ -185,7 +185,7 @@ export function InformesCampoTabla({ informes }: { informes: InformeCampoFila[] 
 
               <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
                 <Link
-                  href={`/informes-campo/${i.id}`}
+                  href={`/informes/campo/${i.id}`}
                   className="text-sm text-green-700 hover:underline dark:text-green-300"
                 >
                   Ver

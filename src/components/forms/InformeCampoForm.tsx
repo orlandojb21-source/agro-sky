@@ -487,7 +487,7 @@ export function InformeCampoForm({
             {esEdicion ? "Guardar cambios" : "Guardar informe"}
           </SubmitButton>
           <LinkButton
-            href={esEdicion ? `/informes-campo/${valoresIniciales!.id}` : "/informes-campo"}
+            href={esEdicion ? `/informes/campo/${valoresIniciales!.id}` : "/informes/campo"}
             variant="secondary"
           >
             Cancelar
