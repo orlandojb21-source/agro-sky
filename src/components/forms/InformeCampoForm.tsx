@@ -40,6 +40,7 @@ export type ValoresInformeCampo = {
   firmaClienteRuta: string | null;
   nombreFirmaCliente: string | null;
   firmaClienteUrl: string | null;
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
 };
@@ -207,6 +208,15 @@ export function InformeCampoForm({
             required
           />
         </div>
+        <SelectField
+          label="Tipo de proyecto"
+          name="tipoProyecto"
+          defaultValue={v?.tipoProyecto ?? valoresIniciales?.tipoProyecto ?? "ingenio_santa_rosa"}
+          required
+        >
+          <option value="ingenio_santa_rosa">Ingenio Santa Rosa</option>
+          <option value="particular">Trabajo Particular</option>
+        </SelectField>
         <Field
           label="Fecha de trabajo"
           name="fecha"

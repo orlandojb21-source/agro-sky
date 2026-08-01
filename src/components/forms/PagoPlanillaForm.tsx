@@ -30,11 +30,33 @@ type DetalleDiaEditable = {
   jornada: "completo" | "medio" | null;
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   hectareas: number | null;
+  // Nombre del cliente del Informe de Campo que originó esta fila -- ayuda
+  // a distinguir cuando hay más de un informe (más de un proyecto) el
+  // mismo día para la misma persona.
+  clienteInforme: string | null;
   // El cálculo llega como número, pero se guarda como texto para poder
   // editarlo a mano en el input -- "por cualquier cosa" (pedido del
   // usuario), sin dejar de sumar al total.
   monto: string;
 };
+
+// Cada fila del detalle corresponde a UN Informe de Campo (no a un día) --
+// si una persona trabajó en 2 proyectos el mismo día, hay 2 filas. Cubre
+// también los casos sin datos suficientes para calcular (sin Informe de
+// Campo asociado, o un informe todavía sin clasificar Ingenio/Particular).
+function descripcionDetalle(d: DetalleDiaEditable): string {
+  if (d.tipoTrabajo === "oficina") {
+    return `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`;
+  }
+  if (d.hectareas === null) {
+    return "Proyecto — sin Informe de Campo ese día (monto a definir a mano)";
+  }
+  if (!d.tipoProyecto) {
+    return `Proyecto — ${d.clienteInforme} (${d.hectareas} ha, informe sin clasificar Ingenio/Particular)`;
+  }
+  const tipo = d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular";
+  return `Proyecto — ${tipo} · ${d.clienteInforme} (${d.hectareas} ha)`;
+}
 
 type ValoresPago = {
   id?: string;
@@ -346,9 +368,7 @@ export function PagoPlanillaForm({
                               {d.rolDia === "operador" ? "Operador" : "Ayudante"}
                             </td>
                             <td className="px-2 py-1 text-green-800/80 dark:text-green-200/80">
-                              {d.tipoTrabajo === "oficina"
-                                ? `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`
-                                : `Proyecto — ${d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular"} (${d.hectareas} ha)`}
+                              {descripcionDetalle(d)}
                             </td>
                             <td className="px-2 py-1">
                               <input

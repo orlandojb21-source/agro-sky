@@ -33,6 +33,11 @@ const informeCampoBaseSchema = z.object({
   meteorologia: z.string().trim().min(1, "Meteorología requerida"),
   modeloDrone: z.string().trim().min(1, "Modelo de drone requerido"),
   dosisPorHectarea: numeroRequeridoPositivo("La dosis por hectárea debe ser mayor a cero"),
+  // Determina la tarifa del cálculo de incentivos por hectárea de este
+  // informe (ver lib/calculoIncentivos.ts) -- vive aquí y no en Asistencia
+  // porque cada informe tiene su propia contabilidad de hectáreas, nunca
+  // se suman entre informes distintos del mismo día.
+  tipoProyecto: z.enum(["ingenio_santa_rosa", "particular"], { message: "Selecciona el tipo de proyecto" }),
   operador: z.string().trim().min(1, "Selecciona un operador"),
   ayudantes: z.array(z.string().trim().min(1)).default([]),
   firmaAgroRuta: z.string().trim().min(1, "Falta la firma de Agro Sky"),

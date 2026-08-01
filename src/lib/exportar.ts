@@ -833,6 +833,7 @@ export type InformeCampoExportable = {
   meteorologia: string;
   modeloDrone: string;
   dosisPorHectarea: number;
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   operador: string;
   ayudantes: string[];
   nombreFirmaAgro: string | null;
@@ -910,6 +911,13 @@ export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
   let yInforme = 30;
   for (const linea of [
     `Cliente: ${informe.cliente}`,
+    `Tipo de proyecto: ${
+      informe.tipoProyecto === "ingenio_santa_rosa"
+        ? "Ingenio Santa Rosa"
+        : informe.tipoProyecto === "particular"
+          ? "Trabajo Particular"
+          : "—"
+    }`,
     `Fecha: ${formatDateOnly(informe.fecha)}`,
     `Finca: ${informe.finca}`,
     `Hora: ${informe.horaInicio.slice(0, 5)} a ${informe.horaFin.slice(0, 5)}`,

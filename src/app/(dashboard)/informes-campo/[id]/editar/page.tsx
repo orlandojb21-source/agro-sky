@@ -77,6 +77,7 @@ export default async function EditarInformeCampoPage({
           firmaClienteRuta: informe.firma_cliente_ruta as string | null,
           nombreFirmaCliente: informe.nombre_firma_cliente as string | null,
           firmaClienteUrl,
+          tipoProyecto: informe.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
           parcelas: (parcelasData ?? []).map((p) => ({
             numeroParcela: p.numero_parcela as string,
             hectareas: Number(p.hectareas),

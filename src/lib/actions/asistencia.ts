@@ -33,7 +33,6 @@ export async function crearAsistenciaAction(
     rol_dia: parsed.data.rolDia,
     tipo_trabajo: parsed.data.tipoTrabajo,
     jornada: parsed.data.jornada,
-    tipo_proyecto: parsed.data.tipoProyecto || null,
     descripcion: parsed.data.descripcion,
     registrado_por: perfil.id,
   });
@@ -65,7 +64,6 @@ export async function editarAsistenciaAction(
       rol_dia: parsed.data.rolDia,
       tipo_trabajo: parsed.data.tipoTrabajo,
       jornada: parsed.data.jornada,
-      tipo_proyecto: parsed.data.tipoProyecto || null,
       descripcion: parsed.data.descripcion,
     })
     .eq("id", parsed.data.id);
@@ -84,6 +82,12 @@ export async function eliminarAsistenciaAction(id: string) {
   revalidatePath("/planilla");
 }
 
+// Una fila por cada Informe de Campo que coincide con un día de Asistencia
+// (no una fila por día) -- si una persona trabajó en 2 proyectos el mismo
+// día, aparecen 2 filas separadas, cada una con su propio cálculo. Un día
+// de Oficina siempre es 1 sola fila. Un día de Proyecto sin ningún
+// Informe de Campo asociado aparece con monto 0 para que el jefe lo note
+// y lo complete a mano.
 export type DetalleDiaAsistencia = {
   fecha: string;
   rolDia: RolDia;
@@ -91,6 +95,7 @@ export type DetalleDiaAsistencia = {
   jornada: Jornada | null;
   tipoProyecto: TipoProyecto | null;
   hectareas: number | null;
+  clienteInforme: string | null;
   monto: number;
 };
 
@@ -103,16 +108,25 @@ export type ResumenAsistencia = {
   detalle: DetalleDiaAsistencia[];
 };
 
+type InformeCampoFila = {
+  fecha: string;
+  cliente: string;
+  tipo_proyecto: TipoProyecto | null;
+  informe_campo_parcelas: { hectareas: number }[] | null;
+};
+
 // Se llama directo desde el formulario de Pago (no vinculado a un <form>,
 // igual que buscarViaticosCajaMenudaAction en lib/actions/proyectos.ts)
 // para sugerirle al jefe/soporte un monto de quincena, calculado con las
 // tarifas de lib/calculoIncentivos.ts -- el resultado PRE-LLENA el campo
 // de monto, pero sigue siendo editable a mano (nunca se guarda solo).
 //
-// Para los días de tipo "proyecto" se necesitan las hectáreas trabajadas
-// ese día, que no viven en Asistencia -- se buscan en Informes de Campo
-// (informes_campo + informe_campo_parcelas) por colaborador+fecha, tanto
-// si aparece como operador como si aparece en la lista de ayudantes.
+// Cada Informe de Campo tiene su propia contabilidad de hectáreas -- si
+// una persona aparece en más de un informe el mismo día (ej. un proyecto
+// en la mañana y otro distinto en la tarde), NUNCA se suman las hectáreas
+// entre esos informes. Cada uno se calcula por separado con su propio
+// tipo de proyecto y sus propias hectáreas, y los montos resultantes se
+// suman al final.
 export async function obtenerResumenAsistenciaAction(
   colaborador: string,
   fechaDesde: string,
@@ -123,7 +137,7 @@ export async function obtenerResumenAsistenciaAction(
 
   const { data: dias, error } = await supabase
     .from("planilla_asistencia")
-    .select("fecha, rol_dia, tipo_trabajo, jornada, tipo_proyecto")
+    .select("fecha, rol_dia, tipo_trabajo, jornada")
     .eq("colaborador", colaborador)
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
@@ -132,27 +146,24 @@ export async function obtenerResumenAsistenciaAction(
 
   const diasProyectoFechas = [...new Set((dias ?? []).filter((d) => d.tipo_trabajo === "proyecto").map((d) => d.fecha))];
 
-  const hectareasPorFecha = new Map<string, number>();
+  const informesPorFecha = new Map<string, InformeCampoFila[]>();
   if (diasProyectoFechas.length > 0) {
     const [{ data: comoOperador }, { data: comoAyudante }] = await Promise.all([
       supabase
         .from("informes_campo")
-        .select("fecha, informe_campo_parcelas ( hectareas )")
+        .select("fecha, cliente, tipo_proyecto, informe_campo_parcelas ( hectareas )")
         .eq("operador", colaborador)
         .in("fecha", diasProyectoFechas),
       supabase
         .from("informes_campo")
-        .select("fecha, informe_campo_parcelas ( hectareas )")
+        .select("fecha, cliente, tipo_proyecto, informe_campo_parcelas ( hectareas )")
         .contains("ayudantes", [colaborador])
         .in("fecha", diasProyectoFechas),
     ]);
-    for (const informe of [...(comoOperador ?? []), ...(comoAyudante ?? [])]) {
-      const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce(
-        (s, p) => s + Number(p.hectareas),
-        0,
-      );
-      const fecha = informe.fecha as string;
-      hectareasPorFecha.set(fecha, (hectareasPorFecha.get(fecha) ?? 0) + hectareasInforme);
+    for (const informe of [...(comoOperador ?? []), ...(comoAyudante ?? [])] as InformeCampoFila[]) {
+      const lista = informesPorFecha.get(informe.fecha) ?? [];
+      lista.push(informe);
+      informesPorFecha.set(informe.fecha, lista);
     }
   }
 
@@ -174,21 +185,62 @@ export async function obtenerResumenAsistenciaAction(
         jornada: dia.jornada as Jornada,
         tipoProyecto: null,
         hectareas: null,
+        clienteInforme: null,
         monto,
       });
-    } else if (dia.tipo_trabajo === "proyecto" && dia.tipo_proyecto) {
-      diasProyecto += 1;
-      const hectareasDia = hectareasPorFecha.get(dia.fecha) ?? 0;
-      hectareasProyecto += hectareasDia;
-      const monto = calcularPagoProyecto(dia.rol_dia as RolDia, dia.tipo_proyecto as TipoProyecto, hectareasDia);
+      continue;
+    }
+
+    diasProyecto += 1;
+    const informes = informesPorFecha.get(dia.fecha) ?? [];
+
+    if (informes.length === 0) {
+      // Día de Proyecto sin ningún Informe de Campo asociado -- no hay de
+      // dónde sacar hectáreas, queda en 0 para que el jefe lo revise.
+      detalle.push({
+        fecha: dia.fecha,
+        rolDia: dia.rol_dia as RolDia,
+        tipoTrabajo: "proyecto",
+        jornada: null,
+        tipoProyecto: null,
+        hectareas: null,
+        clienteInforme: null,
+        monto: 0,
+      });
+      continue;
+    }
+
+    for (const informe of informes) {
+      const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce(
+        (s, p) => s + Number(p.hectareas),
+        0,
+      );
+      if (!informe.tipo_proyecto) {
+        // Informe todavía sin clasificar (Ingenio/Particular) -- no se
+        // puede calcular, queda en 0 para que el jefe lo revise.
+        detalle.push({
+          fecha: dia.fecha,
+          rolDia: dia.rol_dia as RolDia,
+          tipoTrabajo: "proyecto",
+          jornada: null,
+          tipoProyecto: null,
+          hectareas: hectareasInforme,
+          clienteInforme: informe.cliente,
+          monto: 0,
+        });
+        continue;
+      }
+      hectareasProyecto += hectareasInforme;
+      const monto = calcularPagoProyecto(dia.rol_dia as RolDia, informe.tipo_proyecto, hectareasInforme);
       totalSugerido += monto;
       detalle.push({
         fecha: dia.fecha,
         rolDia: dia.rol_dia as RolDia,
         tipoTrabajo: "proyecto",
         jornada: null,
-        tipoProyecto: dia.tipo_proyecto as TipoProyecto,
-        hectareas: hectareasDia,
+        tipoProyecto: informe.tipo_proyecto,
+        hectareas: hectareasInforme,
+        clienteInforme: informe.cliente,
         monto,
       });
     }

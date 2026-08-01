@@ -10,11 +10,20 @@
 // mayor entre base y hectareas×tarifa" (así se diseñó una primera vez,
 // pero el usuario lo corrigió con estos números reales).
 //
-// El umbral de hectáreas incluidas en el salario base es 20 para las 4
-// combinaciones (antes Ingenio Santa Rosa tenía 15 por error de captura --
-// se corrigió con un caso real: un ayudante que hizo 35 ha en Ingenio
-// Santa Rosa debía cobrar 25 + (35-20)×1.00 = $40.00, no lo que daba con
-// el umbral de 15).
+// El umbral de hectáreas incluidas en el salario base es 20 para Trabajo
+// Particular y 15 para Ingenio Santa Rosa (2026-08-01: se había corregido
+// a 20 para Ingenio con un caso de prueba, pero ese caso sumaba hectáreas
+// de 2 informes de campo distintos del mismo día -- algo que nunca debía
+// pasar, ver más abajo. Con la corrección de no sumar entre informes, el
+// umbral real de Ingenio Santa Rosa vuelve a ser 15, confirmado
+// directamente con el cliente).
+//
+// IMPORTANTE: esta tarifa se aplica UNA VEZ POR CADA Informe de Campo, no
+// una vez por día. Si una persona trabaja en 2 proyectos distintos el
+// mismo día (2 informes), cada informe tiene su propia contabilidad de
+// hectáreas y su propio salario base -- nunca se suman las hectáreas
+// entre informes distintos, aunque sean del mismo tipo de proyecto (ver
+// obtenerResumenAsistenciaAction en lib/actions/asistencia.ts).
 export type RolDia = "operador" | "ayudante";
 export type Jornada = "completo" | "medio";
 export type TipoProyecto = "ingenio_santa_rosa" | "particular";
@@ -29,11 +38,11 @@ const TARIFAS_PROYECTO: Record<
   Record<TipoProyecto, { base: number; hectareasIncluidas: number; tarifaMarginal: number }>
 > = {
   operador: {
-    ingenio_santa_rosa: { base: 30, hectareasIncluidas: 20, tarifaMarginal: 1.5 },
+    ingenio_santa_rosa: { base: 30, hectareasIncluidas: 15, tarifaMarginal: 1.5 },
     particular: { base: 40, hectareasIncluidas: 20, tarifaMarginal: 2.0 },
   },
   ayudante: {
-    ingenio_santa_rosa: { base: 25, hectareasIncluidas: 20, tarifaMarginal: 1.0 },
+    ingenio_santa_rosa: { base: 25, hectareasIncluidas: 15, tarifaMarginal: 1.0 },
     particular: { base: 30, hectareasIncluidas: 20, tarifaMarginal: 1.0 },
   },
 };
