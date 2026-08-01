@@ -164,29 +164,31 @@ export default async function DetalleInformeCampoPage({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-        <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
-          Productos
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
-                <th className="px-3 py-2 font-medium">Producto activo</th>
-                <th className="px-3 py-2 font-medium">Lts por Hectárea</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productos.map((p) => (
-                <tr key={p.id} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
-                  <td className="px-3 py-3 text-green-900 dark:text-green-50">{p.productoActivo}</td>
-                  <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{p.ltsPorHectarea}</td>
+      {productos.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+            Productos
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-3 py-2 font-medium">Producto activo</th>
+                  <th className="px-3 py-2 font-medium">Lts por Hectárea</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {productos.map((p) => (
+                  <tr key={p.id} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                    <td className="px-3 py-3 text-green-900 dark:text-green-50">{p.productoActivo}</td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{p.ltsPorHectarea}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
         <div>

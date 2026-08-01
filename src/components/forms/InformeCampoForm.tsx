@@ -129,7 +129,9 @@ export function InformeCampoForm({
         ltsPorHectarea: String(p.ltsPorHectarea),
       }));
     }
-    return [productoVacio()];
+    // Opcional -- no siempre se usa, arranca sin filas (pedido explícito
+    // del usuario).
+    return [];
   });
 
   const [firmaAgroRuta, setFirmaAgroRuta] = useState(
@@ -171,7 +173,9 @@ export function InformeCampoForm({
     setProductos((prev) => [...prev, productoVacio()]);
   }
   function quitarProducto(i: number) {
-    setProductos((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+    // Opcional -- a diferencia de Parcelas, se puede quitar hasta la
+    // última fila (queda un array vacío).
+    setProductos((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   const ayudantesParaEnviar = ayudantes.map((a) => a.trim()).filter((a) => a !== "");
@@ -370,53 +374,59 @@ export function InformeCampoForm({
       </div>
 
       <div className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
-          Productos
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
-                <th className="px-2 py-2 font-medium">Producto activo</th>
-                <th className="px-2 py-2 font-medium">Lts por Hectárea</th>
-                <th className="px-2 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {productos.map((p, i) => (
-                <tr key={i} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
-                  <td className="px-2 py-2">
-                    <input
-                      value={p.productoActivo}
-                      onChange={(e) => actualizarProducto(i, "productoActivo", e.target.value)}
-                      className={CLASE_INPUT}
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={p.ltsPorHectarea}
-                      onChange={(e) => actualizarProducto(i, "ltsPorHectarea", e.target.value)}
-                      className={CLASE_INPUT}
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => quitarProducto(i)}
-                      disabled={productos.length === 1}
-                      className="text-sm text-red-600 hover:underline disabled:opacity-30 dark:text-red-400"
-                    >
-                      Quitar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
+            Productos
+          </h2>
+          <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
+            Opcional — no siempre se usa.
+          </p>
         </div>
+        {productos.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-2 py-2 font-medium">Producto activo</th>
+                  <th className="px-2 py-2 font-medium">Lts por Hectárea</th>
+                  <th className="px-2 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {productos.map((p, i) => (
+                  <tr key={i} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                    <td className="px-2 py-2">
+                      <input
+                        value={p.productoActivo}
+                        onChange={(e) => actualizarProducto(i, "productoActivo", e.target.value)}
+                        className={CLASE_INPUT}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={p.ltsPorHectarea}
+                        onChange={(e) => actualizarProducto(i, "ltsPorHectarea", e.target.value)}
+                        className={CLASE_INPUT}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <button
+                        type="button"
+                        onClick={() => quitarProducto(i)}
+                        className="text-sm text-red-600 hover:underline dark:text-red-400"
+                      >
+                        Quitar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         <button
           type="button"
           onClick={agregarProducto}

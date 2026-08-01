@@ -871,15 +871,18 @@ export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
 
   let y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
 
-  autoTable(doc, {
-    startY: y,
-    head: [["Producto activo", "Lts por Hectárea"]],
-    body: informe.productos.map((p) => [p.productoActivo, String(p.ltsPorHectarea)]),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [21, 128, 61] },
-  });
-
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+  // Productos es opcional -- no siempre se usa, si no hay filas no se
+  // imprime la tabla (ni el espacio que dejaría vacía).
+  if (informe.productos.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Producto activo", "Lts por Hectárea"]],
+      body: informe.productos.map((p) => [p.productoActivo, String(p.ltsPorHectarea)]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+  }
 
   const altoPagina = doc.internal.pageSize.getHeight();
   if (y > altoPagina - 70) {

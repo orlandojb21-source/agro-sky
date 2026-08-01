@@ -20,9 +20,10 @@ export const productoInformeCampoSchema = z.object({
 });
 
 // Encabezado requerido en su totalidad (es un documento formal que se
-// envía al cliente) + Parcelas/Productos con mínimo 1 fila cada uno +
-// ambas firmas (dibujadas en FirmaCanvas, subidas antes de enviar el
-// formulario -- ver InformeCampoForm.tsx).
+// envía al cliente) + Parcelas con mínimo 1 fila + ambas firmas (dibujadas
+// en FirmaCanvas, subidas antes de enviar el formulario -- ver
+// InformeCampoForm.tsx). Productos es opcional -- no siempre se usa
+// (pedido explícito del usuario), puede quedar en un array vacío.
 const informeCampoBaseSchema = z.object({
   cliente: z.string().trim().min(1, "Nombre del cliente requerido"),
   fecha: z.string().min(1, "Fecha requerida"),
@@ -39,7 +40,7 @@ const informeCampoBaseSchema = z.object({
   firmaClienteRuta: z.string().trim().min(1, "Falta la firma del cliente"),
   nombreFirmaCliente: z.string().trim().min(1, "Falta el nombre de quien firma por el cliente"),
   parcelas: z.array(parcelaInformeCampoSchema).min(1, "Agrega al menos una parcela"),
-  productos: z.array(productoInformeCampoSchema).min(1, "Agrega al menos un producto"),
+  productos: z.array(productoInformeCampoSchema).default([]),
 });
 
 const horaFinValida = (data: { horaInicio: string; horaFin: string }) => data.horaFin >= data.horaInicio;
