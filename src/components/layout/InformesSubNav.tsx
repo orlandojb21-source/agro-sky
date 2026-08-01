@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/informes/campo", label: "Informe de Campo" },
   { href: "/informes/diario", label: "Informe Diario" },
+  { href: "/informes/proyecto", label: "Informe de Proyecto" },
 ];
 
 export function InformesSubNav() {

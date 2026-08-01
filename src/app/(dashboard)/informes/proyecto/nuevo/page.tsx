@@ -1,10 +1,7 @@
-import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
 
 export default async function NuevoInformeProyectoPage() {
-  await requireSection("proyectos");
-
   const hoy = new Date();
   const fechaHoy = hoy.toISOString().slice(0, 10);
   const hasta = new Date(hoy);

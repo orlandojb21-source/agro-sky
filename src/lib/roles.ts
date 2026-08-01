@@ -17,7 +17,6 @@ export type Seccion =
   | "planilla"
   | "ventas"
   | "balance"
-  | "proyectos"
   | "informes"
   | "usuarios";
 
@@ -35,7 +34,6 @@ export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
   ventas: ["administrador", "jefe", "soporte"],
   // Administrador ya no ve Balance -- pedido explicito del usuario.
   balance: ["jefe", "soporte"],
-  proyectos: ["administrador", "jefe", "soporte"],
   informes: ["administrador", "jefe", "soporte"],
   usuarios: ["soporte", "jefe"],
 };

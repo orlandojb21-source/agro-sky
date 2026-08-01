@@ -72,8 +72,8 @@ export async function crearInformeProyectoAction(
     };
   }
 
-  revalidatePath("/proyectos");
-  redirect(`/proyectos/${informeId}`);
+  revalidatePath("/informes/proyecto");
+  redirect(`/informes/proyecto/${informeId}`);
 }
 
 export async function editarInformeProyectoAction(
@@ -143,9 +143,9 @@ export async function editarInformeProyectoAction(
     };
   }
 
-  revalidatePath("/proyectos");
-  revalidatePath(`/proyectos/${parsed.data.id}`);
-  redirect(`/proyectos/${parsed.data.id}`);
+  revalidatePath("/informes/proyecto");
+  revalidatePath(`/informes/proyecto/${parsed.data.id}`);
+  redirect(`/informes/proyecto/${parsed.data.id}`);
 }
 
 export async function eliminarInformeProyectoAction(id: string) {
@@ -153,7 +153,7 @@ export async function eliminarInformeProyectoAction(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("eliminar_informe_proyecto", { p_informe_id: id });
   if (error) throw new Error(error.message || "No se pudo eliminar el informe.");
-  revalidatePath("/proyectos");
+  revalidatePath("/informes/proyecto");
 }
 
 export type ResultadoBusquedaAuto = { total: number; cantidad: number };

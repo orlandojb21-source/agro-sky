@@ -597,7 +597,10 @@ export function ProyectoInformeForm({
 
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar informe"}</SubmitButton>
-        <LinkButton href={esEdicion ? `/proyectos/${valoresIniciales!.id}` : "/proyectos"} variant="secondary">
+        <LinkButton
+          href={esEdicion ? `/informes/proyecto/${valoresIniciales!.id}` : "/informes/proyecto"}
+          variant="secondary"
+        >
           Cancelar
         </LinkButton>
       </div>

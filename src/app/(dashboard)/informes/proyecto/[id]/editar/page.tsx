@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
 
@@ -17,7 +16,6 @@ export default async function EditarInformeProyectoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("proyectos");
 
   const supabase = await createClient();
   const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: colaboradoresData }] =

@@ -1,12 +1,9 @@
-import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { ProyectoInformesTabla, type InformeProyectoFila } from "@/components/forms/ProyectoInformesTabla";
 
 export default async function ProyectosPage() {
-  await requireSection("proyectos");
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("proyecto_informes")
@@ -26,7 +23,10 @@ export default async function ProyectosPage() {
 
   return (
     <div>
-      <PageHeader title="Proyectos" action={<LinkButton href="/proyectos/nuevo">+ Nuevo informe</LinkButton>} />
+      <PageHeader
+        title="Informes de Proyecto"
+        action={<LinkButton href="/informes/proyecto/nuevo">+ Nuevo informe</LinkButton>}
+      />
       <ProyectoInformesTabla informes={informes} />
     </div>
   );

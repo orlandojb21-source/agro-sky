@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
@@ -24,7 +23,6 @@ export default async function DetalleInformeProyectoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("proyectos");
 
   const supabase = await createClient();
   const [{ data: informe }, { data: filasData }, { data: gastosData }] = await Promise.all([
@@ -125,10 +123,10 @@ export default async function DetalleInformeProyectoPage({
         </div>
         <div className="flex flex-wrap gap-2">
           <BotonExportarInforme informe={informeExportable} />
-          <LinkButton href={`/proyectos/${id}/editar`} variant="secondary">
+          <LinkButton href={`/informes/proyecto/${id}/editar`} variant="secondary">
             Editar
           </LinkButton>
-          <LinkButton href="/proyectos" variant="secondary">
+          <LinkButton href="/informes/proyecto" variant="secondary">
             Volver
           </LinkButton>
         </div>

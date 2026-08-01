@@ -149,7 +149,7 @@ export function ProyectoInformesTabla({ informes }: { informes: InformeProyectoF
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
                         <Link
-                          href={`/proyectos/${i.id}`}
+                          href={`/informes/proyecto/${i.id}`}
                           className="text-sm text-green-700 hover:underline dark:text-green-300"
                         >
                           Ver
@@ -215,7 +215,7 @@ export function ProyectoInformesTabla({ informes }: { informes: InformeProyectoF
 
               <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
                 <Link
-                  href={`/proyectos/${i.id}`}
+                  href={`/informes/proyecto/${i.id}`}
                   className="text-sm text-green-700 hover:underline dark:text-green-300"
                 >
                   Ver
