@@ -2,6 +2,7 @@ import { getPerfilActual } from "@/lib/perfil";
 import { SignOutButton } from "@/components/layout/SignOutButton";
 import { Nav } from "@/components/layout/Nav";
 import { BiometricoAviso } from "@/components/layout/BiometricoAviso";
+import { SincronizadorInformesCampo } from "@/components/layout/SincronizadorInformesCampo";
 import { Logo } from "@/components/ui/Logo";
 
 export default async function DashboardLayout({
@@ -33,6 +34,7 @@ export default async function DashboardLayout({
       <Nav nombreCompleto={perfil.nombreCompleto} rol={perfil.rol} userId={perfil.id} />
       <main className="flex-1 px-4 pt-20 pb-24 sm:px-6 sm:pt-24 sm:pb-8">
         <BiometricoAviso userId={perfil.id} />
+        <SincronizadorInformesCampo />
         {children}
       </main>
     </div>

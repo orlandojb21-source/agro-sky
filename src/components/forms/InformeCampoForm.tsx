@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useActionState } from "react";
 import { crearInformeCampoAction, editarInformeCampoAction } from "@/lib/actions/informesCampo";
 import { subirFirmaInformeCampoAction } from "@/lib/actions/informeCampoFirma";
+import { informeCampoSchema } from "@/lib/validation/informesCampo";
+import { guardarInformeCampoPendiente } from "@/lib/offlineInformesCampo";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { FirmaCanvas } from "@/components/ui/FirmaCanvas";
@@ -11,6 +13,32 @@ import { SubmitButton, LinkButton } from "@/components/ui/Button";
 
 const CLASE_INPUT =
   "w-full rounded-lg border border-green-200 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+
+// Valor que queda en el <input hidden> de una firma cuando se dibujó sin
+// señal (ver subirFirmaAgro/subirFirmaCliente) -- no es una ruta real de
+// Storage, solo marca "esta firma todavía no se subió". Se usa para decidir
+// si el envío completo debe guardarse local en vez de intentar ir a red.
+const SIN_CONEXION = "pendiente-sin-conexion";
+
+// Suscripción al estado de conexión del navegador vía useSyncExternalStore
+// (el hook pensado justo para esto: leer una fuente externa mutable, sin
+// el "setState síncrono dentro de un efecto" que causa renders en cascada)
+// -- "true" en el servidor porque ahí no existe navigator, se corrige solo
+// apenas React hidrata en el cliente.
+function suscribirseConexion(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+function leerConexionCliente() {
+  return navigator.onLine;
+}
+function leerConexionServidor() {
+  return true;
+}
 
 type ParcelaDraft = { numeroParcela: string; hectareas: string };
 type ProductoDraft = { productoActivo: string; ltsPorHectarea: string };
@@ -44,13 +72,6 @@ export type ValoresInformeCampo = {
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
 };
-
-async function subirFirma(blob: Blob): Promise<string> {
-  const fd = new FormData();
-  fd.append("firma", blob, "firma.png");
-  const { ruta } = await subirFirmaInformeCampoAction(fd);
-  return ruta;
-}
 
 export function InformeCampoForm({
   fechaHoy,
@@ -142,6 +163,18 @@ export function InformeCampoForm({
     v?.firmaClienteRuta ?? valoresIniciales?.firmaClienteRuta ?? "",
   );
 
+  // Blobs crudos de cada firma, guardados SIEMPRE que se dibuja (haya o no
+  // señal) -- si no hay señal, o si la subida falla a pesar de verse en
+  // línea, quedan como la única copia disponible para guardar el informe
+  // completo sin conexión (ver guardarLocalSinConexion).
+  const firmaAgroBlobRef = useRef<Blob | null>(null);
+  const firmaClienteBlobRef = useRef<Blob | null>(null);
+
+  const enLinea = useSyncExternalStore(suscribirseConexion, leerConexionCliente, leerConexionServidor);
+  const [guardandoLocal, setGuardandoLocal] = useState(false);
+  const [guardadoLocalOk, setGuardadoLocalOk] = useState(false);
+  const [errorLocal, setErrorLocal] = useState<string | null>(null);
+
   if (state !== prevState) {
     setPrevState(state);
     setRemountKey((k) => k + 1);
@@ -179,6 +212,145 @@ export function InformeCampoForm({
     setProductos((prev) => prev.filter((_, idx) => idx !== i));
   }
 
+  // Sube la firma normalmente si hay señal; si no la hay (o la subida
+  // falla a pesar de verse en línea, ej. señal débil intermitente), la
+  // deja marcada como pendiente -- el blob ya quedó guardado en el ref de
+  // todas formas, así que el informe se puede guardar completo sin
+  // conexión y esa firma se sube más tarde junto con el resto.
+  async function subirFirmaAgro(blob: Blob): Promise<string> {
+    firmaAgroBlobRef.current = blob;
+    if (!navigator.onLine) return SIN_CONEXION;
+    try {
+      const fd = new FormData();
+      fd.append("firma", blob, "firma.png");
+      const { ruta } = await subirFirmaInformeCampoAction(fd);
+      return ruta;
+    } catch {
+      return SIN_CONEXION;
+    }
+  }
+  async function subirFirmaCliente(blob: Blob): Promise<string> {
+    firmaClienteBlobRef.current = blob;
+    if (!navigator.onLine) return SIN_CONEXION;
+    try {
+      const fd = new FormData();
+      fd.append("firma", blob, "firma.png");
+      const { ruta } = await subirFirmaInformeCampoAction(fd);
+      return ruta;
+    } catch {
+      return SIN_CONEXION;
+    }
+  }
+
+  // Guarda el informe completo (datos + las 2 firmas como PNG crudo) en
+  // IndexedDB en vez de enviarlo al servidor -- SincronizadorInformesCampo
+  // (montado en el layout general) lo sube solo en cuanto detecta señal de
+  // nuevo, sin que el operador tenga que volver a esta pantalla.
+  async function guardarLocalSinConexion(formData: FormData) {
+    setGuardandoLocal(true);
+    setErrorLocal(null);
+    try {
+      const raw = Object.fromEntries(formData) as Record<string, string>;
+      let ayudantesRaw: unknown;
+      let parcelasRaw: unknown;
+      let productosRaw: unknown;
+      try {
+        ayudantesRaw = JSON.parse(raw.ayudantes || "[]");
+        parcelasRaw = JSON.parse(raw.parcelas || "[]");
+        productosRaw = JSON.parse(raw.productos || "[]");
+      } catch {
+        throw new Error("No se pudieron leer los datos del informe.");
+      }
+
+      if (!firmaAgroBlobRef.current || !firmaClienteBlobRef.current) {
+        throw new Error("Faltan firmas por guardar.");
+      }
+
+      const parsed = informeCampoSchema.safeParse({
+        cliente: raw.cliente,
+        fecha: raw.fecha,
+        finca: raw.finca,
+        horaInicio: raw.horaInicio,
+        horaFin: raw.horaFin,
+        meteorologia: raw.meteorologia,
+        modeloDrone: raw.modeloDrone,
+        dosisPorHectarea: raw.dosisPorHectarea,
+        tipoProyecto: raw.tipoProyecto,
+        operador: raw.operador,
+        ayudantes: ayudantesRaw,
+        firmaAgroRuta: raw.firmaAgroRuta,
+        nombreFirmaAgro: raw.nombreFirmaAgro,
+        firmaClienteRuta: raw.firmaClienteRuta,
+        nombreFirmaCliente: raw.nombreFirmaCliente,
+        parcelas: parcelasRaw,
+        productos: productosRaw,
+      });
+
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message ?? "Datos inválidos");
+      }
+
+      await guardarInformeCampoPendiente(
+        {
+          cliente: parsed.data.cliente,
+          fecha: parsed.data.fecha,
+          finca: parsed.data.finca,
+          horaInicio: parsed.data.horaInicio,
+          horaFin: parsed.data.horaFin,
+          meteorologia: parsed.data.meteorologia,
+          modeloDrone: parsed.data.modeloDrone,
+          dosisPorHectarea: parsed.data.dosisPorHectarea,
+          tipoProyecto: parsed.data.tipoProyecto,
+          operador: parsed.data.operador,
+          ayudantes: parsed.data.ayudantes,
+          nombreFirmaAgro: parsed.data.nombreFirmaAgro,
+          nombreFirmaCliente: parsed.data.nombreFirmaCliente,
+          parcelas: parsed.data.parcelas,
+          productos: parsed.data.productos,
+        },
+        firmaAgroBlobRef.current,
+        firmaClienteBlobRef.current,
+      );
+
+      setGuardadoLocalOk(true);
+    } catch (err) {
+      setErrorLocal(
+        err instanceof Error ? err.message : "No se pudo guardar el informe en este celular.",
+      );
+    } finally {
+      setGuardandoLocal(false);
+    }
+  }
+
+  function manejarSubmit(e: React.FormEvent<HTMLFormElement>) {
+    // El modo sin conexión solo aplica a informes nuevos -- editar uno ya
+    // guardado sigue requiriendo señal, como antes.
+    if (esEdicion) return;
+    const formData = new FormData(e.currentTarget);
+    const necesitaGuardarLocal =
+      !navigator.onLine ||
+      formData.get("firmaAgroRuta") === SIN_CONEXION ||
+      formData.get("firmaClienteRuta") === SIN_CONEXION;
+    if (necesitaGuardarLocal) {
+      e.preventDefault();
+      guardarLocalSinConexion(formData);
+    }
+  }
+
+  function reiniciarParaOtroInforme() {
+    setRemountKey((k) => k + 1);
+    setOperador("");
+    setAyudantes([]);
+    setParcelas([parcelaVacia()]);
+    setProductos([]);
+    setFirmaAgroRuta("");
+    setFirmaClienteRuta("");
+    firmaAgroBlobRef.current = null;
+    firmaClienteBlobRef.current = null;
+    setGuardadoLocalOk(false);
+    setErrorLocal(null);
+  }
+
   const ayudantesParaEnviar = ayudantes.map((a) => a.trim()).filter((a) => a !== "");
   const parcelasParaEnviar = parcelas.map((p) => ({
     numeroParcela: p.numeroParcela,
@@ -191,8 +363,35 @@ export function InformeCampoForm({
 
   const faltaAlgunaFirma = !firmaAgroRuta || !firmaClienteRuta;
 
+  if (guardadoLocalOk) {
+    return (
+      <div className="flex max-w-2xl flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <p className="text-lg font-semibold text-green-900 dark:text-green-50">
+          Informe guardado en este celular ✓
+        </p>
+        <p className="text-sm text-green-700/70 dark:text-green-200/70">
+          No hay señal ahora mismo -- el informe (con las 2 firmas) quedó guardado en este dispositivo
+          y se subirá solo al sistema en cuanto vuelva la señal de datos, sin que tengas que hacer nada
+          más. Todavía no va a aparecer en la lista de Informes de Campo hasta que se suba.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={reiniciarParaOtroInforme}
+            className="rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm"
+          >
+            Llenar otro informe
+          </button>
+          <LinkButton href="/informes/campo" variant="secondary">
+            Ver Informes de Campo
+          </LinkButton>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <form key={remountKey} action={formAction} className="flex flex-col gap-6">
+    <form key={remountKey} action={formAction} onSubmit={manejarSubmit} className="flex flex-col gap-6">
       <FormError message={state.error} />
       <input type="hidden" name="ayudantes" value={JSON.stringify(ayudantesParaEnviar)} />
       <input type="hidden" name="parcelas" value={JSON.stringify(parcelasParaEnviar)} />
@@ -459,7 +658,7 @@ export function InformeCampoForm({
             name="firmaAgroRuta"
             rutaInicial={v?.firmaAgroRuta ?? valoresIniciales?.firmaAgroRuta}
             urlInicial={valoresIniciales?.firmaAgroUrl}
-            onGuardar={subirFirma}
+            onGuardar={subirFirmaAgro}
             onRutaCambia={setFirmaAgroRuta}
           />
         </div>
@@ -475,16 +674,27 @@ export function InformeCampoForm({
             name="firmaClienteRuta"
             rutaInicial={v?.firmaClienteRuta ?? valoresIniciales?.firmaClienteRuta}
             urlInicial={valoresIniciales?.firmaClienteUrl}
-            onGuardar={subirFirma}
+            onGuardar={subirFirmaCliente}
             onRutaCambia={setFirmaClienteRuta}
           />
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
+        {!esEdicion && !enLinea && (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Sin conexión -- el informe se va a guardar en este celular y se va a subir solo cuando
+            vuelva la señal.
+          </p>
+        )}
+        {errorLocal && <p className="text-xs text-red-600 dark:text-red-400">{errorLocal}</p>}
         <div className="flex gap-3">
-          <SubmitButton disabled={faltaAlgunaFirma}>
-            {esEdicion ? "Guardar cambios" : "Guardar informe"}
+          <SubmitButton disabled={faltaAlgunaFirma || guardandoLocal}>
+            {guardandoLocal
+              ? "Guardando en este celular..."
+              : esEdicion
+                ? "Guardar cambios"
+                : "Guardar informe"}
           </SubmitButton>
           <LinkButton
             href={esEdicion ? `/informes/campo/${valoresIniciales!.id}` : "/informes/campo"}
