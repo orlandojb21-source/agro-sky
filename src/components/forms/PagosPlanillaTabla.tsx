@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { BotonExportarTalonario } from "@/components/forms/BotonExportarTalonario";
+import { BotonExportarTalonarioCampo } from "@/components/forms/BotonExportarTalonarioCampo";
 import { eliminarPagoAction } from "@/lib/actions/planilla";
 import { formatMoney, formatDateOnly } from "@/lib/format";
 
@@ -298,7 +299,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
-                        {p.esFijo && (
+                        {p.esFijo ? (
                           <BotonExportarTalonario
                             talonario={{
                               colaboradorNombre: p.colaborador,
@@ -307,6 +308,15 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                               bonificacion: p.bonificacion ?? 0,
                               css: p.css ?? 0,
                               seguroEducativo: p.seguroEducativo ?? 0,
+                            }}
+                          />
+                        ) : (
+                          <BotonExportarTalonarioCampo
+                            talonario={{
+                              colaboradorNombre: p.colaborador,
+                              fecha: p.fecha,
+                              fechaDesde: p.fechaDesde,
+                              monto: p.monto,
                             }}
                           />
                         )}
@@ -364,7 +374,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                {p.esFijo && (
+                {p.esFijo ? (
                   <BotonExportarTalonario
                     talonario={{
                       colaboradorNombre: p.colaborador,
@@ -373,6 +383,15 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                       bonificacion: p.bonificacion ?? 0,
                       css: p.css ?? 0,
                       seguroEducativo: p.seguroEducativo ?? 0,
+                    }}
+                  />
+                ) : (
+                  <BotonExportarTalonarioCampo
+                    talonario={{
+                      colaboradorNombre: p.colaborador,
+                      fecha: p.fecha,
+                      fechaDesde: p.fechaDesde,
+                      monto: p.monto,
                     }}
                   />
                 )}
