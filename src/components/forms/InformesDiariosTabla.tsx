@@ -8,10 +8,10 @@ import { formatDateOnly } from "@/lib/format";
 
 export type InformeDiarioFila = {
   id: string;
-  colaborador: string;
+  cliente: string;
   fecha: string;
   hectareasAplicadas: number;
-  clienteInformeCampo: string;
+  operadorInformeCampo: string;
 };
 
 type Filtros = {
@@ -37,8 +37,8 @@ export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila
       const texto = filtros.texto.trim().toLowerCase();
       if (
         texto &&
-        !i.colaborador.toLowerCase().includes(texto) &&
-        !i.clienteInformeCampo.toLowerCase().includes(texto)
+        !i.cliente.toLowerCase().includes(texto) &&
+        !i.operadorInformeCampo.toLowerCase().includes(texto)
       )
         return false;
       if (filtros.fechaDesde && i.fecha < filtros.fechaDesde) return false;
@@ -71,8 +71,8 @@ export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
-                <th className="px-3 py-2 font-medium">Nombre</th>
-                <th className="px-3 py-2 font-medium">Cliente</th>
+                <th className="px-3 py-2 font-medium">Nombre (Cliente)</th>
+                <th className="px-3 py-2 font-medium">Operador</th>
                 <th className="px-3 py-2 font-medium">Hectáreas Aplicadas</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -98,7 +98,7 @@ export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila
                     type="text"
                     value={filtros.texto}
                     onChange={(e) => setFiltro("texto", e.target.value)}
-                    placeholder="Buscar nombre o cliente..."
+                    placeholder="Buscar cliente u operador..."
                     className={inputFiltro}
                   />
                 </th>
@@ -127,10 +127,10 @@ export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila
                       {formatDateOnly(i.fecha)}
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
-                      {i.colaborador}
+                      {i.cliente}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {i.clienteInformeCampo}
+                      {i.operadorInformeCampo}
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {i.hectareasAplicadas} ha
@@ -175,8 +175,10 @@ export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
                     {formatDateOnly(i.fecha)}
                   </p>
-                  <p className="font-medium text-green-900 dark:text-green-50">{i.colaborador}</p>
-                  <p className="text-xs text-green-700/60 dark:text-green-300/60">{i.clienteInformeCampo}</p>
+                  <p className="font-medium text-green-900 dark:text-green-50">{i.cliente}</p>
+                  <p className="text-xs text-green-700/60 dark:text-green-300/60">
+                    Operador: {i.operadorInformeCampo}
+                  </p>
                 </div>
                 <p className="shrink-0 text-sm font-medium text-green-700 dark:text-green-400">
                   {i.hectareasAplicadas} ha

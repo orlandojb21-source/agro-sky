@@ -8,7 +8,9 @@ import { z } from "zod";
 // texto libre.
 const informeDiarioBaseSchema = z.object({
   informeCampoId: z.string().uuid("Selecciona el Informe de Campo relacionado"),
-  colaborador: z.string().trim().min(1, "Selecciona el colaborador"),
+  // "Nombre" en el documento -- es el cliente del Informe de Campo (ej.
+  // "Ingenio Santa Rosa"), no quién voló el drone.
+  cliente: z.string().trim().min(1, "Nombre requerido"),
   fecha: z.string().min(1, "Fecha requerida"),
   hectareasAplicadas: z.coerce.number().positive("Las hectáreas aplicadas deben ser mayores a cero"),
   tipoAplicacion: z.string().trim().min(1, "Tipo de aplicación requerido"),

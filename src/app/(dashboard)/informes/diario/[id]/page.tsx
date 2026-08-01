@@ -93,7 +93,7 @@ export default async function DetalleInformeDiarioPage({
   };
 
   const informeExportable: InformeDiarioExportable = {
-    colaborador: informe.colaborador as string,
+    cliente: informe.cliente as string,
     fecha: informe.fecha as string,
     hectareasAplicadas: Number(informe.hectareas_aplicadas),
     tipoAplicacion: informe.tipo_aplicacion as string,
@@ -112,10 +112,10 @@ export default async function DetalleInformeDiarioPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-green-900 dark:text-green-50">
-            {informe.colaborador as string}
+            {informe.cliente as string}
           </h1>
           <p className="mt-1 text-sm text-green-700/70 dark:text-green-200/70">
-            {formatDateOnly(informe.fecha as string)} — {informeCampoRow.cliente as string}
+            {formatDateOnly(informe.fecha as string)} — Operador: {informeCampoRow.operador as string}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

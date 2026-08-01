@@ -17,16 +17,14 @@ export default async function EditarInformeDiarioPage({
   const { id } = await params;
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: informesCampoData }, { data: informesDiariosData }, { data: colaboradoresData }] =
-    await Promise.all([
-      supabase.from("informes_diarios").select("*").eq("id", id).maybeSingle(),
-      supabase
-        .from("informes_campo")
-        .select("id, cliente, finca, fecha, operador, dosis_por_hectarea, informe_campo_parcelas ( hectareas )")
-        .order("fecha", { ascending: false }),
-      supabase.from("informes_diarios").select("id, informe_campo_id"),
-      supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
-    ]);
+  const [{ data: informe }, { data: informesCampoData }, { data: informesDiariosData }] = await Promise.all([
+    supabase.from("informes_diarios").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("informes_campo")
+      .select("id, cliente, finca, fecha, operador, dosis_por_hectarea, informe_campo_parcelas ( hectareas )")
+      .order("fecha", { ascending: false }),
+    supabase.from("informes_diarios").select("id, informe_campo_id"),
+  ]);
 
   if (!informe) notFound();
 
@@ -53,11 +51,6 @@ export default async function EditarInformeDiarioPage({
       ),
     }));
 
-  let colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
-  if (informe.colaborador && !colaboradoresCampo.includes(informe.colaborador as string)) {
-    colaboradoresCampo = [informe.colaborador as string, ...colaboradoresCampo];
-  }
-
   let imagenControlUrl: string | null = null;
   if (informe.imagen_control_ruta) {
     const { data } = await supabase.storage
@@ -69,7 +62,7 @@ export default async function EditarInformeDiarioPage({
   const valoresIniciales: ValoresInformeDiario = {
     id: informe.id as string,
     informeCampoId: informe.informe_campo_id as string,
-    colaborador: informe.colaborador as string,
+    cliente: informe.cliente as string,
     fecha: informe.fecha as string,
     hectareasAplicadas: Number(informe.hectareas_aplicadas),
     tipoAplicacion: informe.tipo_aplicacion as string,
@@ -89,7 +82,6 @@ export default async function EditarInformeDiarioPage({
         Editar informe diario
       </h1>
       <InformeDiarioForm
-        colaboradoresCampo={colaboradoresCampo}
         informesCampoDisponibles={informesCampoDisponibles}
         valoresIniciales={valoresIniciales}
       />

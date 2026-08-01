@@ -1117,7 +1117,9 @@ const AGRO_SKY_FISCAL = {
 };
 
 export type InformeDiarioExportable = {
-  colaborador: string;
+  // "Nombre" en el documento -- es el cliente del Informe de Campo (ej.
+  // "Ingenio Santa Rosa"), no quién voló el drone.
+  cliente: string;
   fecha: string;
   hectareasAplicadas: number;
   tipoAplicacion: string;
@@ -1131,8 +1133,8 @@ export type InformeDiarioExportable = {
   informeCampo: InformeCampoExportable;
 };
 
-function nombreArchivoInformeDiario(colaborador: string, fecha: string): string {
-  return `agro-sky-informe-diario-${colaborador.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${fecha}`;
+function nombreArchivoInformeDiario(cliente: string, fecha: string): string {
+  return `agro-sky-informe-diario-${cliente.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${fecha}`;
 }
 
 // Informe Diario: documento puramente informativo para el cliente (no
@@ -1180,7 +1182,7 @@ export async function exportarInformeDiarioPDF(informe: InformeDiarioExportable)
   doc.setFontSize(10);
   let y = yEmpresa;
   for (const linea of [
-    `Nombre: ${informe.colaborador}`,
+    `Nombre: ${informe.cliente}`,
     `Fecha: ${formatDateOnly(informe.fecha)}`,
     `Hectáreas Aplicadas: ${informe.hectareasAplicadas}`,
     `Tipo de Aplicación: ${informe.tipoAplicacion}`,
@@ -1228,5 +1230,5 @@ export async function exportarInformeDiarioPDF(informe: InformeDiarioExportable)
     }
   }
 
-  doc.save(`${nombreArchivoInformeDiario(informe.colaborador, informe.fecha)}.pdf`);
+  doc.save(`${nombreArchivoInformeDiario(informe.cliente, informe.fecha)}.pdf`);
 }

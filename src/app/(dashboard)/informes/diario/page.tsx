@@ -7,15 +7,15 @@ export default async function InformeDiarioPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("informes_diarios")
-    .select("id, colaborador, fecha, hectareas_aplicadas, informes_campo ( cliente )")
+    .select("id, cliente, fecha, hectareas_aplicadas, informes_campo ( operador )")
     .order("fecha", { ascending: false });
 
   const informes: InformeDiarioFila[] = (data ?? []).map((row) => ({
     id: row.id as string,
-    colaborador: row.colaborador as string,
+    cliente: row.cliente as string,
     fecha: row.fecha as string,
     hectareasAplicadas: Number(row.hectareas_aplicadas),
-    clienteInformeCampo: (row.informes_campo as unknown as { cliente: string } | null)?.cliente ?? "—",
+    operadorInformeCampo: (row.informes_campo as unknown as { operador: string } | null)?.operador ?? "—",
   }));
 
   return (

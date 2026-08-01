@@ -3,15 +3,13 @@ import { InformeDiarioForm, type InformeCampoOpcion } from "@/components/forms/I
 
 export default async function NuevoInformeDiarioPage() {
   const supabase = await createClient();
-  const [{ data: informesCampoData }, { data: informesDiariosData }, { data: colaboradoresData }] =
-    await Promise.all([
-      supabase
-        .from("informes_campo")
-        .select("id, cliente, finca, fecha, operador, dosis_por_hectarea, informe_campo_parcelas ( hectareas )")
-        .order("fecha", { ascending: false }),
-      supabase.from("informes_diarios").select("informe_campo_id"),
-      supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
-    ]);
+  const [{ data: informesCampoData }, { data: informesDiariosData }] = await Promise.all([
+    supabase
+      .from("informes_campo")
+      .select("id, cliente, finca, fecha, operador, dosis_por_hectarea, informe_campo_parcelas ( hectareas )")
+      .order("fecha", { ascending: false }),
+    supabase.from("informes_diarios").select("informe_campo_id"),
+  ]);
 
   // Solo se ofrecen los Informes de Campo que todavía no tienen un Informe
   // Diario (confirmado por el usuario: uno por cada Informe de Campo, nunca
@@ -32,17 +30,12 @@ export default async function NuevoInformeDiarioPage() {
       ),
     }));
 
-  const colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
-
   return (
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">
         Nuevo informe diario
       </h1>
-      <InformeDiarioForm
-        colaboradoresCampo={colaboradoresCampo}
-        informesCampoDisponibles={informesCampoDisponibles}
-      />
+      <InformeDiarioForm informesCampoDisponibles={informesCampoDisponibles} />
     </div>
   );
 }

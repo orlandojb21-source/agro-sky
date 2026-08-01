@@ -33,7 +33,7 @@ export async function crearInformeDiarioAction(
   const supabase = await createClient();
   const { error } = await supabase.from("informes_diarios").insert({
     informe_campo_id: parsed.data.informeCampoId,
-    colaborador: parsed.data.colaborador,
+    cliente: parsed.data.cliente,
     fecha: parsed.data.fecha,
     hectareas_aplicadas: parsed.data.hectareasAplicadas,
     tipo_aplicacion: parsed.data.tipoAplicacion,
@@ -70,7 +70,7 @@ export async function editarInformeDiarioAction(
     .from("informes_diarios")
     .update({
       informe_campo_id: parsed.data.informeCampoId,
-      colaborador: parsed.data.colaborador,
+      cliente: parsed.data.cliente,
       fecha: parsed.data.fecha,
       hectareas_aplicadas: parsed.data.hectareasAplicadas,
       tipo_aplicacion: parsed.data.tipoAplicacion,

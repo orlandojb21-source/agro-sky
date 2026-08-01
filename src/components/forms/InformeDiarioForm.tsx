@@ -22,7 +22,9 @@ export type InformeCampoOpcion = {
 export type ValoresInformeDiario = {
   id: string;
   informeCampoId: string;
-  colaborador: string;
+  // "Nombre" en el documento -- es el cliente del Informe de Campo (ej.
+  // "Ingenio Santa Rosa"), no quién voló el drone.
+  cliente: string;
   fecha: string;
   hectareasAplicadas: number;
   tipoAplicacion: string;
@@ -45,11 +47,9 @@ const CLASE_TEXTAREA =
   "rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
 
 export function InformeDiarioForm({
-  colaboradoresCampo,
   informesCampoDisponibles,
   valoresIniciales,
 }: {
-  colaboradoresCampo: string[];
   informesCampoDisponibles: InformeCampoOpcion[];
   valoresIniciales?: ValoresInformeDiario;
 }) {
@@ -70,7 +70,7 @@ export function InformeDiarioForm({
   const [informeCampoId, setInformeCampoId] = useState(
     v?.informeCampoId ?? valoresIniciales?.informeCampoId ?? "",
   );
-  const [colaborador, setColaborador] = useState(v?.colaborador ?? valoresIniciales?.colaborador ?? "");
+  const [cliente, setCliente] = useState(v?.cliente ?? valoresIniciales?.cliente ?? "");
   const [fecha, setFecha] = useState(v?.fecha ?? valoresIniciales?.fecha ?? "");
   const [hectareasAplicadas, setHectareasAplicadas] = useState(
     v?.hectareasAplicadas ??
@@ -95,12 +95,14 @@ export function InformeDiarioForm({
   // Al elegir un Informe de Campo se autollenan Nombre/Fecha/Hectáreas/
   // Dosis con sus datos (para no volver a escribirlos a mano), pero los 4
   // siguen totalmente editables después -- mismo principio de "autollenar
-  // pero editable" que ya usa el resto de la app.
+  // pero editable" que ya usa el resto de la app. "Nombre" es el CLIENTE
+  // del Informe de Campo (a quién se le envía este documento), no el
+  // operador que voló el drone.
   function elegirInformeCampo(id: string) {
     setInformeCampoId(id);
     const informe = informesCampoDisponibles.find((i) => i.id === id);
     if (informe) {
-      setColaborador(informe.operador);
+      setCliente(informe.cliente);
       setFecha(informe.fecha);
       setHectareasAplicadas(String(informe.hectareas));
       setDosis(String(informe.dosisPorHectarea));
@@ -167,20 +169,13 @@ export function InformeDiarioForm({
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <SelectField
+        <Field
           label="Nombre"
-          name="colaborador"
-          value={colaborador}
-          onChange={(e) => setColaborador(e.target.value)}
+          name="cliente"
+          value={cliente}
+          onChange={(e) => setCliente(e.target.value)}
           required
-        >
-          <option value="">Selecciona...</option>
-          {colaboradoresCampo.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </SelectField>
+        />
         <Field
           label="Fecha"
           name="fecha"
