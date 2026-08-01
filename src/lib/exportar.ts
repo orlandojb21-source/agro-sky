@@ -929,47 +929,58 @@ async function cargarImagenBase64(url: string): Promise<string | null> {
   }
 }
 
+// Igual que cargarImagenBase64(), pero además devuelve el ancho/alto real
+// del archivo -- lo necesita el Informe Diario para insertar la captura
+// del control del drone sin deformarla (a diferencia de una firma, que
+// siempre se dibuja en una caja de tamaño fijo).
+async function cargarImagenBase64ConDimensiones(
+  url: string,
+): Promise<{ dataUrl: string; ancho: number; alto: number } | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = "anonymous";
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("No se pudo cargar la imagen"));
+      el.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return { dataUrl: canvas.toDataURL("image/png"), ancho: img.naturalWidth, alto: img.naturalHeight };
+  } catch {
+    return null;
+  }
+}
+
 function nombreArchivoInformeCampo(cliente: string, fecha: string): string {
   return `agro-sky-informe-campo-${cliente.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${fecha}`;
 }
 
-export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
-  const doc = new jsPDF({ orientation: "portrait" });
+// Cuerpo del Informe de Campo (todo menos el membrete/título/guardado) --
+// factorizado para poder reutilizarlo tal cual dentro del Informe Diario
+// (que adjunta "una copia del Informe de Campo" en su propia página, sin
+// membrete propio). "yInfoLineas" es dónde arrancan las líneas de texto de
+// la izquierda (fijo en el informe de campo solo, 30); "minYTabla" es la
+// altura mínima antes de la tabla de Parcelas para no chocar con contenido
+// a la derecha (el membrete del caller) -- pasar 0 cuando no aplica (ej. en
+// una página nueva sin membrete al lado). Devuelve la Y final tras las
+// firmas, por si el caller necesita seguir dibujando debajo.
+async function dibujarCuerpoInformeCampo(
+  doc: jsPDF,
+  informe: InformeCampoExportable,
+  yInfoLineas: number,
+  minYTabla: number,
+): Promise<number> {
   const anchoPagina = doc.internal.pageSize.getWidth();
-  const margenDerecho = anchoPagina - 14;
-
-  let yEmpresa = 14;
-  const logoBase64 = await cargarLogoBase64();
-  if (logoBase64) {
-    const logoAlto = 16;
-    const logoAncho = logoAlto * LOGO_ASPECTO;
-    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
-    yEmpresa += logoAlto + 4;
-  }
-
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  yEmpresa += 5;
-  for (const linea of [
-    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
-    `Correo: ${AGRO_SKY_INFO.correo}`,
-    `Dirección: ${AGRO_SKY_INFO.direccion}`,
-  ]) {
-    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
-    yEmpresa += 4.5;
-  }
-
-  doc.setFontSize(15);
-  doc.setFont("helvetica", "bold");
-  doc.text("Informe de Campo", 14, 20);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   const equipo = textoEquipoDeCampo(informe.operador, informe.ayudantes);
-  let yInforme = 30;
+  let yInforme = yInfoLineas;
   for (const linea of [
     `Cliente: ${informe.cliente}`,
     `Tipo de proyecto: ${
@@ -991,7 +1002,7 @@ export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
     yInforme += 6;
   }
 
-  const startY = Math.max(yInforme, yEmpresa) + 6;
+  const startY = Math.max(yInforme, minYTabla) + 6;
 
   const totalHectareas = informe.parcelas.reduce((s, p) => s + p.hectareas, 0);
 
@@ -1054,5 +1065,168 @@ export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
     doc.text(col.etiqueta, col.x, y + altoFirma + 12);
   }
 
+  return y + altoFirma + 12;
+}
+
+export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text("Informe de Campo", 14, 20);
+
+  await dibujarCuerpoInformeCampo(doc, informe, 30, yEmpresa);
+
   doc.save(`${nombreArchivoInformeCampo(informe.cliente, informe.fecha)}.pdf`);
+}
+
+// Datos fiscales para el membrete del Informe Diario -- documento formal
+// que se envía al cliente, con RUC/DV en vez del teléfono/correo/dirección
+// que usan Factura/Talonario/Orden de Compra (boceto exacto dado por el
+// cliente).
+const AGRO_SKY_FISCAL = {
+  nombre: "AGRO SKY CORP.",
+  ruc: "155743477-2-2023",
+  dv: "21",
+};
+
+export type InformeDiarioExportable = {
+  colaborador: string;
+  fecha: string;
+  hectareasAplicadas: number;
+  tipoAplicacion: string;
+  dosis: string;
+  boquillas: string;
+  alturaVuelo: string;
+  anchoPases: string;
+  velocidad: string;
+  nota: string | null;
+  imagenControlUrl: string | null;
+  informeCampo: InformeCampoExportable;
+};
+
+function nombreArchivoInformeDiario(colaborador: string, fecha: string): string {
+  return `agro-sky-informe-diario-${colaborador.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${fecha}`;
+}
+
+// Informe Diario: documento puramente informativo para el cliente (no
+// tiene relación con el pago de los trabajadores) que arma el
+// administrador tomando datos del Informe de Campo correspondiente.
+// Siempre lleva, en páginas aparte: 1) los campos técnicos que llenó el
+// administrador, 2) una copia completa del Informe de Campo vinculado
+// (mismo dibujo que exportarInformeCampoPDF, vía dibujarCuerpoInformeCampo)
+// y 3) si se adjuntó, la captura de pantalla del control del drone.
+export async function exportarInformeDiarioPDF(informe: InformeDiarioExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 20;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", 14, yEmpresa, logoAncho, logoAlto);
+  }
+
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_FISCAL.nombre, anchoPagina / 2 + 12, yEmpresa + 9, { align: "center" });
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    `R.U.C. ${AGRO_SKY_FISCAL.ruc}    D.V. ${AGRO_SKY_FISCAL.dv}`,
+    anchoPagina / 2 + 12,
+    yEmpresa + 17,
+    { align: "center" },
+  );
+  yEmpresa += 26;
+
+  doc.setDrawColor(21, 128, 61);
+  doc.line(14, yEmpresa, anchoPagina - 14, yEmpresa);
+  yEmpresa += 10;
+
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Informe Diario", 14, yEmpresa);
+  yEmpresa += 10;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let y = yEmpresa;
+  for (const linea of [
+    `Nombre: ${informe.colaborador}`,
+    `Fecha: ${formatDateOnly(informe.fecha)}`,
+    `Hectáreas Aplicadas: ${informe.hectareasAplicadas}`,
+    `Tipo de Aplicación: ${informe.tipoAplicacion}`,
+    `Dosis: ${informe.dosis}`,
+    `Boquillas: ${informe.boquillas}`,
+    `Altura de Vuelo: ${informe.alturaVuelo}`,
+    `Ancho de Pases: ${informe.anchoPases}`,
+    `Velocidad: ${informe.velocidad}`,
+  ]) {
+    doc.text(linea, 14, y);
+    y += 6;
+  }
+  if (informe.nota) {
+    const lineasNota = doc.splitTextToSize(`Nota: ${informe.nota}`, anchoPagina - 28) as string[];
+    doc.text(lineasNota, 14, y);
+    y += lineasNota.length * 6;
+  }
+
+  // Copia del Informe de Campo -- siempre en una página nueva, es un
+  // documento completo aparte (parcelas, productos, firmas).
+  doc.addPage();
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Copia del Informe de Campo", 14, 18);
+  await dibujarCuerpoInformeCampo(doc, informe.informeCampo, 28, 0);
+
+  // Captura del control del drone -- opcional, la sube el administrador a
+  // mano (se la manda el operador por fuera de la app). Se ajusta al ancho
+  // de la página conservando su proporción real para no deformarla.
+  if (informe.imagenControlUrl) {
+    const imagen = await cargarImagenBase64ConDimensiones(informe.imagenControlUrl);
+    if (imagen) {
+      doc.addPage();
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Captura del control del drone", 14, 18);
+
+      const altoPagina = doc.internal.pageSize.getHeight();
+      const anchoMaximo = anchoPagina - 28;
+      const altoMaximo = altoPagina - 34;
+      const escala = Math.min(anchoMaximo / imagen.ancho, altoMaximo / imagen.alto, 1);
+      const anchoFinal = imagen.ancho * escala;
+      const altoFinal = imagen.alto * escala;
+      doc.addImage(imagen.dataUrl, "PNG", 14, 26, anchoFinal, altoFinal);
+    }
+  }
+
+  doc.save(`${nombreArchivoInformeDiario(informe.colaborador, informe.fecha)}.pdf`);
 }

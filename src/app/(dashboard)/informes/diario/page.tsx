@@ -1,15 +1,31 @@
+import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { LinkButton } from "@/components/ui/Button";
+import { InformesDiariosTabla, type InformeDiarioFila } from "@/components/forms/InformesDiariosTabla";
 
-export default function InformeDiarioPage() {
+export default async function InformeDiarioPage() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("informes_diarios")
+    .select("id, colaborador, fecha, hectareas_aplicadas, informes_campo ( cliente )")
+    .order("fecha", { ascending: false });
+
+  const informes: InformeDiarioFila[] = (data ?? []).map((row) => ({
+    id: row.id as string,
+    colaborador: row.colaborador as string,
+    fecha: row.fecha as string,
+    hectareasAplicadas: Number(row.hectareas_aplicadas),
+    clienteInformeCampo: (row.informes_campo as unknown as { cliente: string } | null)?.cliente ?? "—",
+  }));
+
   return (
     <div>
       <PageHeader
         title="Informe Diario"
-        description="Informe que arma el administrador a partir de los Informes de Campo del día."
+        description="Informe informativo para el cliente, armado a partir de un Informe de Campo -- no afecta el pago de planilla."
+        action={<LinkButton href="/informes/diario/nuevo">+ Nuevo informe diario</LinkButton>}
       />
-      <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
-        Próximamente.
-      </div>
+      <InformesDiariosTabla informes={informes} />
     </div>
   );
 }

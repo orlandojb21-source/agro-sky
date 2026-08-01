@@ -1,0 +1,37 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+import { requirePerfil } from "@/lib/session";
+import { createClient } from "@/lib/supabase/server";
+
+// Bucket privado (ver migración 0052) -- imagen_control_ruta en
+// informes_diarios guarda solo esta ruta, nunca una URL pública. Mismo
+// patrón que colaboradorFoto.ts: se sube directo desde el formulario (no
+// ligada todavía al id del informe diario, que puede no existir aún si se
+// está creando uno nuevo) y se referencia recién al guardar el formulario.
+const BUCKET = "informes-diarios-capturas";
+
+export async function subirImagenControlAction(formData: FormData): Promise<{ ruta: string }> {
+  await requirePerfil();
+  const archivo = formData.get("imagen");
+  if (!(archivo instanceof Blob)) throw new Error("No se recibió ninguna imagen.");
+
+  const supabase = await createClient();
+  const ruta = `${randomUUID()}.jpg`;
+  const { error } = await supabase.storage.from(BUCKET).upload(ruta, archivo, {
+    contentType: "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw new Error("No se pudo subir la imagen. Intenta de nuevo.");
+
+  return { ruta };
+}
+
+// Limpieza best-effort (imagen reemplazada o informe eliminado) -- si
+// falla, queda un archivo huérfano en Storage, pero eso no debe bloquear
+// la acción principal (guardar/eliminar el informe diario).
+export async function eliminarImagenControlAction(ruta: string): Promise<void> {
+  await requirePerfil();
+  const supabase = await createClient();
+  await supabase.storage.from(BUCKET).remove([ruta]);
+}

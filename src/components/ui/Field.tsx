@@ -70,6 +70,7 @@ export function SelectField({
   name,
   children,
   defaultValue,
+  value,
   required,
   onChange,
 }: {
@@ -77,15 +78,22 @@ export function SelectField({
   name: string;
   children: React.ReactNode;
   defaultValue?: string;
+  // Si se pasa `value`, el select queda controlado (ignora defaultValue) --
+  // mismo motivo que en Field: usado cuando otro campo del mismo
+  // formulario necesita recalcular esta selección en vivo (ej. el
+  // colaborador que se autollena al elegir un Informe de Campo). Si no se
+  // pasa, el select sigue siendo no controlado como siempre.
+  value?: string;
   required?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }) {
+  const valorControlado = value !== undefined ? { value } : { defaultValue };
   return (
     <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
       {label}
       <select
         name={name}
-        defaultValue={defaultValue}
+        {...valorControlado}
         required={required}
         onChange={onChange}
         className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
