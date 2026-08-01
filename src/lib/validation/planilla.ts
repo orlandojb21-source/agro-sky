@@ -30,6 +30,11 @@ const pagoBase = z.object({
   css: z.string().trim().optional().default(""),
   seguroEducativo: z.string().trim().optional().default(""),
   bonificacion: z.string().trim().optional().default(""),
+  // Foto del detalle día/informe armado por "Calcular pago sugerido"
+  // (PagoPlanillaForm) -- llega como JSON en texto porque viaja en un
+  // <input type="hidden">, se valida por separado con parseDetalleCalculo
+  // (no aquí, para no hacer fallar todo el pago por un detalle corrupto).
+  detalleCalculo: z.string().trim().optional().default(""),
 });
 
 function montoOpcionalValido(valor: string): boolean {
@@ -66,6 +71,35 @@ export const pagoSchema = pagoBase
     message: "La jornada no coincide con el tipo de trabajo seleccionado",
     path: ["jornada"],
   });
+
+const detalleCalculoItemSchema = z.object({
+  fecha: z.string().min(1),
+  rolDia: z.enum(["operador", "ayudante"]),
+  tipoTrabajo: z.enum(["oficina", "proyecto"]),
+  jornada: z.enum(["completo", "medio"]).nullable(),
+  tipoProyecto: z.enum(["ingenio_santa_rosa", "particular"]).nullable(),
+  hectareas: z.number().nullable(),
+  clienteInforme: z.string().nullable(),
+  monto: z.number(),
+});
+const detalleCalculoArraySchema = z.array(detalleCalculoItemSchema);
+
+// Se valida por separado del resto del pago (nunca hace fallar el envío
+// del formulario): si el JSON llega vacío, corrupto o con forma distinta a
+// la esperada, simplemente no se guarda detalle -- el pago se guarda igual
+// con su monto, solo que el Talonario no podrá mostrar el desglose.
+export function parseDetalleCalculo(texto: string): z.infer<typeof detalleCalculoArraySchema> | null {
+  if (!texto) return null;
+  let json: unknown;
+  try {
+    json = JSON.parse(texto);
+  } catch {
+    return null;
+  }
+  const parsed = detalleCalculoArraySchema.safeParse(json);
+  if (!parsed.success || parsed.data.length === 0) return null;
+  return parsed.data;
+}
 
 export const pagoEditSchema = pagoBase
   .extend({ id: z.string().uuid() })

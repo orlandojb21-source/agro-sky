@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePerfil } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { pagoSchema, pagoEditSchema } from "@/lib/validation/planilla";
+import { pagoSchema, pagoEditSchema, parseDetalleCalculo } from "@/lib/validation/planilla";
 import type { ActionState } from "./types";
 
 export async function crearPagoAction(
@@ -31,6 +31,7 @@ export async function crearPagoAction(
     css: parsed.data.css ? Number(parsed.data.css) : null,
     seguro_educativo: parsed.data.seguroEducativo ? Number(parsed.data.seguroEducativo) : null,
     bonificacion: parsed.data.bonificacion ? Number(parsed.data.bonificacion) : null,
+    detalle_calculo: parseDetalleCalculo(parsed.data.detalleCalculo),
     // Todo pago de planilla es, por definicion, categoria "Planilla" -- no
     // hace falta que el usuario la elija (a diferencia de Caja Menuda,
     // donde un gasto si puede ser de varios tipos).
@@ -70,6 +71,7 @@ export async function editarPagoAction(
       css: parsed.data.css ? Number(parsed.data.css) : null,
       seguro_educativo: parsed.data.seguroEducativo ? Number(parsed.data.seguroEducativo) : null,
       bonificacion: parsed.data.bonificacion ? Number(parsed.data.bonificacion) : null,
+      detalle_calculo: parseDetalleCalculo(parsed.data.detalleCalculo),
     })
     .eq("id", parsed.data.id);
 

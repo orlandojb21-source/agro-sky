@@ -3,6 +3,7 @@ import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { esSoporteOJefe } from "@/lib/roles";
 import { PagoPlanillaForm } from "@/components/forms/PagoPlanillaForm";
+import type { DetalleTalonarioCampo } from "@/lib/exportar";
 
 export default async function EditarPagoPlanillaPage({
   params,
@@ -17,7 +18,7 @@ export default async function EditarPagoPlanillaPage({
     supabase
       .from("planilla_pagos")
       .select(
-        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion",
+        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion, detalle_calculo",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -60,6 +61,7 @@ export default async function EditarPagoPlanillaPage({
           css: pago.css === null ? null : Number(pago.css),
           seguroEducativo: pago.seguro_educativo === null ? null : Number(pago.seguro_educativo),
           bonificacion: pago.bonificacion === null ? null : Number(pago.bonificacion),
+          detalleCalculo: pago.detalle_calculo as DetalleTalonarioCampo[] | null,
         }}
       />
     </div>

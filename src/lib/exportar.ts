@@ -757,15 +757,48 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
   doc.save(`agro-sky-talonario-${nombreSlug}-${talonario.fecha}.pdf`);
 }
 
+// Una fila por cada Informe de Campo (o día de Oficina) que entró en el
+// cálculo del pago -- misma forma que DetalleDiaAsistencia en
+// lib/actions/asistencia.ts, pero es una foto guardada con el pago
+// (planilla_pagos.detalle_calculo), no un cálculo en vivo.
+export type DetalleTalonarioCampo = {
+  fecha: string;
+  rolDia: "operador" | "ayudante";
+  tipoTrabajo: "oficina" | "proyecto";
+  jornada: "completo" | "medio" | null;
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
+  hectareas: number | null;
+  clienteInforme: string | null;
+  monto: number;
+};
+
+function descripcionDetalleCampo(d: DetalleTalonarioCampo): string {
+  if (d.tipoTrabajo === "oficina") {
+    return `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`;
+  }
+  if (d.hectareas === null) {
+    return "Proyecto — sin Informe de Campo ese día";
+  }
+  if (!d.tipoProyecto) {
+    return `Proyecto — ${d.clienteInforme ?? ""} (${d.hectareas} ha, sin clasificar)`;
+  }
+  const tipo = d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular";
+  return `Proyecto — ${tipo} · ${d.clienteInforme ?? ""} (${d.hectareas} ha)`;
+}
+
 // Talonario para Campo -- sin CSS/Seguro Educativo/Bonificación (esas
 // deducciones solo aplican a Fijo). "fechaDesde" es la quincena que cubre
 // el pago; en un pago histórico (de antes de que Pagos pasara a cubrir un
-// rango) llega null y se muestra solo "fecha" como fecha única.
+// rango) llega null y se muestra solo "fecha" como fecha única. "detalle"
+// es la foto del desglose día/informe guardada con el pago -- null en un
+// pago histórico o en uno donde el monto se escribió a mano sin usar
+// "Calcular pago sugerido" (no hay desglose que mostrar).
 export type TalonarioCampoExportable = {
   colaboradorNombre: string;
   fecha: string;
   fechaDesde: string | null;
   monto: number;
+  detalle: DetalleTalonarioCampo[] | null;
 };
 
 export async function exportarTalonarioCampoPDF(talonario: TalonarioCampoExportable) {
@@ -812,13 +845,41 @@ export async function exportarTalonarioCampoPDF(talonario: TalonarioCampoExporta
     yColaborador += 6;
   }
 
-  const startY = Math.max(yColaborador, yEmpresa) + 10;
+  let y = Math.max(yColaborador, yEmpresa) + 6;
+
+  if (talonario.detalle && talonario.detalle.length > 0) {
+    const totalDetalle = talonario.detalle.reduce((s, d) => s + d.monto, 0);
+    autoTable(doc, {
+      startY: y,
+      head: [["Fecha", "Rol", "Detalle", "Monto"]],
+      body: talonario.detalle.map((d) => [
+        formatDateOnly(d.fecha),
+        d.rolDia === "operador" ? "Operador" : "Ayudante",
+        descripcionDetalleCampo(d),
+        formatMoney(d.monto),
+      ]),
+      foot: [["", "", "Subtotal calculado", formatMoney(totalDetalle)]],
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [21, 128, 61] },
+      footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  } else {
+    y += 4;
+  }
+
+  const altoPagina = doc.internal.pageSize.getHeight();
+  if (y > altoPagina - 20) {
+    doc.addPage();
+    y = 20;
+  }
+
   const anchoResumen = 90;
   const xEtiqueta = margenDerecho - anchoResumen;
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Monto pagado", xEtiqueta, startY);
-  doc.text(formatMoney(talonario.monto), margenDerecho, startY, { align: "right" });
+  doc.text("Monto pagado", xEtiqueta, y);
+  doc.text(formatMoney(talonario.monto), margenDerecho, y, { align: "right" });
 
   const nombreSlug = talonario.colaboradorNombre.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   doc.save(`agro-sky-talonario-${nombreSlug}-${talonario.fecha}.pdf`);

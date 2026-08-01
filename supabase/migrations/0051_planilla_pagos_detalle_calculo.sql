@@ -1,0 +1,12 @@
+-- El detalle día por día / informe por informe que arma "Calcular pago
+-- sugerido" (PagoPlanillaForm) solo vivía en el navegador -- al guardar el
+-- pago, se perdía y solo quedaba el monto final en planilla_pagos. El
+-- Talonario de Campo no tenía de dónde sacar el desglose para mostrarlo.
+--
+-- Se guarda como una foto del detalle tal como quedó al momento de guardar
+-- (incluye cualquier ajuste manual a un monto de fila) -- no se recalcula
+-- después, para que el Talonario siempre coincida con lo que realmente se
+-- pagó, aunque los datos de Asistencia/Informes de Campo cambien más
+-- adelante. Nula para pagos Fijos y para pagos de Campo que no usaron el
+-- cálculo (monto escrito directo a mano).
+alter table planilla_pagos add column detalle_calculo jsonb;

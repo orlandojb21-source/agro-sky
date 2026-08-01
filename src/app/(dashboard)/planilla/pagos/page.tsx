@@ -6,6 +6,7 @@ import { LinkButton } from "@/components/ui/Button";
 import { PagosPlanillaTabla, type PagoFila } from "@/components/forms/PagosPlanillaTabla";
 import { calcularTotalesMesActual } from "@/lib/planilla";
 import { formatMoney } from "@/lib/format";
+import type { DetalleTalonarioCampo } from "@/lib/exportar";
 
 type ColaboradorResumen = { nombre: string; salario: number | null };
 
@@ -79,7 +80,7 @@ export default async function PagosPlanillaPage() {
     supabase
       .from("planilla_pagos")
       .select(
-        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion",
+        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion, detalle_calculo",
       )
       .order("fecha", { ascending: false }),
   ]);
@@ -106,6 +107,7 @@ export default async function PagosPlanillaPage() {
       css: p.css === null ? null : Number(p.css),
       seguroEducativo: p.seguro_educativo === null ? null : Number(p.seguro_educativo),
       bonificacion: p.bonificacion === null ? null : Number(p.bonificacion),
+      detalleCalculo: p.detalle_calculo as DetalleTalonarioCampo[] | null,
     };
   });
 

@@ -7,6 +7,7 @@ import { BotonExportarTalonario } from "@/components/forms/BotonExportarTalonari
 import { BotonExportarTalonarioCampo } from "@/components/forms/BotonExportarTalonarioCampo";
 import { eliminarPagoAction } from "@/lib/actions/planilla";
 import { formatMoney, formatDateOnly } from "@/lib/format";
+import type { DetalleTalonarioCampo } from "@/lib/exportar";
 
 export type PagoFila = {
   id: string;
@@ -21,6 +22,7 @@ export type PagoFila = {
   css: number | null;
   seguroEducativo: number | null;
   bonificacion: number | null;
+  detalleCalculo: DetalleTalonarioCampo[] | null;
 };
 
 const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "oficina", string> = {
@@ -317,6 +319,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                               fecha: p.fecha,
                               fechaDesde: p.fechaDesde,
                               monto: p.monto,
+                              detalle: p.detalleCalculo,
                             }}
                           />
                         )}
@@ -392,6 +395,7 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                       fecha: p.fecha,
                       fechaDesde: p.fechaDesde,
                       monto: p.monto,
+                      detalle: p.detalleCalculo,
                     }}
                   />
                 )}

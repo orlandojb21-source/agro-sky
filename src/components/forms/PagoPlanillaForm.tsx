@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { crearPagoAction, editarPagoAction } from "@/lib/actions/planilla";
 import { obtenerResumenAsistenciaAction, type ResumenAsistencia } from "@/lib/actions/asistencia";
+import type { DetalleTalonarioCampo } from "@/lib/exportar";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -70,6 +71,10 @@ type ValoresPago = {
   css?: number | null;
   seguroEducativo?: number | null;
   bonificacion?: number | null;
+  // Foto del detalle guardada con el pago (planilla_pagos.detalle_calculo)
+  // -- null en un pago histórico o en uno donde el monto se escribió a
+  // mano sin usar "Calcular pago sugerido".
+  detalleCalculo?: DetalleTalonarioCampo[] | null;
 };
 
 function calcularDeduccion(montoTexto: string, tasa: number): string {
@@ -144,6 +149,31 @@ export function PagoPlanillaForm({
   const fechaHastaInicial = v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy;
   const fechaDesdeInicial = v?.fechaDesde ?? valoresIniciales?.fechaDesde ?? "";
 
+  // De dónde sale el detalle con el que arranca la tabla editable: si ya se
+  // intentó enviar el formulario (v, tras un error de validación en otro
+  // campo) se restaura tal cual lo que el jefe ya tenía armado -- viaja
+  // como JSON de texto porque es lo que manda el <input type="hidden">. Si
+  // no, y se está editando un pago que ya tenía un detalle guardado, se
+  // parte de esa foto. Si ninguno aplica (pago nuevo, o uno viejo sin
+  // detalle guardado), arranca vacío -- el jefe usa "Calcular pago
+  // sugerido" para llenarlo.
+  function detalleInicial(): DetalleDiaEditable[] {
+    if (v?.detalleCalculo) {
+      try {
+        const parsed = JSON.parse(v.detalleCalculo);
+        if (Array.isArray(parsed)) {
+          return (parsed as DetalleTalonarioCampo[]).map((d) => ({ ...d, monto: String(d.monto) }));
+        }
+      } catch {
+        // JSON corrupto -- se ignora, cae al siguiente caso.
+      }
+    }
+    if (valoresIniciales?.detalleCalculo) {
+      return valoresIniciales.detalleCalculo.map((d) => ({ ...d, monto: String(d.monto) }));
+    }
+    return [];
+  }
+
   const [colaboradorSeleccionado, setColaboradorSeleccionado] = useState(colaboradorInicial);
   const [montoTexto, setMontoTexto] = useState(() => datosIniciales(colaboradorInicial).monto);
   const [cssTexto, setCssTexto] = useState(() => datosIniciales(colaboradorInicial).css);
@@ -151,7 +181,7 @@ export function PagoPlanillaForm({
   const [fechaDesdeTexto, setFechaDesdeTexto] = useState(fechaDesdeInicial);
   const [fechaHastaTexto, setFechaHastaTexto] = useState(fechaHastaInicial);
   const [resumenAsistencia, setResumenAsistencia] = useState<ResumenAsistencia | null>(null);
-  const [detalleAsistencia, setDetalleAsistencia] = useState<DetalleDiaEditable[]>([]);
+  const [detalleAsistencia, setDetalleAsistencia] = useState<DetalleDiaEditable[]>(detalleInicial);
   const [buscandoResumen, setBuscandoResumen] = useState(false);
   const [errorResumen, setErrorResumen] = useState<string | null>(null);
 
@@ -166,7 +196,7 @@ export function PagoPlanillaForm({
     setFechaDesdeTexto(fechaDesdeInicial);
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
-    setDetalleAsistencia([]);
+    setDetalleAsistencia(detalleInicial());
     setErrorResumen(null);
   }
 
@@ -254,6 +284,22 @@ export function PagoPlanillaForm({
     >
       <FormError message={state.error} />
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
+      <input
+        type="hidden"
+        name="detalleCalculo"
+        value={JSON.stringify(
+          detalleAsistencia.map((d) => ({
+            fecha: d.fecha,
+            rolDia: d.rolDia,
+            tipoTrabajo: d.tipoTrabajo,
+            jornada: d.jornada,
+            tipoProyecto: d.tipoProyecto,
+            hectareas: d.hectareas,
+            clienteInforme: d.clienteInforme,
+            monto: Number(d.monto) || 0,
+          })),
+        )}
+      />
 
       {opciones.length === 0 ? (
         <p className="text-sm text-green-700/70 dark:text-green-300/70">
@@ -332,23 +378,29 @@ export function PagoPlanillaForm({
             </button>
             {errorResumen && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errorResumen}</p>}
             {resumenAsistencia && (
+              <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
+                {resumenAsistencia.totalDias === 0 ? (
+                  "No hay asistencia registrada en este período."
+                ) : (
+                  <>
+                    {resumenAsistencia.totalDias} día(s) registrados — Total sugerido:{" "}
+                    <strong>
+                      {formatMoney(detalleAsistencia.reduce((s, d) => s + (Number(d.monto) || 0), 0))}
+                    </strong>{" "}
+                    ({resumenAsistencia.diasOficina} día(s) Oficina, {resumenAsistencia.diasProyecto} día(s)
+                    Proyecto con {resumenAsistencia.hectareasProyecto} hectáreas)
+                  </>
+                )}
+              </p>
+            )}
+            {detalleAsistencia.length > 0 && (
               <>
-                <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
-                  {resumenAsistencia.totalDias === 0 ? (
-                    "No hay asistencia registrada en este período."
-                  ) : (
-                    <>
-                      {resumenAsistencia.totalDias} día(s) registrados — Total sugerido:{" "}
-                      <strong>
-                        {formatMoney(detalleAsistencia.reduce((s, d) => s + (Number(d.monto) || 0), 0))}
-                      </strong>{" "}
-                      ({resumenAsistencia.diasOficina} día(s) Oficina, {resumenAsistencia.diasProyecto} día(s)
-                      Proyecto con {resumenAsistencia.hectareasProyecto} hectáreas)
-                    </>
-                  )}
-                </p>
-                {detalleAsistencia.length > 0 && (
-                  <div className="mt-2 overflow-x-auto">
+                {!resumenAsistencia && (
+                  <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
+                    Detalle guardado con este pago:
+                  </p>
+                )}
+                <div className="mt-2 overflow-x-auto">
                     <table className="w-full min-w-[460px] text-left text-xs">
                       <thead>
                         <tr className="border-b border-green-100 uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
@@ -389,7 +441,6 @@ export function PagoPlanillaForm({
                       esta tabla.
                     </p>
                   </div>
-                )}
               </>
             )}
           </div>
