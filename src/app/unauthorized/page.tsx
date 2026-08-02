@@ -1,5 +1,9 @@
 import Link from "next/link";
 
+// Ver la nota en src/app/page.tsx: sin esto, el HTML prerenderizado en
+// caché trae un nonce de CSP que no coincide con el de cada request nueva.
+export const dynamic = "force-dynamic";
+
 export default function UnauthorizedPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-6 text-center dark:bg-[#0a0f0c]">
