@@ -199,6 +199,34 @@ tiempo, ya que Supabase/Vercel necesitan varios orígenes permitidos).
    seguridad, se documenta aquí porque se descubrió en esta misma
    verificación.
 
+   **Incidente real en producción y corrección (2026-08-02, minutos
+   después del despliegue anterior):** el usuario reportó que no podía
+   iniciar sesión. Las 12 pruebas Playwright habían pasado en local, pero
+   **`next dev`/`next build && next start` nunca reproducen el
+   comportamiento real de caché de Vercel** — ahí estaba el hueco. Cuatro
+   páginas (`/`, `/login`, `/actualizar-password`, `/unauthorized`) son
+   prerenderizadas y Vercel sirve ese HTML desde su caché de CDN; el
+   nonce que trae ese HTML cacheado quedaba fijo desde que se generó,
+   mientras que el middleware genera un nonce **nuevo en cada request**
+   para la cabecera CSP — nunca coinciden, y el navegador bloquea todos
+   los scripts de la página (cero interactividad: el botón "Entrar" del
+   login no hacía nada). Confirmado en vivo con un script Playwright +
+   una cuenta QA desechable contra `agroskypty.app` real, no solo
+   local — mostró decenas de errores `Refused to execute inline script /
+   Refused to load script` en consola. Corrección: esas 4 páginas se
+   separaron en un Server Component con `export const dynamic =
+   "force-dynamic"` (Next.js solo respeta ese export en Server
+   Components, no en archivos `"use client"`) más un Client Component
+   colocado con la lógica original intacta (`LoginForm.tsx`,
+   `SplashScreen.tsx`, `ActualizarPasswordForm.tsx`) — esto obliga a
+   Next.js a renderizar esas páginas de nuevo en cada request, así el
+   nonce del HTML y el de la cabecera CSP siempre coinciden. Reverificado
+   igual, en vivo contra producción tras el segundo despliegue: login
+   exitoso, cero errores de CSP en consola. **Lección para cualquier CSP
+   con nonce en Next.js App Router futura**: verificar directamente
+   contra el despliegue real (no solo `next dev`/`next start` local) en
+   cualquier ruta que pueda quedar prerenderizada/cacheada.
+
 ---
 
 ### 🟡 1.5 Política de contraseñas mínima (8 caracteres, sin verificación de filtraciones)
