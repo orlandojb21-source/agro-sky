@@ -7,9 +7,12 @@
 > completo (`agro-sky`), configuración de Vercel/Supabase visible desde el
 > código y las migraciones.
 >
-> **Este es un informe, no cambios aplicados.** Cada hallazgo tiene su
-> severidad, dónde está, y cómo corregirlo — se corrigen uno por uno,
-> cuando el usuario lo pida.
+> **Actualización 2026-08-02:** todos los hallazgos con código propio
+> (1.1 a 1.4) ya se corrigieron y se verificaron (`tsc`, `lint`, `build`
+> limpios + las 12 pruebas Playwright contra un navegador real, incluyendo
+> las cabeceras de seguridad nuevas). Quedan pendientes solo los ajustes
+> que se hacen desde el dashboard de Supabase (1.5, 1.6) y la confirmación
+> del plan de respaldos (sección 3) — ninguno de los dos es código.
 
 ## Cómo leer esto
 
@@ -17,12 +20,13 @@
 - 🟠 **Medio** — buena práctica que falta, riesgo real pero acotado.
 - 🟡 **Bajo / informativo** — vale la pena saberlo, no es urgente.
 - 🟢 **Bien hecho** — se revisó y está correcto; se documenta para que quede claro que no hace falta tocarlo.
+- ✅ **Corregido** — hallazgo ya resuelto en el código, con la fecha y qué se cambió.
 
 ---
 
 ## 1. Hallazgos de seguridad
 
-### 🔴 1.1 Next.js 16.2.10 tiene varias vulnerabilidades conocidas de severidad alta
+### ✅ 1.1 Next.js 16.2.10 tenía varias vulnerabilidades conocidas de severidad alta — Corregido 2026-08-02
 
 `npm audit` reporta que la versión instalada de `next` está dentro del
 rango vulnerable de **9 avisos de seguridad publicados**, entre ellos:
@@ -39,9 +43,38 @@ login/navegación antes de desplegar.
 
 **Referencia ISO 27002:** 8.8 (Gestión de vulnerabilidades técnicas).
 
+**Corrección aplicada:** `package.json` actualizado a `next@^16.2.12` vía
+`npm audit fix --force`, seguido de `npm install` para reconciliar el
+lockfile. Verificado: `npx tsc --noEmit`, `npm run lint` y `npm run build`
+limpios, y las 12 pruebas Playwright pasando contra la app ya
+actualizada.
+
+`npm audit fix --force` también intentó bajar `exceljs` de `^4.4.0` a
+`^3.4.0` (para resolver un aviso moderado en `uuid`, una dependencia
+interna de `exceljs`). Se investigó antes de aceptarlo: la última versión
+4.x de `exceljs` (4.4.0, la más nueva que existe en esa rama) sigue
+declarando `uuid: '^8.3.0'` — el mantenedor nunca subió esa dependencia
+en la rama 4.x, así que el aviso **no se puede resolver quedándose en
+ninguna versión 4.x**; la única forma de silenciarlo es bajar a una
+versión mayor anterior (3.x), arriesgando romper las funciones de
+exportar Excel (`exportarExcel`/`exportarServiciosExcel`) que sí
+funcionan hoy, por un problema de baja explotabilidad real (la app nunca
+pasa buffers controlados por el usuario a las llamadas internas de
+`uuid` de `exceljs`). **Decisión:** se revirtió `exceljs` a `^4.4.0`
+manualmente — se documenta como riesgo residual aceptado y monitoreado,
+no ignorado.
+
+De igual forma quedan, sin acción posible de nuestra parte, los avisos
+de `postcss`/`sharp` **empaquetados dentro del propio `node_modules` de
+Next.js** (no son una dependencia directa de este proyecto — son parte
+del árbol interno de Next, y `npm audit fix --force` solo ofrece
+resolverlos bajando a `next@9.3.3`, una versión de 2020 sin App Router).
+Riesgo residual aceptado, a resolver solo cuando Next.js publique una
+versión que actualice sus propias dependencias internas.
+
 ---
 
-### 🟠 1.2 Las funciones `SECURITY DEFINER` de Postgres no fijan `search_path`
+### ✅ 1.2 Las funciones `SECURITY DEFINER` de Postgres no fijaban `search_path` — Corregido 2026-08-02
 
 Las 19 funciones `security definer` del esquema (`auth_tiene_perfil`,
 `auth_gestiona_usuarios`, `crear_informe_campo`, `crear_informe_proyecto`,
@@ -63,9 +96,21 @@ replace function` para cada una, sin cambiar su lógica).
 
 **Referencia ISO 27002:** 8.28 (Codificación segura).
 
+**Corrección aplicada:** `supabase/migrations/0054_fijar_search_path_funciones.sql`
+— en vez de transcribir las 19 firmas a mano (riesgo real de un error de
+tipeo rompiendo una función que sí funciona), un bloque `do $$ ... $$`
+recorre `pg_proc`/`pg_namespace` y le aplica `alter function ... set
+search_path = public` a cualquier función `security definer` del esquema
+`public` que todavía no lo tenga — no toca el cuerpo de ninguna función,
+es idempotente (se puede correr más de una vez sin efecto adicional).
+Confirmado por el usuario que ya se corrió en el SQL Editor de Supabase;
+las 12 pruebas Playwright (que ejercitan `crear_informe_campo`,
+`crear_informe_proyecto`, `crear_asistencia`, etc. de punta a punta)
+pasaron después de aplicada, confirmando que ninguna función quedó rota.
+
 ---
 
-### 🟠 1.3 Las subidas de archivos no validan el tamaño máximo en el servidor
+### ✅ 1.3 Las subidas de archivos no validaban el tamaño máximo en el servidor — Corregido 2026-08-02
 
 `colaboradorFoto.ts`, `informeCampoFirma.ts` e `informeDiarioImagen.ts`
 solo verifican que llegó *algo* (`archivo instanceof Blob`) antes de
@@ -81,9 +126,16 @@ con un mensaje claro).
 
 **Referencia ISO 27002:** 8.29 (Pruebas de seguridad en el desarrollo).
 
+**Corrección aplicada:** nueva constante compartida
+`src/lib/limitesArchivos.ts` (`TAMANO_MAXIMO_ARCHIVO_BYTES = 5 MB`),
+usada en las 3 acciones (`colaboradorFoto.ts`, `informeCampoFirma.ts`,
+`informeDiarioImagen.ts`) justo después de la validación existente de
+`archivo instanceof Blob` — si el archivo pesa más de 5 MB, la acción
+rechaza la subida con un mensaje claro antes de tocar Storage.
+
 ---
 
-### 🟠 1.4 No hay cabeceras de seguridad configuradas
+### ✅ 1.4 No había cabeceras de seguridad configuradas — Corregido 2026-08-02
 
 `next.config.ts` no define ninguna cabecera de seguridad propia — no hay
 `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`,
@@ -102,6 +154,50 @@ menos `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
 tiempo, ya que Supabase/Vercel necesitan varios orígenes permitidos).
 
 **Referencia ISO 27002:** 8.20 (Seguridad de redes), 8.26 (Requisitos de seguridad de aplicaciones).
+
+**Corrección aplicada, en dos partes:**
+
+1. `next.config.ts` — cabeceras estáticas para toda respuesta:
+   `Strict-Transport-Security` (2 años + subdominios + preload),
+   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+   `Referrer-Policy: strict-origin-when-cross-origin`, y
+   `Permissions-Policy` bloqueando cámara/geolocalización/micrófono/pago/
+   USB (la app no usa ninguno de esos APIs del navegador — se confirmó
+   con una búsqueda en todo `src/` antes de bloquearlos).
+2. `src/lib/supabase/middleware.ts` — `Content-Security-Policy` con un
+   **nonce distinto por cada request**, en vez de `unsafe-inline` en
+   `script-src` (que hubiera sido la salida fácil pero deja la puerta
+   abierta a XSS vía inyección de scripts). Next.js App Router necesita
+   ejecutar los `<script>` inline que inyecta para hidratar/streamear el
+   contenido de los Server Components; el nonce se genera en el
+   middleware (que ya corría en cada request para la sesión de Supabase)
+   y Next.js lo detecta automáticamente con solo verlo en la cabecera CSP
+   de la request entrante — confirmado en la práctica: el propio Next.js
+   empezó a firmar con ese nonce sus cabeceras `Link` de precarga de
+   fuentes. `style-src` sí permite `'unsafe-inline'` a propósito: Recharts
+   (gráficas de Balance) escribe estilos inline en el SVG que genera en
+   el navegador, y exigirle nonce ahí hubiera roto las gráficas — el
+   riesgo real de permitir estilos inline (a diferencia de scripts
+   inline) es mucho menor. `img-src`/`connect-src` incluyen el dominio de
+   Supabase (fotos/firmas/capturas vía URL firmada + llamadas a la API).
+   `'unsafe-eval'` se agrega a `script-src` **solo fuera de producción**
+   (React en modo desarrollo lo pide para reconstruir stack traces al
+   depurar; React mismo aclara que nunca lo usa en producción, así que
+   restringirlo ahí no protege nada real).
+
+   Verificado con `curl -D -` que las cabeceras llegan correctas en
+   `/login`, y con las 12 pruebas Playwright corriendo contra un
+   Chromium real (que hubiera fallado de inmediato si el CSP bloqueaba
+   algún `fetch`, imagen, o el `<canvas>` de las firmas dibujadas) — las
+   12 pasaron sin cambios de comportamiento.
+
+   De paso, correr la suite reveló que la actualización de Next.js (1.1)
+   agregó un indicador flotante de "Dev Tools" (solo visible en `next
+   dev`, nunca en producción) que tapaba el botón "Guardar informe" al
+   fondo de formularios largos — se reposicionó con `devIndicators:
+   { position: "top-right" }` en `next.config.ts`. No es un hallazgo de
+   seguridad, se documenta aquí porque se descubrió en esta misma
+   verificación.
 
 ---
 
@@ -208,11 +304,15 @@ de autenticación real.
 
 ## 2. Otras dependencias con avisos de `npm audit`
 
-| Paquete | Severidad | Nota |
+Estado tras la corrección de 1.1 (`npm audit` corrido de nuevo el
+2026-08-02):
+
+| Paquete | Severidad | Estado |
 |---|---|---|
-| `next` | Alta | Ver 1.1 arriba — prioridad principal |
-| `brace-expansion` | Alta | Dependencia transitiva de herramientas de desarrollo (ESLint), no llega al código en producción — bajo riesgo real, se arregla solo con `npm audit fix` |
-| `exceljs` (vía `uuid`) | Moderada | Se usa para exportar Excel — el aviso es sobre `uuid`, sin relación con los datos que exporta esta app; se puede posponer o resolver con `npm audit fix --force` (implica actualizar a una versión mayor de `exceljs`, revisar que el export de Excel se siga viendo igual después) |
+| `next` | Alta | ✅ Corregido — ver 1.1 |
+| `brace-expansion` | Alta | ✅ Corregido — desapareció del audit tras el `npm install` de 1.1 (era transitiva de ESLint, nunca llegaba a producción) |
+| `postcss` / `sharp` | Alta | ⚠️ Residual aceptado — empaquetadas dentro del propio `node_modules/next`, no son dependencia directa de este proyecto; la única corrección que ofrece `npm audit fix --force` es bajar a `next@9.3.3` (2020, sin App Router) — ver nota completa en 1.1 |
+| `exceljs` (vía `uuid`) | Moderada | ⚠️ Residual aceptado y monitoreado — decisión razonada en 1.1, ninguna versión 4.x de `exceljs` resuelve el aviso |
 
 ---
 
@@ -258,13 +358,15 @@ proporción:
 
 ## 4. Resumen de prioridades
 
-| # | Hallazgo | Severidad | Esfuerzo de arreglo |
+| # | Hallazgo | Severidad | Estado |
 |---|---|---|---|
-| 1.1 | Actualizar Next.js (vulnerabilidades conocidas) | 🔴 Alto | Bajo — 1 comando + reprobar |
-| 1.3 | Límite de tamaño en subida de archivos | 🟠 Medio | Bajo — 3 archivos |
-| 1.2 | `search_path` en funciones `security definer` | 🟠 Medio | Medio — 1 migración nueva, 19 funciones |
-| 1.4 | Cabeceras de seguridad | 🟠 Medio | Bajo-Medio |
-| Continuidad | Confirmar plan/respaldos de Supabase | 🔴 Alto (negocio) | Ninguno — solo revisar el dashboard |
-| 1.5 / 1.6 | Ajustes de contraseña y rate-limit (Supabase dashboard) | 🟡 Bajo | Ninguno — son interruptores |
+| 1.1 | Actualizar Next.js (vulnerabilidades conocidas) | 🔴 Alto | ✅ Corregido 2026-08-02 |
+| 1.3 | Límite de tamaño en subida de archivos | 🟠 Medio | ✅ Corregido 2026-08-02 |
+| 1.2 | `search_path` en funciones `security definer` | 🟠 Medio | ✅ Corregido 2026-08-02 |
+| 1.4 | Cabeceras de seguridad (incl. CSP con nonce) | 🟠 Medio | ✅ Corregido 2026-08-02 |
+| Continuidad | Confirmar plan/respaldos de Supabase | 🔴 Alto (negocio) | ⏳ Pendiente — solo revisar el dashboard, no es código |
+| 1.5 / 1.6 | Ajustes de contraseña y rate-limit (Supabase dashboard) | 🟡 Bajo | ⏳ Pendiente — son interruptores, no es código |
 
-Cuando quieras, vamos corrigiendo uno por uno empezando por el 1.1 (Next.js) y la confirmación de respaldos de Supabase, que son los dos de mayor impacto real.
+Lo único que queda de todo este informe son los 3 puntos marcados
+⏳ arriba — ninguno requiere cambios de código, se hacen desde el
+dashboard de Supabase cuando el usuario los revise.

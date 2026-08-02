@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { requirePerfil } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
 
 // Bucket privado (ver migración 0052) -- imagen_control_ruta en
 // informes_diarios guarda solo esta ruta, nunca una URL pública. Mismo
@@ -15,6 +16,9 @@ export async function subirImagenControlAction(formData: FormData): Promise<{ ru
   await requirePerfil();
   const archivo = formData.get("imagen");
   if (!(archivo instanceof Blob)) throw new Error("No se recibió ninguna imagen.");
+  if (archivo.size > TAMANO_MAXIMO_ARCHIVO_BYTES) {
+    throw new Error("La imagen es demasiado grande (máximo 5 MB).");
+  }
 
   const supabase = await createClient();
   const ruta = `${randomUUID()}.jpg`;

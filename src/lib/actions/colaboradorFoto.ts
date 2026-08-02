@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { requirePerfil } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
 
 // Bucket privado (ver migración 0046) -- foto_ruta en colaboradores guarda
 // solo esta ruta, nunca una URL pública. Se sube directo desde el
@@ -15,6 +16,9 @@ export async function subirFotoColaboradorAction(formData: FormData): Promise<{ 
   await requirePerfil();
   const archivo = formData.get("foto");
   if (!(archivo instanceof Blob)) throw new Error("No se recibió ninguna foto.");
+  if (archivo.size > TAMANO_MAXIMO_ARCHIVO_BYTES) {
+    throw new Error("La foto es demasiado grande (máximo 5 MB).");
+  }
 
   const supabase = await createClient();
   const ruta = `${randomUUID()}.jpg`;

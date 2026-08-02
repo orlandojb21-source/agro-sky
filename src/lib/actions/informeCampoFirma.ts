@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { requirePerfil } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
 
 // Bucket privado (ver migración 0047) -- informes_campo.firma_agro_ruta /
 // firma_cliente_ruta guardan solo esta ruta, nunca una URL pública. Mismo
@@ -13,6 +14,9 @@ export async function subirFirmaInformeCampoAction(formData: FormData): Promise<
   await requirePerfil();
   const archivo = formData.get("firma");
   if (!(archivo instanceof Blob)) throw new Error("No se recibió ninguna firma.");
+  if (archivo.size > TAMANO_MAXIMO_ARCHIVO_BYTES) {
+    throw new Error("La firma es demasiado grande (máximo 5 MB).");
+  }
 
   const supabase = await createClient();
   const ruta = `${randomUUID()}.png`;
