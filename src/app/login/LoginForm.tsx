@@ -41,7 +41,7 @@ export function LoginForm() {
     }
 
     localStorage.setItem(ULTIMO_CORREO_KEY, email);
-    router.replace("/inventario/nuevos");
+    router.replace("/inicio");
     router.refresh();
   }
 

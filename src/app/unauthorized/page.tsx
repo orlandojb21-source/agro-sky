@@ -15,10 +15,10 @@ export default function UnauthorizedPage() {
         revise tu rol en la sección de Usuarios.
       </p>
       <Link
-        href="/inventario/nuevos"
+        href="/inicio"
         className="rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
       >
-        Volver al Inventario
+        Volver al inicio
       </Link>
     </main>
   );

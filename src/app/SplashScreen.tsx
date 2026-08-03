@@ -37,7 +37,7 @@ export function SplashScreen() {
       }
 
       if (!esMobil() || !biometricoRegistrado(session.user.id)) {
-        router.replace("/inventario/nuevos");
+        router.replace("/inicio");
         return;
       }
 
@@ -45,7 +45,7 @@ export function SplashScreen() {
       setEstado("desbloqueando");
       const ok = await desbloquearConBiometrico(session.user.id);
       if (ok) {
-        router.replace("/inventario/nuevos");
+        router.replace("/inicio");
       } else {
         setEstado("error");
       }
@@ -59,7 +59,7 @@ export function SplashScreen() {
     setEstado("desbloqueando");
     const ok = await desbloquearConBiometrico(userId);
     if (ok) {
-      router.replace("/inventario/nuevos");
+      router.replace("/inicio");
     } else {
       setEstado("error");
     }

@@ -49,7 +49,7 @@ export function ActualizarPasswordForm() {
 
     setExito(true);
     setTimeout(() => {
-      router.replace("/inventario/nuevos");
+      router.replace("/inicio");
       router.refresh();
     }, 1500);
   }
