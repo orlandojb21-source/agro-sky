@@ -7,7 +7,6 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { ColaboradorForm } from "@/components/forms/ColaboradorForm";
 import { ColaboradorFormToggle } from "@/components/forms/ColaboradorFormToggle";
 import { eliminarColaboradorAction } from "@/lib/actions/colaboradores";
-import { formatMoney } from "@/lib/format";
 
 const BUCKET_FOTOS = "colaboradores-fotos";
 const DURACION_URL_FIRMADA_SEG = 3600;
@@ -54,15 +53,7 @@ function ListaColaboradores({
                       {c.nombre.charAt(0).toUpperCase()}
                     </span>
                   )}
-                  <div>
-                    <span className="font-medium text-green-900 dark:text-green-50">{c.nombre}</span>
-                    {c.salario !== null && (
-                      <span className="ml-2 text-sm text-green-700/70 dark:text-green-300/70">
-                        {formatMoney(c.salario)} quincenal
-                        {!c.aplicaDeducciones && " — sin CSS/Seguro Educativo"}
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-medium text-green-900 dark:text-green-50">{c.nombre}</span>
                 </div>
                 <div className="flex gap-3">
                   <Link
