@@ -22,7 +22,7 @@ export default async function InformeDiarioPage() {
     <div>
       <PageHeader
         title="Informe Diario"
-        description="Informe informativo para el cliente, armado a partir de un Informe de Campo -- no afecta el pago de planilla."
+        description="Informe informativo para el cliente, armado a partir de un Informe de Campo."
         action={<LinkButton href="/informes/diario/nuevo">+ Nuevo informe diario</LinkButton>}
       />
       <InformesDiariosTabla informes={informes} />
