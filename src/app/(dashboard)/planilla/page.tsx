@@ -27,7 +27,7 @@ export default async function AsistenciaPage() {
     <div>
       <PageHeader
         title="Asistencia"
-        description="Registro diario de Campo: rol, tipo de trabajo y jornada, sin monto. El pago de la quincena se registra en Pagos."
+        description="Registro diario de Asistencia"
         action={
           <div className="flex gap-2">
             <LinkButton href="/planilla/colaboradores" variant="secondary">
