@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Rol } from "@/lib/roles";
 
 const TABS = [
   { href: "/informes/campo", label: "Informe de Campo" },
@@ -9,12 +10,17 @@ const TABS = [
   { href: "/informes/proyecto", label: "Informe de Proyecto" },
 ];
 
-export function InformesSubNav() {
+export function InformesSubNav({ rol }: { rol: Rol }) {
   const pathname = usePathname();
+  // El rol "campo" solo entra a Informe de Campo -- ver la nota en
+  // SECTION_ACCESS (src/lib/roles.ts). Ocultar los otros tabs aquí es
+  // solo cosmético; la restricción real está en los layouts de
+  // informes/diario e informes/proyecto.
+  const tabs = rol === "campo" ? TABS.filter((t) => t.href === "/informes/campo") : TABS;
 
   return (
     <div className="flex flex-wrap gap-2">
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const activo = pathname.startsWith(tab.href);
         return (
           <Link
