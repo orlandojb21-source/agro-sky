@@ -6,6 +6,7 @@ import { AsistenciaTabla, type AsistenciaFila } from "@/components/forms/Asisten
 import { VistaPreviaQuincena } from "@/components/forms/VistaPreviaQuincena";
 import { obtenerQuincenaActual } from "@/lib/planilla";
 import { obtenerResumenAsistenciaAction } from "@/lib/actions/asistencia";
+import { esSoporteOJefe } from "@/lib/roles";
 
 export default async function AsistenciaPage() {
   const perfil = await requireSection("planilla");
@@ -26,13 +27,14 @@ export default async function AsistenciaPage() {
     descripcion: a.descripcion as string,
   }));
 
-  // Vista previa exclusiva del rol "jefe" (pedido explícito del usuario,
-  // 2026-08-04 -- "esto solo lo debe ver el jefe"). Solo Campo tiene
-  // Asistencia (Fijo ya tiene un salario quincenal fijo, no depende de
-  // días trabajados), así que la proyección solo aplica a Campo.
+  // Vista previa para jefe/soporte (pedido inicial del usuario, 2026-08-04:
+  // "esto solo lo debe ver el jefe" -- corregido el mismo día: soporte es
+  // el rol técnico con acceso total, debe ver todo lo que ve jefe). Solo
+  // Campo tiene Asistencia (Fijo ya tiene un salario quincenal fijo, no
+  // depende de días trabajados), así que la proyección solo aplica a Campo.
   let vistaPreviaQuincena: { colaborador: string; total: number }[] | null = null;
   const quincena = obtenerQuincenaActual();
-  if (perfil.rol === "jefe") {
+  if (esSoporteOJefe(perfil.rol)) {
     const colaboradoresConAsistencia = [
       ...new Set(
         (data ?? [])
