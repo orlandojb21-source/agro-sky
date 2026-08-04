@@ -37,7 +37,7 @@ export default async function ControlHorarioPage() {
     { header: "Fecha", render: (r) => formatDateOnly(r.fecha) },
     { header: "Colaborador", render: (r) => r.colaborador },
     {
-      header: "¿Cumplió?",
+      header: "Asistencia",
       render: (r) =>
         r.cumplio ? (
           <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">

@@ -76,9 +76,9 @@ export function ControlHorarioForm({
         required
       />
 
-      <SelectField label="¿Cumplió el horario?" name="cumplio" defaultValue={cumplioInicial} required>
-        <option value="si">Sí cumplió</option>
-        <option value="no">No cumplió</option>
+      <SelectField label="Asistencia" name="cumplio" defaultValue={cumplioInicial} required>
+        <option value="si">Sí</option>
+        <option value="no">No</option>
       </SelectField>
 
       <Field
