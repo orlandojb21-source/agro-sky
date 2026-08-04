@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { colaboradorSchema, colaboradorEditSchema } from "@/lib/validation/colaboradores";
 import { eliminarFotoColaboradorAction } from "@/lib/actions/colaboradorFoto";
@@ -19,7 +19,7 @@ export async function crearColaboradorAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = colaboradorSchema.safeParse(raw);
@@ -53,7 +53,7 @@ export async function editarColaboradorAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = colaboradorEditSchema.safeParse(raw);
@@ -94,7 +94,7 @@ export async function editarColaboradorAction(
 }
 
 export async function eliminarColaboradorAction(id: string) {
-  await requirePerfil();
+  await requireWrite("planilla");
   const supabase = await createClient();
 
   const { data: colaborador } = await supabase

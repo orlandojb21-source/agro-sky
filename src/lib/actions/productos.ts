@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   productoCreateSchema,
@@ -22,7 +22,7 @@ export async function crearProductoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("inventario");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = productoCreateSchema.safeParse(raw);
@@ -58,7 +58,7 @@ export async function actualizarProductoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("inventario");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = productoUpdateSchema.safeParse(raw);
@@ -92,7 +92,7 @@ export async function actualizarProductoAction(
 }
 
 export async function eliminarProductoAction(id: string, seccion: string) {
-  await requirePerfil();
+  await requireWrite("inventario");
   const supabase = await createClient();
   const { error } = await supabase.from("productos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el producto.");

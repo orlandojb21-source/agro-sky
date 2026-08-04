@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { ventaSchema } from "@/lib/validation/ventas";
 import type { ActionState } from "./types";
@@ -11,7 +11,7 @@ export async function crearVentaAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("ventas");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let items: unknown;
@@ -78,7 +78,7 @@ export async function crearVentaAction(
 }
 
 export async function eliminarVentaAction(id: string) {
-  await requirePerfil();
+  await requireWrite("ventas");
   const supabase = await createClient();
   const { error } = await supabase.rpc("eliminar_venta", { p_venta_id: id });
   if (error) throw new Error(error.message || "No se pudo eliminar la venta.");
@@ -88,7 +88,7 @@ export async function eliminarVentaAction(id: string) {
 }
 
 export async function marcarVentaCobradaAction(id: string) {
-  await requirePerfil();
+  await requireWrite("ventas");
   const supabase = await createClient();
   const { error } = await supabase.rpc("marcar_venta_cobrada", { p_venta_id: id });
   if (error) throw new Error(error.message || "No se pudo marcar la factura como cobrada.");

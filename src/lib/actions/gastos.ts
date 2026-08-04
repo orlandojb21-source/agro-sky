@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { gastoSchema, gastoEditSchema } from "@/lib/validation/gastos";
 import { eliminarComprobanteGastoAction } from "@/lib/actions/gastoComprobante";
@@ -12,7 +12,7 @@ export async function crearGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoSchema.safeParse(raw);
@@ -43,7 +43,7 @@ export async function editarGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoEditSchema.safeParse(raw);
@@ -81,7 +81,7 @@ export async function editarGastoAction(
 }
 
 export async function eliminarGastoAction(id: string) {
-  await requirePerfil();
+  await requireWrite("compras");
   const supabase = await createClient();
 
   const { data: gasto } = await supabase

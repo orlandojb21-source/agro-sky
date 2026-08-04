@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { cotizacionSchema } from "@/lib/validation/cotizaciones";
 import type { ActionState } from "./types";
@@ -11,7 +11,7 @@ export async function crearCotizacionAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("ventas");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let items: unknown;
@@ -84,7 +84,7 @@ export async function crearCotizacionAction(
 // campo (ej. el botón rápido de la lista), o lo que venga en formData
 // cuando se confirma desde el detalle con el selector de Pagada/Por cobrar.
 export async function confirmarCotizacionAction(id: string, formData: FormData) {
-  await requirePerfil();
+  await requireWrite("ventas");
   const estadoPago = formData.get("estadoPago") === "pendiente" ? "pendiente" : "pagada";
   const fechaVencimiento = String(formData.get("fechaVencimiento") ?? "").trim();
 
@@ -114,7 +114,7 @@ export async function confirmarCotizacionAction(id: string, formData: FormData) 
 }
 
 export async function eliminarCotizacionAction(id: string) {
-  await requirePerfil();
+  await requireWrite("ventas");
   const supabase = await createClient();
   const { error } = await supabase.from("cotizaciones").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar la cotización.");

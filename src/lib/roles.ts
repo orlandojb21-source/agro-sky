@@ -1,12 +1,18 @@
-export type Rol = "administrador" | "jefe" | "soporte" | "campo";
+export type Rol = "administrador" | "jefe" | "soporte" | "campo" | "gerente" | "rrhh_contabilidad";
 
-export const ROLES: Rol[] = ["administrador", "jefe", "soporte", "campo"];
+export const ROLES: Rol[] = ["administrador", "jefe", "soporte", "campo", "gerente", "rrhh_contabilidad"];
 
+// "jefe"/"soporte" NO cambian de valor en la base de datos (cero riesgo de
+// migrar cuentas existentes) -- solo se renombran acá, en la etiqueta que
+// ve el usuario, como pidió explícitamente (2026-08-04): "jefe" pasa a
+// mostrarse "Gerente General", "soporte" pasa a mostrarse "Soporte IT".
 export const ROL_LABEL: Record<Rol, string> = {
   administrador: "Administrador",
-  jefe: "Jefe",
-  soporte: "Soporte",
+  jefe: "Gerente General",
+  soporte: "Soporte IT",
   campo: "Campo",
+  gerente: "Gerente",
+  rrhh_contabilidad: "Recursos Humanos y Contabilidad",
 };
 
 /** Secciones de navegacion, usadas tanto por el layout (gating) como por el menu. */
@@ -21,38 +27,116 @@ export type Seccion =
   | "informes"
   | "usuarios";
 
-// "soporte" es el rol tecnico (soporte de la app, no de atencion al
-// cliente): tiene acceso total. "usuarios" es exclusiva de soporte y jefe
-// (no administrador, por pedido explicito del usuario). Restringir alguna
-// seccion por rol mas adelante solo requiere ajustar este mapa (mas la
-// politica RLS equivalente en Supabase).
+export type NivelAcceso = "ninguno" | "lectura" | "escritura";
+
+// Rediseño de roles (2026-08-04, pedido explícito del usuario): antes el
+// acceso por sección era binario (se tenía o no se tenía). Ahora cada rol
+// tiene un nivel por sección -- "ninguno" (no entra), "lectura" (ve, no
+// puede crear/editar/borrar) o "escritura" (acceso completo). El nivel
+// "lectura" se hace cumplir en 2 capas: acá + en la UI (esconder botones
+// de escritura, src/lib/session.ts requireWrite() bloquea también cada
+// Server Action de guardar/borrar del lado del servidor, no solo la UI).
 //
-// "campo" es un rol nuevo y deliberadamente acotado (pedido explicito del
-// usuario, 2026-08-03): solo entra a Informes -- y dentro de Informes,
-// ademas, solo al tab "Informe de Campo" (esa restriccion mas fina no cabe
-// en este mapa por seccion; se aplica en informes/diario/layout.tsx e
-// informes/proyecto/layout.tsx). No se agrega a ninguna otra seccion.
-export const SECTION_ACCESS: Record<Seccion, Rol[]> = {
-  inventario: ["administrador", "jefe", "soporte"],
-  bitacora: ["administrador", "jefe", "soporte"],
-  "caja-menuda": ["administrador", "jefe", "soporte"],
-  compras: ["administrador", "jefe", "soporte"],
-  planilla: ["administrador", "jefe", "soporte"],
-  ventas: ["administrador", "jefe", "soporte"],
-  // Administrador ya no ve Balance -- pedido explicito del usuario.
-  balance: ["jefe", "soporte"],
-  informes: ["administrador", "jefe", "soporte", "campo"],
-  usuarios: ["soporte", "jefe"],
+// administrador y campo quedan igual que antes salvo lo pedido puntual
+// (campo gana Bitácora). gerente es de solo lectura a las 9 secciones,
+// sin excepción, incluidas Balance y Usuarios. rrhh_contabilidad escribe
+// en Planilla/Caja Menuda/Compras/Balance, lee todo lo demás.
+//
+// Restricciones MÁS angostas que esta tabla (no caben en un modelo de 3
+// niveles por sección) siguen viviendo aparte, sin tocar: esSoporteOJefe()
+// más abajo (aprobar/rechazar Compras sigue exclusivo de jefe/soporte),
+// la excepción de Campo en Informe de Campo (puede crear, no editar ni
+// eliminar -- ver informesCampo.ts), y el permiso de rrhh_contabilidad
+// sobre pagos de Fijos (vive en RLS, migración 0060, no acá).
+export const SECTION_ACCESS: Record<Seccion, Record<Rol, NivelAcceso>> = {
+  inventario: {
+    administrador: "escritura",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "ninguno",
+    gerente: "lectura",
+    rrhh_contabilidad: "lectura",
+  },
+  bitacora: {
+    administrador: "escritura",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "escritura",
+    gerente: "lectura",
+    rrhh_contabilidad: "lectura",
+  },
+  "caja-menuda": {
+    administrador: "escritura",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "ninguno",
+    gerente: "lectura",
+    rrhh_contabilidad: "escritura",
+  },
+  compras: {
+    administrador: "escritura",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "ninguno",
+    gerente: "lectura",
+    rrhh_contabilidad: "escritura",
+  },
+  planilla: {
+    administrador: "escritura",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "ninguno",
+    gerente: "lectura",
+    rrhh_contabilidad: "escritura",
+  },
+  ventas: {
+    administrador: "escritura",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "ninguno",
+    gerente: "lectura",
+    rrhh_contabilidad: "lectura",
+  },
+  // Administrador no ve Balance -- pedido explícito del usuario, sin cambios.
+  balance: {
+    administrador: "ninguno",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "ninguno",
+    gerente: "lectura",
+    rrhh_contabilidad: "escritura",
+  },
+  informes: {
+    administrador: "escritura",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "escritura",
+    gerente: "lectura",
+    rrhh_contabilidad: "lectura",
+  },
+  usuarios: {
+    administrador: "ninguno",
+    jefe: "escritura",
+    soporte: "escritura",
+    campo: "ninguno",
+    gerente: "lectura",
+    rrhh_contabilidad: "lectura",
+  },
 };
 
 export function canAccess(rol: Rol | null | undefined, seccion: Seccion): boolean {
   if (!rol) return false;
-  return SECTION_ACCESS[seccion].includes(rol);
+  return SECTION_ACCESS[seccion][rol] !== "ninguno";
+}
+
+export function canWrite(rol: Rol | null | undefined, seccion: Seccion): boolean {
+  if (!rol) return false;
+  return SECTION_ACCESS[seccion][rol] === "escritura";
 }
 
 // Distingue soporte/jefe del resto dentro de una seccion que sigue abierta
-// a los 3 roles pero donde una parte (ej. Pagos de Planilla, aprobar
-// Fijos) es exclusiva de soporte/jefe.
+// a mas roles pero donde una parte (ej. aprobar/rechazar Compras) es
+// exclusiva de soporte/jefe.
 export function esSoporteOJefe(rol: Rol | null | undefined): boolean {
   return rol === "soporte" || rol === "jefe";
 }

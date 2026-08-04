@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeCampoSchema } from "@/lib/validation/informesCampo";
 
@@ -18,7 +18,7 @@ const BUCKET_FIRMAS = "informes-campo-firmas";
 export async function sincronizarInformeCampoPendienteAction(
   formData: FormData,
 ): Promise<{ ok: true; informeId: string } | { ok: false; error: string }> {
-  await requirePerfil();
+  await requireWrite("informes");
 
   const raw = Object.fromEntries(formData) as Record<string, string>;
   const firmaAgro = formData.get("firmaAgro");

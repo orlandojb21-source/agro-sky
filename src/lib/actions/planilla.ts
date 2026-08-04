@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { pagoSchema, pagoEditSchema, parseDetalleCalculo } from "@/lib/validation/planilla";
 import type { ActionState } from "./types";
@@ -11,7 +11,7 @@ export async function crearPagoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = pagoSchema.safeParse(raw);
@@ -49,7 +49,7 @@ export async function editarPagoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = pagoEditSchema.safeParse(raw);
@@ -82,7 +82,7 @@ export async function editarPagoAction(
 }
 
 export async function eliminarPagoAction(id: string) {
-  await requirePerfil();
+  await requireWrite("planilla");
   const supabase = await createClient();
   const { error } = await supabase.from("planilla_pagos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el pago.");

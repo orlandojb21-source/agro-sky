@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 import { NAV } from "./nav-items";
-import { SECTION_ACCESS, ROL_LABEL, type Rol } from "@/lib/roles";
+import { canAccess, ROL_LABEL, type Rol } from "@/lib/roles";
 import { Logo } from "@/components/ui/Logo";
 
 function EnlaceNav({
@@ -40,7 +40,7 @@ export function Nav({
   userId: string;
 }) {
   const pathname = usePathname();
-  const items = NAV.filter((item) => SECTION_ACCESS[item.seccion].includes(rol));
+  const items = NAV.filter((item) => canAccess(rol, item.seccion));
 
   return (
     <>

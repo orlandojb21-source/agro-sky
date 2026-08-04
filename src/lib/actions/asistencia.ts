@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requirePerfil, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { asistenciaSchema, asistenciaEditSchema } from "@/lib/validation/asistencia";
 import {
@@ -18,7 +18,7 @@ export async function crearAsistenciaAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = asistenciaSchema.safeParse(raw);
@@ -47,7 +47,7 @@ export async function editarAsistenciaAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = asistenciaEditSchema.safeParse(raw);
@@ -75,7 +75,7 @@ export async function editarAsistenciaAction(
 }
 
 export async function eliminarAsistenciaAction(id: string) {
-  await requirePerfil();
+  await requireWrite("planilla");
   const supabase = await createClient();
   const { error } = await supabase.from("planilla_asistencia").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar la asistencia.");

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeDiarioSchema, informeDiarioEditSchema } from "@/lib/validation/informesDiarios";
 import { eliminarImagenControlAction } from "@/lib/actions/informeDiarioImagen";
@@ -22,7 +22,7 @@ export async function crearInformeDiarioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("informes");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = informeDiarioSchema.safeParse(raw);
@@ -57,7 +57,7 @@ export async function editarInformeDiarioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("informes");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = informeDiarioEditSchema.safeParse(raw);
@@ -100,7 +100,7 @@ export async function editarInformeDiarioAction(
 }
 
 export async function eliminarInformeDiarioAction(id: string) {
-  await requirePerfil();
+  await requireWrite("informes");
   const supabase = await createClient();
 
   const { data: informe } = await supabase

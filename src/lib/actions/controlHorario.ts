@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { controlHorarioSchema, controlHorarioEditSchema } from "@/lib/validation/controlHorario";
 import type { ActionState } from "./types";
@@ -18,7 +18,7 @@ export async function crearControlHorarioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = controlHorarioSchema.safeParse(raw);
@@ -45,7 +45,7 @@ export async function editarControlHorarioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = controlHorarioEditSchema.safeParse(raw);
@@ -71,7 +71,7 @@ export async function editarControlHorarioAction(
 }
 
 export async function eliminarControlHorarioAction(id: string) {
-  await requirePerfil();
+  await requireWrite("planilla");
   const supabase = await createClient();
   const { error } = await supabase.from("control_horario").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el registro.");

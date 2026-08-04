@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeCampoSchema, informeCampoEditSchema } from "@/lib/validation/informesCampo";
 import type { ActionState } from "./types";
@@ -11,7 +11,9 @@ export async function crearInformeCampoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  // Campo SÍ puede crear un Informe de Campo (a diferencia de editar/
+  // eliminar, ver más abajo) -- pedido explícito del usuario, 2026-08-04.
+  await requireWrite("informes");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let ayudantes: unknown;
@@ -82,7 +84,11 @@ export async function editarInformeCampoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  // Campo puede crear pero NO editar (pedido explícito del usuario,
+  // 2026-08-04) -- mismo patrón que la excepción de Compras/Planilla en
+  // esSoporteOJefe(), pero puntual a esta acción.
+  const perfil = await requireWrite("informes");
+  if (perfil.rol === "campo") redirect("/unauthorized");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let ayudantes: unknown;
@@ -153,7 +159,10 @@ export async function editarInformeCampoAction(
 }
 
 export async function eliminarInformeCampoAction(id: string) {
-  await requirePerfil();
+  // Campo puede crear pero NO eliminar (pedido explícito del usuario,
+  // 2026-08-04).
+  const perfil = await requireWrite("informes");
+  if (perfil.rol === "campo") redirect("/unauthorized");
   const supabase = await createClient();
 
   const { data: informe } = await supabase

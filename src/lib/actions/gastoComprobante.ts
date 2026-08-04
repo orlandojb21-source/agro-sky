@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
 
@@ -13,7 +13,7 @@ import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
 const BUCKET = "gastos-comprobantes";
 
 export async function subirComprobanteGastoAction(formData: FormData): Promise<{ ruta: string }> {
-  await requirePerfil();
+  await requireWrite("compras");
   const archivo = formData.get("comprobante");
   if (!(archivo instanceof Blob)) throw new Error("No se recibió ningún comprobante.");
   if (archivo.size > TAMANO_MAXIMO_ARCHIVO_BYTES) {
@@ -35,7 +35,7 @@ export async function subirComprobanteGastoAction(formData: FormData): Promise<{
 // falla, queda un archivo huérfano en Storage, pero eso no debe bloquear
 // la acción principal.
 export async function eliminarComprobanteGastoAction(ruta: string): Promise<void> {
-  await requirePerfil();
+  await requireWrite("compras");
   const supabase = await createClient();
   await supabase.storage.from(BUCKET).remove([ruta]);
 }

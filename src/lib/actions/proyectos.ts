@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requirePerfil, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeProyectoSchema, informeProyectoEditSchema } from "@/lib/validation/proyectos";
 import type { ActionState } from "./types";
@@ -11,7 +11,7 @@ export async function crearInformeProyectoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("informes");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let filas: unknown;
@@ -80,7 +80,7 @@ export async function editarInformeProyectoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("informes");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let filas: unknown;
@@ -149,7 +149,7 @@ export async function editarInformeProyectoAction(
 }
 
 export async function eliminarInformeProyectoAction(id: string) {
-  await requirePerfil();
+  await requireWrite("informes");
   const supabase = await createClient();
   const { error } = await supabase.rpc("eliminar_informe_proyecto", { p_informe_id: id });
   if (error) throw new Error(error.message || "No se pudo eliminar el informe.");

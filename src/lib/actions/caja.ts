@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   gastoSchema,
@@ -19,7 +19,7 @@ export async function crearGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("caja-menuda");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoSchema.safeParse(raw);
@@ -61,7 +61,7 @@ export async function editarGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("caja-menuda");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoEditSchema.safeParse(raw);
@@ -102,7 +102,7 @@ export async function editarGastoAction(
 }
 
 export async function eliminarGastoAction(id: string) {
-  await requirePerfil();
+  await requireWrite("caja-menuda");
   const supabase = await createClient();
   const { error } = await supabase.from("caja_gastos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el movimiento.");
@@ -114,7 +114,7 @@ export async function eliminarGastoAction(id: string) {
 // MovimientosTabla para los movimientos que tienen "entregado" pero aun no
 // tienen "vuelto".
 export async function registrarVueltoAction(id: string, formData: FormData) {
-  await requirePerfil();
+  await requireWrite("caja-menuda");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = vueltoSchema.safeParse(raw);
@@ -139,7 +139,7 @@ export async function crearReposicionAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("caja-menuda");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reposicionSchema.safeParse(raw);
@@ -166,7 +166,7 @@ export async function editarReposicionAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("caja-menuda");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reposicionEditSchema.safeParse(raw);
@@ -194,7 +194,7 @@ export async function editarReposicionAction(
 }
 
 export async function eliminarReposicionAction(id: string) {
-  await requirePerfil();
+  await requireWrite("caja-menuda");
   const supabase = await createClient();
   const { error } = await supabase.from("caja_reposiciones").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar la reposición.");
@@ -205,7 +205,7 @@ export async function crearArqueoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("caja-menuda");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = arqueoSchema.safeParse(raw);
@@ -243,7 +243,7 @@ export async function crearArqueoAction(
 }
 
 export async function eliminarArqueoAction(id: string) {
-  await requirePerfil();
+  await requireWrite("caja-menuda");
   const supabase = await createClient();
   const { error } = await supabase.from("caja_arqueos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el arqueo.");

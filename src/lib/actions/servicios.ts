@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { servicioSchema, servicioEditSchema } from "@/lib/validation/servicios";
 import type { ActionState } from "./types";
@@ -11,7 +11,7 @@ export async function crearServicioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("inventario");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = servicioSchema.safeParse(raw);
@@ -38,7 +38,7 @@ export async function actualizarServicioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("inventario");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = servicioEditSchema.safeParse(raw);
@@ -64,7 +64,7 @@ export async function actualizarServicioAction(
 }
 
 export async function eliminarServicioAction(id: string) {
-  await requirePerfil();
+  await requireWrite("inventario");
   const supabase = await createClient();
   const { error } = await supabase.from("servicios").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el servicio.");

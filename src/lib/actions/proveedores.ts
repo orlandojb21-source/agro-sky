@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { proveedorSchema, proveedorEditSchema } from "@/lib/validation/proveedores";
 import type { ActionState } from "./types";
@@ -11,7 +11,7 @@ export async function crearProveedorAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requirePerfil();
+  const perfil = await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = proveedorSchema.safeParse(raw);
@@ -42,7 +42,7 @@ export async function editarProveedorAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = proveedorEditSchema.safeParse(raw);
@@ -72,7 +72,7 @@ export async function editarProveedorAction(
 }
 
 export async function eliminarProveedorAction(id: string) {
-  await requirePerfil();
+  await requireWrite("compras");
   const supabase = await createClient();
   const { error } = await supabase.from("proveedores").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el proveedor.");

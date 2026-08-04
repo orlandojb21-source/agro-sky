@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireSection } from "@/lib/session";
+import { requireSection, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -19,7 +19,7 @@ export async function crearUsuarioAction(
 ): Promise<ActionState> {
   // Defensa en profundidad: esta accion usa la service_role key, que se
   // salta RLS, asi que el chequeo de rol de aqui ES el control de acceso real.
-  await requireSection("usuarios");
+  await requireWrite("usuarios");
 
   const parsed = usuarioCreateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -64,7 +64,7 @@ export async function actualizarUsuarioAction(
 ): Promise<ActionState> {
   // Igual que crearUsuarioAction: usa la service_role key para el correo,
   // asi que este chequeo de seccion ES el control de acceso real.
-  await requireSection("usuarios");
+  await requireWrite("usuarios");
 
   const parsed = usuarioUpdateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -106,7 +106,7 @@ export async function asignarPasswordAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireSection("usuarios");
+  await requireWrite("usuarios");
 
   const parsed = usuarioPasswordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -124,7 +124,7 @@ export async function asignarPasswordAction(
 }
 
 export async function eliminarUsuarioAction(id: string) {
-  const perfilActual = await requireSection("usuarios");
+  const perfilActual = await requireWrite("usuarios");
   if (perfilActual.id === id) return; // no puedes eliminar tu propia cuenta
 
   const admin = createAdminClient();

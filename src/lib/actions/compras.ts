@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePerfil } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { aprobarSchema, rechazarSchema, solicitudSchema } from "@/lib/validation/compras";
 import type { ActionState } from "./types";
@@ -11,7 +11,7 @@ export async function crearSolicitudAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requirePerfil();
+  await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let items: unknown;
@@ -59,7 +59,7 @@ export async function crearSolicitudAction(
 // no desde useActionState, por eso el patron de error es redirect con el
 // mensaje en la query string (igual que confirmarCotizacionAction).
 export async function aprobarSolicitudAction(id: string, formData: FormData) {
-  await requirePerfil();
+  await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
   const parsed = aprobarSchema.safeParse(raw);
 
@@ -86,7 +86,7 @@ export async function aprobarSolicitudAction(id: string, formData: FormData) {
 }
 
 export async function rechazarSolicitudAction(id: string, formData: FormData) {
-  await requirePerfil();
+  await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
   const parsed = rechazarSchema.safeParse(raw);
 
@@ -106,7 +106,7 @@ export async function rechazarSolicitudAction(id: string, formData: FormData) {
 }
 
 export async function eliminarSolicitudAction(id: string) {
-  await requirePerfil();
+  await requireWrite("compras");
   const supabase = await createClient();
   const { error } = await supabase.from("solicitudes_compra").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar la solicitud.");
@@ -116,7 +116,7 @@ export async function eliminarSolicitudAction(id: string) {
 // Confirma la recepcion de una orden (todo o nada): el RPC suma cada
 // renglon al inventario automaticamente. Abierto a los 3 roles.
 export async function confirmarRecepcionAction(id: string) {
-  await requirePerfil();
+  await requireWrite("compras");
   const supabase = await createClient();
   const { error } = await supabase.rpc("confirmar_recepcion_orden", { p_orden_id: id });
 
@@ -132,7 +132,7 @@ export async function confirmarRecepcionAction(id: string) {
 }
 
 export async function eliminarOrdenAction(id: string) {
-  await requirePerfil();
+  await requireWrite("compras");
   const supabase = await createClient();
   const { error } = await supabase.from("ordenes_compra").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar la orden.");
