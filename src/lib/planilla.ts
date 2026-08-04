@@ -9,13 +9,41 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 // que formatDateOnly() en lib/format.ts.
 const OFFSET_PANAMA_MS = 5 * 60 * 60 * 1000;
 
-function hoyEnPanama(): { anio: number; mes: number } {
+function hoyEnPanama(): { anio: number; mes: number; dia: number } {
   const ahora = new Date(Date.now() - OFFSET_PANAMA_MS);
-  return { anio: ahora.getUTCFullYear(), mes: ahora.getUTCMonth() };
+  return { anio: ahora.getUTCFullYear(), mes: ahora.getUTCMonth(), dia: ahora.getUTCDate() };
 }
 
 function aISO(anio: number, mes: number, dia: number): string {
   return `${anio}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+const MESES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+export type QuincenaActual = {
+  fechaDesde: string;
+  fechaHasta: string;
+  etiqueta: string;
+};
+
+// Las quincenas son siempre 1-15 y 16-fin de mes (calendario de pago real
+// de la empresa, confirmado por el usuario 2026-08-04) -- calculado con
+// la misma hora de Panama que calcularTotalesMesActual, por la misma
+// razon (el servidor puede correr en otra zona horaria).
+export function obtenerQuincenaActual(): QuincenaActual {
+  const { anio, mes, dia } = hoyEnPanama();
+  const esPrimeraQuincena = dia <= 15;
+  const ultimoDiaMes = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
+  const diaHasta = esPrimeraQuincena ? 15 : ultimoDiaMes;
+
+  return {
+    fechaDesde: aISO(anio, mes, esPrimeraQuincena ? 1 : 16),
+    fechaHasta: aISO(anio, mes, diaHasta),
+    etiqueta: `${esPrimeraQuincena ? 1 : 16} al ${diaHasta} de ${MESES[mes]}`,
+  };
 }
 
 export type TotalesMes = {

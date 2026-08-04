@@ -273,7 +273,9 @@ export async function exportarFacturaPDF(factura: FacturaExportable) {
 
   doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
+  doc.setTextColor(220, 38, 38);
   doc.text(`Factura No. ${String(factura.numeroFactura).padStart(10, "0")}`, 14, 20);
+  doc.setTextColor(0, 0, 0);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
