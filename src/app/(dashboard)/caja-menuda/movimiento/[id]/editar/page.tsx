@@ -12,20 +12,22 @@ export default async function EditarMovimientoPage({
   await requireSection("caja-menuda");
 
   const supabase = await createClient();
-  const [{ data: gasto }, { data: colaboradoresData }] = await Promise.all([
+  const [{ data: gasto }, { data: colaboradoresData }, { data: proveedoresData }] = await Promise.all([
     supabase
       .from("caja_gastos")
       .select(
-        "id, fecha, categoria, nombre, numero_recibo, concepto, monto_detalle, colaborador, previsto, entregado_detalle, vuelto_detalle, nota",
+        "id, fecha, categoria, nombre, proveedor_id, numero_recibo, concepto, monto_detalle, colaborador, previsto, entregado_detalle, vuelto_detalle, nota",
       )
       .eq("id", id)
       .maybeSingle(),
     supabase.from("colaboradores").select("nombre").order("nombre"),
+    supabase.from("proveedores").select("id, nombre").order("nombre"),
   ]);
 
   if (!gasto) notFound();
 
   const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
+  const proveedores = (proveedoresData ?? []).map((p) => ({ id: p.id as string, nombre: p.nombre as string }));
 
   return (
     <div>
@@ -35,11 +37,13 @@ export default async function EditarMovimientoPage({
       <MovimientoForm
         fechaHoy={gasto.fecha}
         colaboradores={colaboradores}
+        proveedores={proveedores}
         valoresIniciales={{
           id: gasto.id,
           fecha: gasto.fecha,
           categoria: gasto.categoria,
           nombre: gasto.nombre,
+          proveedorId: gasto.proveedor_id,
           numeroRecibo: gasto.numero_recibo,
           concepto: gasto.concepto,
           montoDetalle: gasto.monto_detalle as Record<string, number> | null,

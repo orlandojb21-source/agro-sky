@@ -70,11 +70,7 @@ export default async function GastosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Gastos"
-        description="Gastos propios de la empresa (alquiler, luz, agua, internet, etc.) -- no son de Caja Menuda ni compra de piezas de Inventario."
-        action={<LinkButton href="/compras/gastos/nuevo">+ Nuevo gasto</LinkButton>}
-      />
+      <PageHeader title="Gastos" action={<LinkButton href="/compras/gastos/nuevo">+ Nuevo gasto</LinkButton>} />
       {gastos.length > 0 && (
         <p className="text-sm text-green-800 dark:text-green-200">
           Total registrado: <span className="font-semibold">{formatMoney(totalGeneral)}</span>

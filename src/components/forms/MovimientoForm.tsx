@@ -13,11 +13,14 @@ const CONCEPTOS_SUGERIDOS = ["Transporte", "Comida", "Combustible", "Hospedaje",
 const CLASE_INPUT =
   "rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
 
+export type ProveedorOpcion = { id: string; nombre: string };
+
 type ValoresMovimiento = {
   id?: string;
   fecha: string;
   categoria: string | null;
   nombre: string | null;
+  proveedorId: string | null;
   numeroRecibo: string | null;
   concepto: string | null;
   montoDetalle: Record<string, number> | null;
@@ -42,10 +45,12 @@ function detalleAValoresIniciales(
 export function MovimientoForm({
   fechaHoy,
   colaboradores,
+  proveedores,
   valoresIniciales,
 }: {
   fechaHoy: string;
   colaboradores: string[];
+  proveedores: ProveedorOpcion[];
   valoresIniciales?: ValoresMovimiento;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -117,6 +122,18 @@ export function MovimientoForm({
         {opcionesNombre.map((c) => (
           <option key={c} value={c}>
             {c}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        label="Proveedor"
+        name="proveedorId"
+        defaultValue={v?.proveedorId ?? valoresIniciales?.proveedorId ?? ""}
+      >
+        <option value="">Sin proveedor</option>
+        {proveedores.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.nombre}
           </option>
         ))}
       </SelectField>
