@@ -12,11 +12,13 @@ export function UsuarioEditForm({
   nombreCompleto,
   email,
   rol,
+  telefono,
 }: {
   id: string;
   nombreCompleto: string;
   email: string;
   rol: Rol;
+  telefono: string | null;
 }) {
   const [state, formAction] = useActionState(actualizarUsuarioAction, {
     error: null,
@@ -39,6 +41,7 @@ export function UsuarioEditForm({
         required
       />
       <Field label="Correo" name="email" type="email" defaultValue={email} required />
+      <Field label="Teléfono" name="telefono" defaultValue={telefono ?? ""} placeholder="Opcional" />
       <SelectField label="Rol" name="rol" required defaultValue={rol}>
         {ROLES.map((r) => (
           <option key={r} value={r}>

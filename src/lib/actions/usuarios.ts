@@ -10,6 +10,7 @@ import {
   usuarioUpdateSchema,
   usuarioPasswordSchema,
 } from "@/lib/validation/usuarios";
+import type { Rol } from "@/lib/roles";
 import type { ActionState } from "./types";
 
 export async function crearUsuarioAction(
@@ -45,6 +46,7 @@ export async function crearUsuarioAction(
     id: data.user.id,
     nombre_completo: parsed.data.nombreCompleto,
     rol: parsed.data.rol,
+    telefono: parsed.data.telefono || null,
   });
 
   if (perfilError) {
@@ -75,6 +77,7 @@ export async function actualizarUsuarioAction(
     .update({
       nombre_completo: parsed.data.nombreCompleto,
       rol: parsed.data.rol,
+      telefono: parsed.data.telefono || null,
     })
     .eq("id", parsed.data.id);
 
@@ -133,7 +136,7 @@ export async function eliminarUsuarioAction(id: string) {
 export type UsuarioConEmail = {
   id: string;
   nombreCompleto: string;
-  rol: "administrador" | "jefe" | "soporte";
+  rol: Rol;
   email: string;
   telefono: string | null;
   creadoEn: string;

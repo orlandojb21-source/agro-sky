@@ -25,6 +25,7 @@ export default async function EditarUsuarioPage({
         nombreCompleto={usuario.nombreCompleto}
         email={usuario.email}
         rol={usuario.rol}
+        telefono={usuario.telefono}
       />
       <AsignarPasswordForm id={usuario.id} />
     </div>

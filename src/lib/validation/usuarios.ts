@@ -8,6 +8,7 @@ export const usuarioCreateSchema = z.object({
     .string()
     .min(8, "La contraseña debe tener al menos 8 caracteres"),
   rol: z.enum(ROLES as [string, ...string[]]),
+  telefono: z.string().trim().optional().default(""),
 });
 
 export const usuarioUpdateSchema = z.object({
@@ -15,6 +16,7 @@ export const usuarioUpdateSchema = z.object({
   nombreCompleto: z.string().trim().min(1, "Nombre requerido"),
   email: z.string().trim().email("Correo inválido"),
   rol: z.enum(ROLES as [string, ...string[]]),
+  telefono: z.string().trim().optional().default(""),
 });
 
 export const usuarioPasswordSchema = z.object({

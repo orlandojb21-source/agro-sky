@@ -27,6 +27,7 @@ export function UsuarioForm() {
         required
         placeholder="Mínimo 8 caracteres"
       />
+      <Field label="Teléfono" name="telefono" placeholder="Opcional" />
       <SelectField label="Rol" name="rol" required defaultValue="soporte">
         {ROLES.map((r) => (
           <option key={r} value={r}>
