@@ -30,10 +30,12 @@ export async function sincronizarInformeCampoPendienteAction(
   let ayudantes: unknown;
   let parcelas: unknown;
   let productos: unknown;
+  let imagenes: unknown;
   try {
     ayudantes = JSON.parse(raw.ayudantes || "[]");
     parcelas = JSON.parse(raw.parcelas || "[]");
     productos = JSON.parse(raw.productos || "[]");
+    imagenes = JSON.parse(raw.imagenes || "[]");
   } catch {
     return { ok: false, error: "No se pudieron leer los datos del informe guardado." };
   }
@@ -76,7 +78,7 @@ export async function sincronizarInformeCampoPendienteAction(
     nombreFirmaCliente: raw.nombreFirmaCliente,
     parcelas,
     productos,
-    imagenRuta: raw.imagenRuta,
+    imagenes,
   });
 
   if (!parsed.success) {
@@ -101,7 +103,7 @@ export async function sincronizarInformeCampoPendienteAction(
     p_nombre_firma_agro: parsed.data.nombreFirmaAgro,
     p_firma_cliente_ruta: parsed.data.firmaClienteRuta,
     p_nombre_firma_cliente: parsed.data.nombreFirmaCliente,
-    p_imagen_ruta: parsed.data.imagenRuta,
+    p_imagenes: parsed.data.imagenes,
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
   });

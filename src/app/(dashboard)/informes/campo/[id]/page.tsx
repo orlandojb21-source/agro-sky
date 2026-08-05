@@ -24,11 +24,13 @@ export default async function DetalleInformeCampoPage({
   const puedeEditar = canWrite(perfil.rol, "informes") && perfil.rol !== "campo";
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: parcelasData }, { data: productosData }] = await Promise.all([
-    supabase.from("informes_campo").select("*").eq("id", id).maybeSingle(),
-    supabase.from("informe_campo_parcelas").select("id, numero_parcela, hectareas").eq("informe_id", id).order("numero_parcela"),
-    supabase.from("informe_campo_productos").select("id, producto_activo, lts_por_hectarea").eq("informe_id", id),
-  ]);
+  const [{ data: informe }, { data: parcelasData }, { data: productosData }, { data: imagenesData }] =
+    await Promise.all([
+      supabase.from("informes_campo").select("*").eq("id", id).maybeSingle(),
+      supabase.from("informe_campo_parcelas").select("id, numero_parcela, hectareas").eq("informe_id", id).order("numero_parcela"),
+      supabase.from("informe_campo_productos").select("id, producto_activo, lts_por_hectarea").eq("informe_id", id),
+      supabase.from("informe_campo_imagenes").select("id, ruta").eq("informe_id", id).order("creado_en"),
+    ]);
 
   if (!informe) notFound();
 
@@ -58,13 +60,17 @@ export default async function DetalleInformeCampoPage({
       .createSignedUrl(informe.firma_cliente_ruta, DURACION_URL_FIRMADA_SEG);
     firmaClienteUrl = data?.signedUrl ?? null;
   }
-  let imagenUrl: string | null = null;
-  if (informe.imagen_ruta) {
-    const { data } = await supabase.storage
-      .from(BUCKET_IMAGENES)
-      .createSignedUrl(informe.imagen_ruta as string, DURACION_URL_FIRMADA_SEG);
-    imagenUrl = data?.signedUrl ?? null;
-  }
+  const imagenes = (imagenesData ?? []).map((img) => ({ id: img.id as string, ruta: img.ruta as string }));
+  const imagenUrls = (
+    await Promise.all(
+      imagenes.map(async (img) => {
+        const { data } = await supabase.storage
+          .from(BUCKET_IMAGENES)
+          .createSignedUrl(img.ruta, DURACION_URL_FIRMADA_SEG);
+        return data?.signedUrl ?? null;
+      }),
+    )
+  ).filter((url): url is string => Boolean(url));
 
   const ayudantes = (informe.ayudantes ?? []) as string[];
 
@@ -87,7 +93,7 @@ export default async function DetalleInformeCampoPage({
     firmaClienteUrl,
     parcelas: parcelas.map((p) => ({ numeroParcela: p.numeroParcela, hectareas: p.hectareas })),
     productos: productos.map((p) => ({ productoActivo: p.productoActivo, ltsPorHectarea: p.ltsPorHectarea })),
-    imagenUrl,
+    imagenUrls,
   };
 
   return (
@@ -262,17 +268,22 @@ export default async function DetalleInformeCampoPage({
         </div>
       </div>
 
-      {imagenUrl && (
+      {imagenUrls.length > 0 && (
         <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
           <p className="mb-2 text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-            Imagen adjunta
+            {imagenUrls.length > 1 ? "Imágenes adjuntas" : "Imagen adjunta"}
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imagenUrl}
-            alt="Imagen adjunta"
-            className="max-h-[400px] w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
-          />
+          <div className="flex flex-wrap gap-3">
+            {imagenUrls.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={url}
+                src={url}
+                alt={`Imagen adjunta ${i + 1}`}
+                className="h-40 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
+              />
+            ))}
+          </div>
         </div>
       )}
 

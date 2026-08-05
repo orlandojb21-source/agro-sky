@@ -20,10 +20,12 @@ export async function crearInformeCampoAction(
   let ayudantes: unknown;
   let parcelas: unknown;
   let productos: unknown;
+  let imagenes: unknown;
   try {
     ayudantes = JSON.parse(raw.ayudantes || "[]");
     parcelas = JSON.parse(raw.parcelas || "[]");
     productos = JSON.parse(raw.productos || "[]");
+    imagenes = JSON.parse(raw.imagenes || "[]");
   } catch {
     return { error: "No se pudieron leer los datos del informe. Intenta de nuevo.", values: raw };
   }
@@ -47,7 +49,7 @@ export async function crearInformeCampoAction(
     nombreFirmaCliente: raw.nombreFirmaCliente,
     parcelas,
     productos,
-    imagenRuta: raw.imagenRuta,
+    imagenes,
   });
 
   if (!parsed.success) {
@@ -72,7 +74,7 @@ export async function crearInformeCampoAction(
     p_nombre_firma_agro: parsed.data.nombreFirmaAgro,
     p_firma_cliente_ruta: parsed.data.firmaClienteRuta,
     p_nombre_firma_cliente: parsed.data.nombreFirmaCliente,
-    p_imagen_ruta: parsed.data.imagenRuta,
+    p_imagenes: parsed.data.imagenes,
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
   });
@@ -99,10 +101,12 @@ export async function editarInformeCampoAction(
   let ayudantes: unknown;
   let parcelas: unknown;
   let productos: unknown;
+  let imagenes: unknown;
   try {
     ayudantes = JSON.parse(raw.ayudantes || "[]");
     parcelas = JSON.parse(raw.parcelas || "[]");
     productos = JSON.parse(raw.productos || "[]");
+    imagenes = JSON.parse(raw.imagenes || "[]");
   } catch {
     return { error: "No se pudieron leer los datos del informe. Intenta de nuevo.", values: raw };
   }
@@ -127,7 +131,7 @@ export async function editarInformeCampoAction(
     nombreFirmaCliente: raw.nombreFirmaCliente,
     parcelas,
     productos,
-    imagenRuta: raw.imagenRuta,
+    imagenes,
   });
 
   if (!parsed.success) {
@@ -135,6 +139,16 @@ export async function editarInformeCampoAction(
   }
 
   const supabase = await createClient();
+
+  // Rutas ya guardadas ANTES de editar -- se necesitan para saber cuáles
+  // ya no están en la lista nueva y limpiarlas de Storage (el RPC borra
+  // e inserta de nuevo las filas de informe_campo_imagenes, pero eso no
+  // borra los archivos reales).
+  const { data: imagenesAnteriores } = await supabase
+    .from("informe_campo_imagenes")
+    .select("ruta")
+    .eq("informe_id", parsed.data.id);
+
   const { error } = await supabase.rpc("editar_informe_campo", {
     p_informe_id: parsed.data.id,
     p_cliente: parsed.data.cliente,
@@ -153,7 +167,7 @@ export async function editarInformeCampoAction(
     p_nombre_firma_agro: parsed.data.nombreFirmaAgro,
     p_firma_cliente_ruta: parsed.data.firmaClienteRuta,
     p_nombre_firma_cliente: parsed.data.nombreFirmaCliente,
-    p_imagen_ruta: parsed.data.imagenRuta,
+    p_imagenes: parsed.data.imagenes,
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
   });
@@ -162,13 +176,13 @@ export async function editarInformeCampoAction(
     return { error: error.message || "No se pudo actualizar el informe. Intenta de nuevo.", values: raw };
   }
 
-  // Si se reemplazó o se quitó la imagen, se limpia la anterior en Storage
-  // (best-effort) para no ir dejando archivos huérfanos acumulándose --
-  // mismo patrón que editarInformeDiarioAction.
-  const imagenRutaAnterior = raw.imagenRutaAnterior;
-  if (imagenRutaAnterior && imagenRutaAnterior !== parsed.data.imagenRuta) {
-    await eliminarImagenInformeCampoAction(imagenRutaAnterior).catch(() => {});
-  }
+  // Cualquier imagen que ya no está en la lista nueva se limpia de
+  // Storage (best-effort) para no ir dejando archivos huérfanos
+  // acumulándose -- mismo criterio que editarInformeDiarioAction.
+  const rutasQuitadas = (imagenesAnteriores ?? [])
+    .map((r) => r.ruta as string)
+    .filter((ruta) => !parsed.data.imagenes.includes(ruta));
+  await Promise.all(rutasQuitadas.map((ruta) => eliminarImagenInformeCampoAction(ruta).catch(() => {})));
 
   revalidatePath("/informes/campo");
   revalidatePath(`/informes/campo/${parsed.data.id}`);
@@ -182,11 +196,10 @@ export async function eliminarInformeCampoAction(id: string) {
   if (perfil.rol === "campo") redirect("/unauthorized");
   const supabase = await createClient();
 
-  const { data: informe } = await supabase
-    .from("informes_campo")
-    .select("firma_agro_ruta, firma_cliente_ruta, imagen_ruta")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: informe }, { data: imagenes }] = await Promise.all([
+    supabase.from("informes_campo").select("firma_agro_ruta, firma_cliente_ruta").eq("id", id).maybeSingle(),
+    supabase.from("informe_campo_imagenes").select("ruta").eq("informe_id", id),
+  ]);
 
   const { error } = await supabase.rpc("eliminar_informe_campo", { p_informe_id: id });
   if (error) throw new Error(error.message || "No se pudo eliminar el informe.");
@@ -200,9 +213,9 @@ export async function eliminarInformeCampoAction(id: string) {
     await supabase.storage.from("informes-campo-firmas").remove(rutas);
   }
 
-  if (informe?.imagen_ruta) {
-    await eliminarImagenInformeCampoAction(informe.imagen_ruta).catch(() => {});
-  }
+  await Promise.all(
+    (imagenes ?? []).map((img) => eliminarImagenInformeCampoAction(img.ruta as string).catch(() => {})),
+  );
 
   revalidatePath("/informes/campo");
 }

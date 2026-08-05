@@ -20,13 +20,19 @@ export default async function EditarInformeCampoPage({
   if (perfil.rol === "campo") redirect("/unauthorized");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: parcelasData }, { data: productosData }, { data: colaboradoresData }] =
-    await Promise.all([
-      supabase.from("informes_campo").select("*").eq("id", id).maybeSingle(),
-      supabase.from("informe_campo_parcelas").select("numero_parcela, hectareas").eq("informe_id", id).order("numero_parcela"),
-      supabase.from("informe_campo_productos").select("producto_activo, lts_por_hectarea").eq("informe_id", id),
-      supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
-    ]);
+  const [
+    { data: informe },
+    { data: parcelasData },
+    { data: productosData },
+    { data: colaboradoresData },
+    { data: imagenesData },
+  ] = await Promise.all([
+    supabase.from("informes_campo").select("*").eq("id", id).maybeSingle(),
+    supabase.from("informe_campo_parcelas").select("numero_parcela, hectareas").eq("informe_id", id).order("numero_parcela"),
+    supabase.from("informe_campo_productos").select("producto_activo, lts_por_hectarea").eq("informe_id", id),
+    supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
+    supabase.from("informe_campo_imagenes").select("ruta").eq("informe_id", id).order("creado_en"),
+  ]);
 
   if (!informe) notFound();
 
@@ -55,13 +61,15 @@ export default async function EditarInformeCampoPage({
       .createSignedUrl(informe.firma_cliente_ruta, DURACION_URL_FIRMADA_SEG);
     firmaClienteUrl = data?.signedUrl ?? null;
   }
-  let imagenUrl: string | null = null;
-  if (informe.imagen_ruta) {
-    const { data } = await supabase.storage
-      .from(BUCKET_IMAGENES)
-      .createSignedUrl(informe.imagen_ruta as string, DURACION_URL_FIRMADA_SEG);
-    imagenUrl = data?.signedUrl ?? null;
-  }
+  const imagenes = await Promise.all(
+    (imagenesData ?? []).map(async (img) => {
+      const ruta = img.ruta as string;
+      const { data } = await supabase.storage
+        .from(BUCKET_IMAGENES)
+        .createSignedUrl(ruta, DURACION_URL_FIRMADA_SEG);
+      return { ruta, url: data?.signedUrl ?? null };
+    }),
+  );
 
   return (
     <div>
@@ -99,8 +107,7 @@ export default async function EditarInformeCampoPage({
             productoActivo: p.producto_activo as string,
             ltsPorHectarea: Number(p.lts_por_hectarea),
           })),
-          imagenRuta: informe.imagen_ruta as string | null,
-          imagenUrl,
+          imagenes,
         }}
       />
     </div>

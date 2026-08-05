@@ -47,6 +47,13 @@ function leerConexionServidor() {
 
 type ParcelaDraft = { numeroParcela: string; hectareas: string };
 type ProductoDraft = { productoActivo: string; ltsPorHectarea: string };
+// "previewUrl" es null cuando se restaura desde un envío fallido (v?.imagenes
+// -- ya no hay una vista previa a mano, solo la ruta ya subida); se sigue
+// mostrando la imagen igual con un <img> apuntando a esa ruta no hace
+// falta, la miniatura simplemente no se re-muestra hasta que la persona
+// vuelva a elegir el archivo -- la ruta ya subida de todas formas viaja
+// en el envío.
+type ImagenAdjuntaDraft = { ruta: string; previewUrl: string | null };
 
 function parcelaVacia(): ParcelaDraft {
   return { numeroParcela: "", hectareas: "" };
@@ -77,10 +84,10 @@ export type ValoresInformeCampo = {
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
-  imagenRuta: string | null;
-  // URL firmada (temporal) de la imagen ya guardada, generada del lado del
-  // servidor solo para mostrarla -- nunca se envía en el formulario.
-  imagenUrl: string | null;
+  // "url" es la URL firmada (temporal) de cada imagen ya guardada,
+  // generada del lado del servidor solo para mostrarla -- nunca se
+  // envía en el formulario, solo "ruta".
+  imagenes: { ruta: string; url: string | null }[];
 };
 
 export function InformeCampoForm({
@@ -185,17 +192,25 @@ export function InformeCampoForm({
   const [guardadoLocalOk, setGuardadoLocalOk] = useState(false);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
-  // Imagen adjunta -- opcional, no bloquea guardar el informe. Se sube al
-  // elegirla (igual que en Informe Diario), no al enviar el formulario;
-  // requiere conexión en ese momento -- si falla (ej. sin señal en
-  // campo), se avisa con errorImagen y el informe se puede guardar igual
-  // sin ella.
-  const [imagenRuta, setImagenRuta] = useState(
-    v?.imagenRuta ?? valoresIniciales?.imagenRuta ?? "",
-  );
-  const [imagenPreviewUrl, setImagenPreviewUrl] = useState<string | null>(
-    valoresIniciales?.imagenUrl ?? null,
-  );
+  // Imágenes adjuntas -- opcional, no bloquea guardar el informe, y se
+  // puede adjuntar más de una. Cada una se sube al elegirla (igual que
+  // en Informe Diario), no al enviar el formulario; requiere conexión en
+  // ese momento -- si falla (ej. sin señal en campo), se avisa con
+  // errorImagen y el informe se puede guardar igual sin ella.
+  const [imagenes, setImagenes] = useState<ImagenAdjuntaDraft[]>(() => {
+    if (v?.imagenes) {
+      try {
+        const rutas = JSON.parse(v.imagenes) as string[];
+        return rutas.map((ruta) => ({ ruta, previewUrl: null }));
+      } catch {
+        // sigue abajo
+      }
+    }
+    return (valoresIniciales?.imagenes ?? []).map((img) => ({
+      ruta: img.ruta,
+      previewUrl: img.url,
+    }));
+  });
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const [errorImagen, setErrorImagen] = useState<string | null>(null);
 
@@ -272,11 +287,11 @@ export function InformeCampoForm({
     setSubiendoImagen(true);
     try {
       const comprimida = await comprimirImagen(archivo);
-      setImagenPreviewUrl(URL.createObjectURL(comprimida));
+      const previewUrl = URL.createObjectURL(comprimida);
       const fd = new FormData();
       fd.append("imagen", comprimida, "imagen.jpg");
       const { ruta } = await subirImagenInformeCampoAction(fd);
-      setImagenRuta(ruta);
+      setImagenes((prev) => [...prev, { ruta, previewUrl }]);
     } catch (err) {
       setErrorImagen(err instanceof Error ? err.message : "No se pudo subir la imagen. Intenta de nuevo.");
     } finally {
@@ -284,9 +299,8 @@ export function InformeCampoForm({
     }
   }
 
-  function quitarImagen() {
-    setImagenRuta("");
-    setImagenPreviewUrl(null);
+  function quitarImagen(i: number) {
+    setImagenes((prev) => prev.filter((_, idx) => idx !== i));
     setErrorImagen(null);
   }
 
@@ -302,10 +316,12 @@ export function InformeCampoForm({
       let ayudantesRaw: unknown;
       let parcelasRaw: unknown;
       let productosRaw: unknown;
+      let imagenesRaw: unknown;
       try {
         ayudantesRaw = JSON.parse(raw.ayudantes || "[]");
         parcelasRaw = JSON.parse(raw.parcelas || "[]");
         productosRaw = JSON.parse(raw.productos || "[]");
+        imagenesRaw = JSON.parse(raw.imagenes || "[]");
       } catch {
         throw new Error("No se pudieron leer los datos del informe.");
       }
@@ -333,7 +349,7 @@ export function InformeCampoForm({
         nombreFirmaCliente: raw.nombreFirmaCliente,
         parcelas: parcelasRaw,
         productos: productosRaw,
-        imagenRuta: raw.imagenRuta,
+        imagenes: imagenesRaw,
       });
 
       if (!parsed.success) {
@@ -358,7 +374,7 @@ export function InformeCampoForm({
           nombreFirmaCliente: parsed.data.nombreFirmaCliente,
           parcelas: parsed.data.parcelas,
           productos: parsed.data.productos,
-          imagenRuta: parsed.data.imagenRuta,
+          imagenes: parsed.data.imagenes,
         },
         firmaAgroBlobRef.current,
         firmaClienteBlobRef.current,
@@ -399,8 +415,7 @@ export function InformeCampoForm({
     setFirmaClienteRuta("");
     firmaAgroBlobRef.current = null;
     firmaClienteBlobRef.current = null;
-    setImagenRuta("");
-    setImagenPreviewUrl(null);
+    setImagenes([]);
     setErrorImagen(null);
     setGuardadoLocalOk(false);
     setErrorLocal(null);
@@ -451,12 +466,7 @@ export function InformeCampoForm({
       <input type="hidden" name="ayudantes" value={JSON.stringify(ayudantesParaEnviar)} />
       <input type="hidden" name="parcelas" value={JSON.stringify(parcelasParaEnviar)} />
       <input type="hidden" name="productos" value={JSON.stringify(productosParaEnviar)} />
-      <input type="hidden" name="imagenRuta" value={imagenRuta} />
-      <input
-        type="hidden"
-        name="imagenRutaAnterior"
-        value={valoresIniciales?.imagenRuta ?? ""}
-      />
+      <input type="hidden" name="imagenes" value={JSON.stringify(imagenes.map((img) => img.ruta))} />
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
@@ -749,41 +759,52 @@ export function InformeCampoForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+      <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
-          Imagen adjunta (opcional)
+          Imágenes adjuntas (opcional)
         </span>
-        <div className="flex flex-wrap items-center gap-4">
-          {imagenPreviewUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imagenPreviewUrl}
-              alt="Imagen adjunta"
-              className="h-24 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
-            />
-          )}
-          <div className="flex flex-col gap-1">
-            <input
-              type="file"
-              accept="image/*"
-              disabled={subiendoImagen}
-              onChange={(e) => elegirImagen(e.target.files?.[0])}
-              className={CLASE_INPUT_IMAGEN}
-            />
-            {subiendoImagen && (
-              <span className="text-xs text-green-700/70 dark:text-green-300/70">Subiendo imagen...</span>
-            )}
-            {errorImagen && <span className="text-xs text-red-600 dark:text-red-400">{errorImagen}</span>}
-            {imagenRuta && !subiendoImagen && (
-              <button
-                type="button"
-                onClick={quitarImagen}
-                className="self-start text-xs text-red-600 hover:underline dark:text-red-400"
-              >
-                Quitar imagen
-              </button>
-            )}
+        {imagenes.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {imagenes.map((img, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                {img.previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={img.previewUrl}
+                    alt={`Imagen adjunta ${i + 1}`}
+                    className="h-24 w-24 rounded-lg border border-green-200 object-cover dark:border-green-800"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-xs text-green-700/60 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300/60">
+                    Imagen {i + 1}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => quitarImagen(i)}
+                  className="text-xs text-red-600 hover:underline dark:text-red-400"
+                >
+                  Quitar
+                </button>
+              </div>
+            ))}
           </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <input
+            type="file"
+            accept="image/*"
+            disabled={subiendoImagen}
+            onChange={(e) => {
+              elegirImagen(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+            className={CLASE_INPUT_IMAGEN}
+          />
+          {subiendoImagen && (
+            <span className="text-xs text-green-700/70 dark:text-green-300/70">Subiendo imagen...</span>
+          )}
+          {errorImagen && <span className="text-xs text-red-600 dark:text-red-400">{errorImagen}</span>}
         </div>
       </div>
 

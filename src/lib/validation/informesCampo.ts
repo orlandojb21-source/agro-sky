@@ -42,8 +42,8 @@ const informeCampoBaseSchema = z.object({
   parcelas: z.array(parcelaInformeCampoSchema).min(1, "Agrega al menos una parcela"),
   productos: z.array(productoInformeCampoSchema).default([]),
   // Opcional -- no bloquea guardar el informe (pedido explícito del
-  // usuario, 2026-08-05).
-  imagenRuta: z.string().trim().optional().default(""),
+  // usuario, 2026-08-05), y se puede adjuntar más de una.
+  imagenes: z.array(z.string().trim().min(1)).default([]),
 });
 
 const horaFinValida = (data: { horaInicio: string; horaFin: string }) => data.horaFin >= data.horaInicio;

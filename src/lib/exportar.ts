@@ -906,7 +906,7 @@ export type InformeCampoExportable = {
   firmaClienteUrl: string | null;
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
-  imagenUrl: string | null;
+  imagenUrls: string[];
 };
 
 // Carga cualquier URL (ej. una URL firmada de Storage) como base64 vía un
@@ -1114,26 +1114,30 @@ export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
 
   await dibujarCuerpoInformeCampo(doc, informe, 30, yEmpresa);
 
-  // Imagen adjunta -- opcional. Se ajusta al ancho de la página
-  // conservando su proporción real para no deformarla (mismo patrón que
-  // la captura del control del drone en Informe Diario).
-  if (informe.imagenUrl) {
-    const imagen = await cargarImagenBase64ConDimensiones(informe.imagenUrl);
-    if (imagen) {
-      doc.addPage();
-      const anchoPaginaImagen = doc.internal.pageSize.getWidth();
-      const altoPagina = doc.internal.pageSize.getHeight();
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Imagen adjunta", 14, 18);
+  // Imágenes adjuntas -- opcional, puede haber varias. Cada una en su
+  // propia página, ajustada al ancho conservando su proporción real
+  // para no deformarla (mismo patrón que la captura del control del
+  // drone en Informe Diario).
+  for (let i = 0; i < informe.imagenUrls.length; i++) {
+    const imagen = await cargarImagenBase64ConDimensiones(informe.imagenUrls[i]);
+    if (!imagen) continue;
+    doc.addPage();
+    const anchoPaginaImagen = doc.internal.pageSize.getWidth();
+    const altoPagina = doc.internal.pageSize.getHeight();
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      informe.imagenUrls.length > 1 ? `Imagen adjunta ${i + 1} de ${informe.imagenUrls.length}` : "Imagen adjunta",
+      14,
+      18,
+    );
 
-      const anchoMaximo = anchoPaginaImagen - 28;
-      const altoMaximo = altoPagina - 34;
-      const escala = Math.min(anchoMaximo / imagen.ancho, altoMaximo / imagen.alto, 1);
-      const anchoFinal = imagen.ancho * escala;
-      const altoFinal = imagen.alto * escala;
-      doc.addImage(imagen.dataUrl, "PNG", 14, 26, anchoFinal, altoFinal);
-    }
+    const anchoMaximo = anchoPaginaImagen - 28;
+    const altoMaximo = altoPagina - 34;
+    const escala = Math.min(anchoMaximo / imagen.ancho, altoMaximo / imagen.alto, 1);
+    const anchoFinal = imagen.ancho * escala;
+    const altoFinal = imagen.alto * escala;
+    doc.addImage(imagen.dataUrl, "PNG", 14, 26, anchoFinal, altoFinal);
   }
 
   doc.save(`${nombreArchivoInformeCampo(informe.cliente, informe.fecha)}.pdf`);
