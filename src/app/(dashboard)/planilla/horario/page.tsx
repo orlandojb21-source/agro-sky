@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
@@ -17,7 +18,8 @@ type ControlHorarioFila = {
 };
 
 export default async function ControlHorarioPage() {
-  await requireSection("planilla");
+  const perfil = await requireSection("planilla");
+  const puedeEscribir = canWrite(perfil.rol, "planilla");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -50,23 +52,27 @@ export default async function ControlHorarioPage() {
         ),
     },
     { header: "Nota", render: (r) => r.nota ?? "—" },
-    {
-      header: "",
-      render: (r) => (
-        <div className="flex gap-3">
-          <Link
-            href={`/planilla/horario/${r.id}/editar`}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Editar
-          </Link>
-          <DeleteButton
-            action={eliminarControlHorarioAction.bind(null, r.id)}
-            confirmMessage="¿Eliminar este registro? Esta acción no se puede deshacer."
-          />
-        </div>
-      ),
-    },
+    ...(puedeEscribir
+      ? [
+          {
+            header: "",
+            render: (r: ControlHorarioFila) => (
+              <div className="flex gap-3">
+                <Link
+                  href={`/planilla/horario/${r.id}/editar`}
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Editar
+                </Link>
+                <DeleteButton
+                  action={eliminarControlHorarioAction.bind(null, r.id)}
+                  confirmMessage="¿Eliminar este registro? Esta acción no se puede deshacer."
+                />
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -74,7 +80,9 @@ export default async function ControlHorarioPage() {
       <PageHeader
         title="Control de Horario"
         description="Cumplimiento diario del horario de colaboradores Fijos (44h semanales)."
-        action={<LinkButton href="/planilla/horario/nuevo">+ Nuevo registro</LinkButton>}
+        action={
+          puedeEscribir ? <LinkButton href="/planilla/horario/nuevo">+ Nuevo registro</LinkButton> : undefined
+        }
       />
       <DataTable rows={registros} columns={columns} emptyMessage="Todavía no hay registros de horario." />
     </div>

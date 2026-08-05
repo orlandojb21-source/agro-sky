@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
@@ -19,7 +20,8 @@ export default async function DetalleOrdenCompraPage({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
-  await requireSection("compras");
+  const perfil = await requireSection("compras");
+  const puedeEscribir = canWrite(perfil.rol, "compras");
 
   const supabase = await createClient();
   const [{ data: orden }, { data: items }] = await Promise.all([
@@ -141,7 +143,7 @@ export default async function DetalleOrdenCompraPage({
         </div>
       </div>
 
-      {pendiente && (
+      {pendiente && puedeEscribir && (
         <div className="flex flex-wrap gap-3">
           <BotonConfirmarRecepcion id={orden.id as string} />
           <DeleteButton

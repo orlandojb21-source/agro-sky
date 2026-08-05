@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { obtenerUsuario } from "@/lib/actions/usuarios";
 import { UsuarioEditForm } from "@/components/forms/UsuarioEditForm";
 import { AsignarPasswordForm } from "@/components/forms/AsignarPasswordForm";
@@ -10,7 +10,7 @@ export default async function EditarUsuarioPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("usuarios");
+  await requireWrite("usuarios");
 
   const usuario = await obtenerUsuario(id);
   if (!usuario) notFound();

@@ -1,4 +1,4 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { tipoDesdeSegmento } from "@/lib/inventario-tipo";
 import { ProductoForm } from "@/components/forms/ProductoForm";
 
@@ -8,7 +8,7 @@ export default async function NuevoProductoPage({
   params: Promise<{ tipo: string }>;
 }) {
   const { tipo: segmento } = await params;
-  await requireSection("inventario");
+  await requireWrite("inventario");
   const tipo = tipoDesdeSegmento(segmento);
 
   return (

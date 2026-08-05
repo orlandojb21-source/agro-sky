@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
@@ -17,7 +18,8 @@ export default async function DetalleCotizacionPage({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
-  await requireSection("ventas");
+  const perfil = await requireSection("ventas");
+  const puedeEscribir = canWrite(perfil.rol, "ventas");
 
   const supabase = await createClient();
   const [{ data: cotizacion }, { data: items }] = await Promise.all([
@@ -215,7 +217,7 @@ export default async function DetalleCotizacionPage({
         </div>
       </div>
 
-      {pendiente && (
+      {pendiente && puedeEscribir && (
         <div className="flex flex-wrap items-end gap-3">
           <ConfirmarCotizacionForm id={cotizacion.id as string} />
           <DeleteButton

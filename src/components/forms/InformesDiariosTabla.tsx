@@ -25,7 +25,13 @@ const FILTROS_VACIOS: Filtros = { texto: "", fechaDesde: "", fechaHasta: "" };
 const inputFiltro =
   "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
-export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila[] }) {
+export function InformesDiariosTabla({
+  informes,
+  puedeEscribir,
+}: {
+  informes: InformeDiarioFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
@@ -143,10 +149,12 @@ export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila
                         >
                           Ver
                         </Link>
-                        <DeleteButton
-                          action={eliminarInformeDiarioAction.bind(null, i.id)}
-                          confirmMessage="¿Eliminar este informe diario? Esta acción no se puede deshacer."
-                        />
+                        {puedeEscribir && (
+                          <DeleteButton
+                            action={eliminarInformeDiarioAction.bind(null, i.id)}
+                            confirmMessage="¿Eliminar este informe diario? Esta acción no se puede deshacer."
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -192,10 +200,12 @@ export function InformesDiariosTabla({ informes }: { informes: InformeDiarioFila
                 >
                   Ver
                 </Link>
-                <DeleteButton
-                  action={eliminarInformeDiarioAction.bind(null, i.id)}
-                  confirmMessage="¿Eliminar este informe diario? Esta acción no se puede deshacer."
-                />
+                {puedeEscribir && (
+                  <DeleteButton
+                    action={eliminarInformeDiarioAction.bind(null, i.id)}
+                    confirmMessage="¿Eliminar este informe diario? Esta acción no se puede deshacer."
+                  />
+                )}
               </div>
             </div>
           ))

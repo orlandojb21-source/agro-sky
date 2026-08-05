@@ -9,11 +9,12 @@ import {
   eliminarUsuarioAction,
   type UsuarioConEmail,
 } from "@/lib/actions/usuarios";
-import { ROL_LABEL } from "@/lib/roles";
+import { ROL_LABEL, canWrite } from "@/lib/roles";
 import { formatDate } from "@/lib/format";
 
 export default async function UsuariosPage() {
   const perfilActual = await requireSection("usuarios");
+  const puedeEscribir = canWrite(perfilActual.rol, "usuarios");
   const usuarios = await listarUsuarios();
 
   const columns: Column<UsuarioConEmail>[] = [
@@ -22,25 +23,29 @@ export default async function UsuariosPage() {
     { header: "Teléfono", render: (u) => u.telefono ?? "—" },
     { header: "Rol", render: (u) => ROL_LABEL[u.rol] },
     { header: "Desde", render: (u) => formatDate(u.creadoEn) },
-    {
-      header: "",
-      render: (u) => (
-        <div className="flex gap-3">
-          <Link
-            href={`/usuarios/${u.id}/editar`}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Editar
-          </Link>
-          {u.id !== perfilActual.id && (
-            <DeleteButton
-              action={eliminarUsuarioAction.bind(null, u.id)}
-              confirmMessage={`¿Eliminar la cuenta de ${u.nombreCompleto}? Esta acción no se puede deshacer.`}
-            />
-          )}
-        </div>
-      ),
-    },
+    ...(puedeEscribir
+      ? [
+          {
+            header: "",
+            render: (u: UsuarioConEmail) => (
+              <div className="flex gap-3">
+                <Link
+                  href={`/usuarios/${u.id}/editar`}
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Editar
+                </Link>
+                {u.id !== perfilActual.id && (
+                  <DeleteButton
+                    action={eliminarUsuarioAction.bind(null, u.id)}
+                    confirmMessage={`¿Eliminar la cuenta de ${u.nombreCompleto}? Esta acción no se puede deshacer.`}
+                  />
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -48,7 +53,7 @@ export default async function UsuariosPage() {
       <PageHeader
         title="Usuarios"
         description="Solo quienes aparecen aquí pueden entrar a Agro Sky."
-        action={<LinkButton href="/usuarios/nuevo">+ Nuevo usuario</LinkButton>}
+        action={puedeEscribir ? <LinkButton href="/usuarios/nuevo">+ Nuevo usuario</LinkButton> : undefined}
       />
       <DataTable
         rows={usuarios}

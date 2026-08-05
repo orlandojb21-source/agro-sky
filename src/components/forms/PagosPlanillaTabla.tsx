@@ -79,7 +79,13 @@ const inputFiltroMovil =
 const etiquetaFiltroMovil =
   "flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70";
 
-export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
+export function PagosPlanillaTabla({
+  pagos,
+  puedeEscribir,
+}: {
+  pagos: PagoFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
@@ -323,13 +329,17 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                             }}
                           />
                         )}
-                        <Link
-                          href={`/planilla/pagos/${p.id}/editar`}
-                          className="text-sm text-green-700 hover:underline dark:text-green-300"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteButton action={eliminarPagoAction.bind(null, p.id)} />
+                        {puedeEscribir && (
+                          <>
+                            <Link
+                              href={`/planilla/pagos/${p.id}/editar`}
+                              className="text-sm text-green-700 hover:underline dark:text-green-300"
+                            >
+                              Editar
+                            </Link>
+                            <DeleteButton action={eliminarPagoAction.bind(null, p.id)} />
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -399,13 +409,17 @@ export function PagosPlanillaTabla({ pagos }: { pagos: PagoFila[] }) {
                     }}
                   />
                 )}
-                <Link
-                  href={`/planilla/pagos/${p.id}/editar`}
-                  className="text-sm text-green-700 hover:underline dark:text-green-300"
-                >
-                  Editar
-                </Link>
-                <DeleteButton action={eliminarPagoAction.bind(null, p.id)} />
+                {puedeEscribir && (
+                  <>
+                    <Link
+                      href={`/planilla/pagos/${p.id}/editar`}
+                      className="text-sm text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Editar
+                    </Link>
+                    <DeleteButton action={eliminarPagoAction.bind(null, p.id)} />
+                  </>
+                )}
               </div>
             </div>
           ))

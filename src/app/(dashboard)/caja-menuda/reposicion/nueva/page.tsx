@@ -1,8 +1,8 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { ReposicionForm } from "@/components/forms/ReposicionForm";
 
 export default async function NuevaReposicionPage() {
-  await requireSection("caja-menuda");
+  await requireWrite("caja-menuda");
 
   return (
     <div>

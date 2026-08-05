@@ -36,7 +36,13 @@ const inputFiltroMovil =
 const etiquetaFiltroMovil =
   "flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70";
 
-export function ServicioTabla({ servicios }: { servicios: ServicioFila[] }) {
+export function ServicioTabla({
+  servicios,
+  puedeEscribir,
+}: {
+  servicios: ServicioFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
@@ -211,15 +217,17 @@ export function ServicioTabla({ servicios }: { servicios: ServicioFila[] }) {
                       {s.precio !== null ? formatMoney(s.precio) : "—"}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex gap-3">
-                        <Link
-                          href={`/inventario/servicios/${s.id}/editar`}
-                          className="text-sm text-green-700 hover:underline dark:text-green-300"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteButton action={eliminarServicioAction.bind(null, s.id)} />
-                      </div>
+                      {puedeEscribir && (
+                        <div className="flex gap-3">
+                          <Link
+                            href={`/inventario/servicios/${s.id}/editar`}
+                            className="text-sm text-green-700 hover:underline dark:text-green-300"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteButton action={eliminarServicioAction.bind(null, s.id)} />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -269,15 +277,17 @@ export function ServicioTabla({ servicios }: { servicios: ServicioFila[] }) {
                 </div>
               </div>
 
-              <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                <Link
-                  href={`/inventario/servicios/${s.id}/editar`}
-                  className="text-sm text-green-700 hover:underline dark:text-green-300"
-                >
-                  Editar
-                </Link>
-                <DeleteButton action={eliminarServicioAction.bind(null, s.id)} />
-              </div>
+              {puedeEscribir && (
+                <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+                  <Link
+                    href={`/inventario/servicios/${s.id}/editar`}
+                    className="text-sm text-green-700 hover:underline dark:text-green-300"
+                  >
+                    Editar
+                  </Link>
+                  <DeleteButton action={eliminarServicioAction.bind(null, s.id)} />
+                </div>
+              )}
             </div>
           ))
         )}

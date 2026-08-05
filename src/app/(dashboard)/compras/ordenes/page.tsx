@@ -1,10 +1,12 @@
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { OrdenesCompraTabla, type OrdenFila } from "@/components/forms/OrdenesCompraTabla";
 
 export default async function OrdenesCompraPage() {
-  await requireSection("compras");
+  const perfil = await requireSection("compras");
+  const puedeEscribir = canWrite(perfil.rol, "compras");
 
   const supabase = await createClient();
   const [{ data: ordenes }, { data: items }] = await Promise.all([
@@ -33,7 +35,7 @@ export default async function OrdenesCompraPage() {
   return (
     <div>
       <PageHeader title="Órdenes de Compra" />
-      <OrdenesCompraTabla ordenes={filas} />
+      <OrdenesCompraTabla ordenes={filas} puedeEscribir={puedeEscribir} />
     </div>
   );
 }

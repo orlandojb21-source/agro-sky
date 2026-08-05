@@ -1,4 +1,4 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   VentaForm,
@@ -8,7 +8,7 @@ import {
 } from "@/components/forms/VentaForm";
 
 export default async function NuevaVentaPage() {
-  await requireSection("ventas");
+  await requireWrite("ventas");
 
   const supabase = await createClient();
   const [{ data: productos }, { data: servicios }, { data: clientesData }] = await Promise.all([

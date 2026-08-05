@@ -1,11 +1,13 @@
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { ServicioTabla, type ServicioFila } from "@/components/forms/ServicioTabla";
 
 export default async function ServiciosPage() {
-  await requireSection("inventario");
+  const perfil = await requireSection("inventario");
+  const puedeEscribir = canWrite(perfil.rol, "inventario");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -25,9 +27,13 @@ export default async function ServiciosPage() {
     <div>
       <PageHeader
         title="Inventario — Servicios"
-        action={<LinkButton href="/inventario/servicios/nuevo">+ Nuevo servicio</LinkButton>}
+        action={
+          puedeEscribir ? (
+            <LinkButton href="/inventario/servicios/nuevo">+ Nuevo servicio</LinkButton>
+          ) : undefined
+        }
       />
-      <ServicioTabla servicios={servicios} />
+      <ServicioTabla servicios={servicios} puedeEscribir={puedeEscribir} />
     </div>
   );
 }

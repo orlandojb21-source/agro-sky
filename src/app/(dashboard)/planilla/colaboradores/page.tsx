@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
@@ -22,9 +23,11 @@ type ColaboradorFila = {
 function ListaColaboradores({
   titulo,
   colaboradores,
+  puedeEscribir,
 }: {
   titulo: string;
   colaboradores: ColaboradorFila[];
+  puedeEscribir: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -55,18 +58,20 @@ function ListaColaboradores({
                   )}
                   <span className="font-medium text-green-900 dark:text-green-50">{c.nombre}</span>
                 </div>
-                <div className="flex gap-3">
-                  <Link
-                    href={`/planilla/colaboradores/${c.id}/editar`}
-                    className="text-sm text-green-700 hover:underline dark:text-green-300"
-                  >
-                    Editar
-                  </Link>
-                  <DeleteButton
-                    action={eliminarColaboradorAction.bind(null, c.id)}
-                    confirmMessage={`¿Eliminar a ${c.nombre}? Los pagos ya registrados a su nombre no se ven afectados, pero dejará de aparecer para registrar pagos nuevos.`}
-                  />
-                </div>
+                {puedeEscribir && (
+                  <div className="flex gap-3">
+                    <Link
+                      href={`/planilla/colaboradores/${c.id}/editar`}
+                      className="text-sm text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Editar
+                    </Link>
+                    <DeleteButton
+                      action={eliminarColaboradorAction.bind(null, c.id)}
+                      confirmMessage={`¿Eliminar a ${c.nombre}? Los pagos ya registrados a su nombre no se ven afectados, pero dejará de aparecer para registrar pagos nuevos.`}
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -77,7 +82,8 @@ function ListaColaboradores({
 }
 
 export default async function ColaboradoresPage() {
-  await requireSection("planilla");
+  const perfil = await requireSection("planilla");
+  const puedeEscribir = canWrite(perfil.rol, "planilla");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -121,13 +127,23 @@ export default async function ColaboradoresPage() {
         }
       />
 
-      <ColaboradorFormToggle>
-        <ColaboradorForm />
-      </ColaboradorFormToggle>
+      {puedeEscribir && (
+        <ColaboradorFormToggle>
+          <ColaboradorForm />
+        </ColaboradorFormToggle>
+      )}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <ListaColaboradores titulo="Fijos (salario quincenal)" colaboradores={fijos} />
-        <ListaColaboradores titulo="Campo (asistencia diaria, pago quincenal)" colaboradores={campo} />
+        <ListaColaboradores
+          titulo="Fijos (salario quincenal)"
+          colaboradores={fijos}
+          puedeEscribir={puedeEscribir}
+        />
+        <ListaColaboradores
+          titulo="Campo (asistencia diaria, pago quincenal)"
+          colaboradores={campo}
+          puedeEscribir={puedeEscribir}
+        />
       </div>
     </div>
   );

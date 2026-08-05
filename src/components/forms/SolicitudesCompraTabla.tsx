@@ -46,7 +46,13 @@ function BadgeEstado({ estado }: { estado: SolicitudFila["estado"] }) {
   );
 }
 
-export function SolicitudesCompraTabla({ solicitudes }: { solicitudes: SolicitudFila[] }) {
+export function SolicitudesCompraTabla({
+  solicitudes,
+  puedeEscribir,
+}: {
+  solicitudes: SolicitudFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
@@ -149,7 +155,7 @@ export function SolicitudesCompraTabla({ solicitudes }: { solicitudes: Solicitud
                         >
                           Ver
                         </Link>
-                        {s.estado === "pendiente" && (
+                        {puedeEscribir && s.estado === "pendiente" && (
                           <DeleteButton
                             action={eliminarSolicitudAction.bind(null, s.id)}
                             confirmMessage="¿Eliminar esta solicitud de compra? Esta acción no se puede deshacer."
@@ -202,7 +208,7 @@ export function SolicitudesCompraTabla({ solicitudes }: { solicitudes: Solicitud
                 >
                   Ver
                 </Link>
-                {s.estado === "pendiente" && (
+                {puedeEscribir && s.estado === "pendiente" && (
                   <DeleteButton
                     action={eliminarSolicitudAction.bind(null, s.id)}
                     confirmMessage="¿Eliminar esta solicitud de compra? Esta acción no se puede deshacer."

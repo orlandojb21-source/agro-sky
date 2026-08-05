@@ -1,9 +1,9 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { ControlHorarioForm } from "@/components/forms/ControlHorarioForm";
 
 export default async function NuevoControlHorarioPage() {
-  await requireSection("planilla");
+  await requireWrite("planilla");
 
   const supabase = await createClient();
   const { data } = await supabase.from("colaboradores").select("nombre").eq("tipo", "fijo").order("nombre");

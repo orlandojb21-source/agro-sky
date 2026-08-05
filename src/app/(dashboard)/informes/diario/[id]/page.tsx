@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { requirePerfil } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
@@ -18,6 +20,8 @@ export default async function DetalleInformeDiarioPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const perfil = await requirePerfil();
+  const puedeEscribir = canWrite(perfil.rol, "informes");
 
   const supabase = await createClient();
   const { data: informe } = await supabase
@@ -120,9 +124,11 @@ export default async function DetalleInformeDiarioPage({
         </div>
         <div className="flex flex-wrap gap-2">
           <BotonExportarInformeDiario informe={informeExportable} />
-          <LinkButton href={`/informes/diario/${id}/editar`} variant="secondary">
-            Editar
-          </LinkButton>
+          {puedeEscribir && (
+            <LinkButton href={`/informes/diario/${id}/editar`} variant="secondary">
+              Editar
+            </LinkButton>
+          )}
           <LinkButton href="/informes/diario" variant="secondary">
             Volver
           </LinkButton>
@@ -210,12 +216,14 @@ export default async function DetalleInformeDiarioPage({
         </div>
       )}
 
-      <div>
-        <DeleteButton
-          action={eliminarInformeDiarioAction.bind(null, id)}
-          confirmMessage="¿Eliminar este informe diario? Esta acción no se puede deshacer."
-        />
-      </div>
+      {puedeEscribir && (
+        <div>
+          <DeleteButton
+            action={eliminarInformeDiarioAction.bind(null, id)}
+            confirmMessage="¿Eliminar este informe diario? Esta acción no se puede deshacer."
+          />
+        </div>
+      )}
     </div>
   );
 }

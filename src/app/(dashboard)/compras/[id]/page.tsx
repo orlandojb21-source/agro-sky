@@ -7,7 +7,7 @@ import { FormError } from "@/components/ui/FormError";
 import { FormularioAprobarSolicitud } from "@/components/forms/FormularioAprobarSolicitud";
 import { FormularioRechazarSolicitud } from "@/components/forms/FormularioRechazarSolicitud";
 import { eliminarSolicitudAction } from "@/lib/actions/compras";
-import { esSoporteOJefe } from "@/lib/roles";
+import { esSoporteOJefe, canWrite } from "@/lib/roles";
 import { formatDateOnly } from "@/lib/format";
 
 export default async function DetalleSolicitudCompraPage({
@@ -20,6 +20,7 @@ export default async function DetalleSolicitudCompraPage({
   const { id } = await params;
   const { error } = await searchParams;
   const perfil = await requireSection("compras");
+  const puedeEscribir = canWrite(perfil.rol, "compras");
 
   const supabase = await createClient();
   const [{ data: solicitud }, { data: items }] = await Promise.all([
@@ -145,10 +146,12 @@ export default async function DetalleSolicitudCompraPage({
               <FormularioRechazarSolicitud id={solicitud.id as string} />
             </div>
           )}
-          <DeleteButton
-            action={eliminarSolicitudAction.bind(null, solicitud.id as string)}
-            confirmMessage="¿Eliminar esta solicitud de compra? Esta acción no se puede deshacer."
-          />
+          {puedeEscribir && (
+            <DeleteButton
+              action={eliminarSolicitudAction.bind(null, solicitud.id as string)}
+              confirmMessage="¿Eliminar esta solicitud de compra? Esta acción no se puede deshacer."
+            />
+          )}
         </div>
       )}
     </div>

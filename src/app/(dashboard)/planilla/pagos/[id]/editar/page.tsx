@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { esSoporteOJefe } from "@/lib/roles";
 import { PagoPlanillaForm } from "@/components/forms/PagoPlanillaForm";
@@ -11,7 +11,7 @@ export default async function EditarPagoPlanillaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const perfil = await requireSection("planilla");
+  const perfil = await requireWrite("planilla");
 
   const supabase = await createClient();
   const [{ data: pago }, { data: colaboradoresData }] = await Promise.all([

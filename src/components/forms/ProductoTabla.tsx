@@ -159,11 +159,13 @@ export function ProductoTabla({
   seccion,
   seccionHref,
   titulo,
+  puedeEscribir,
 }: {
   productos: ProductoFila[];
   seccion: string;
   seccionHref: string;
   titulo: string;
+  puedeEscribir: boolean;
 }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
@@ -408,17 +410,19 @@ export function ProductoTabla({
                       {formatMoney(p.venta)}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex gap-3">
-                        <Link
-                          href={`${seccionHref}/${p.id}/editar`}
-                          className="text-sm text-green-700 hover:underline dark:text-green-300"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteButton
-                          action={eliminarProductoAction.bind(null, p.id, seccion)}
-                        />
-                      </div>
+                      {puedeEscribir && (
+                        <div className="flex gap-3">
+                          <Link
+                            href={`${seccionHref}/${p.id}/editar`}
+                            className="text-sm text-green-700 hover:underline dark:text-green-300"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteButton
+                            action={eliminarProductoAction.bind(null, p.id, seccion)}
+                          />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -446,6 +450,7 @@ export function ProductoTabla({
               producto={p}
               seccion={seccion}
               seccionHref={seccionHref}
+              puedeEscribir={puedeEscribir}
             />
           ))
         )}
@@ -458,10 +463,12 @@ function TarjetaProductoMovil({
   producto: p,
   seccion,
   seccionHref,
+  puedeEscribir,
 }: {
   producto: ProductoFila;
   seccion: string;
   seccionHref: string;
+  puedeEscribir: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
 
@@ -540,15 +547,17 @@ function TarjetaProductoMovil({
             </div>
           </div>
 
-          <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-            <Link
-              href={`${seccionHref}/${p.id}/editar`}
-              className="text-sm text-green-700 hover:underline dark:text-green-300"
-            >
-              Editar
-            </Link>
-            <DeleteButton action={eliminarProductoAction.bind(null, p.id, seccion)} />
-          </div>
+          {puedeEscribir && (
+            <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+              <Link
+                href={`${seccionHref}/${p.id}/editar`}
+                className="text-sm text-green-700 hover:underline dark:text-green-300"
+              >
+                Editar
+              </Link>
+              <DeleteButton action={eliminarProductoAction.bind(null, p.id, seccion)} />
+            </div>
+          )}
         </>
       )}
     </div>

@@ -1,9 +1,9 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { GastoForm } from "@/components/forms/GastoForm";
 
 export default async function NuevoGastoPage() {
-  await requireSection("compras");
+  await requireWrite("compras");
 
   const supabase = await createClient();
   const { data } = await supabase.from("proveedores").select("id, nombre").order("nombre");

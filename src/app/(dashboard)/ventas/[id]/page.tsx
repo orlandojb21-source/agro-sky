@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { BotonExportarFactura } from "@/components/forms/BotonExportarFactura";
@@ -13,7 +14,8 @@ export default async function DetalleVentaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("ventas");
+  const perfil = await requireSection("ventas");
+  const puedeEscribir = canWrite(perfil.rol, "ventas");
 
   const supabase = await createClient();
   const [{ data: venta }, { data: items }] = await Promise.all([
@@ -169,7 +171,7 @@ export default async function DetalleVentaPage({
         ) : null}
       </div>
 
-      {pendiente && (
+      {pendiente && puedeEscribir && (
         <div>
           <MarcarCobradaButton id={venta.id as string} />
         </div>

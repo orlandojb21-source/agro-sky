@@ -39,7 +39,13 @@ function BadgeEstado({ estado }: { estado: "pendiente" | "confirmada" }) {
   );
 }
 
-export function CotizacionesTabla({ cotizaciones }: { cotizaciones: CotizacionFila[] }) {
+export function CotizacionesTabla({
+  cotizaciones,
+  puedeEscribir,
+}: {
+  cotizaciones: CotizacionFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
@@ -153,7 +159,7 @@ export function CotizacionesTabla({ cotizaciones }: { cotizaciones: CotizacionFi
                         >
                           Ver
                         </Link>
-                        {c.estado === "pendiente" && (
+                        {puedeEscribir && c.estado === "pendiente" && (
                           <>
                             <BotonConfirmarCotizacion id={c.id} />
                             <DeleteButton
@@ -208,7 +214,7 @@ export function CotizacionesTabla({ cotizaciones }: { cotizaciones: CotizacionFi
                 >
                   Ver
                 </Link>
-                {c.estado === "pendiente" && (
+                {puedeEscribir && c.estado === "pendiente" && (
                   <>
                     <BotonConfirmarCotizacion id={c.id} />
                     <DeleteButton

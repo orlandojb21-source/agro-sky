@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -17,7 +18,8 @@ type ProveedorFila = {
 };
 
 export default async function ProveedoresPage() {
-  await requireSection("compras");
+  const perfil = await requireSection("compras");
+  const puedeEscribir = canWrite(perfil.rol, "compras");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -38,31 +40,37 @@ export default async function ProveedoresPage() {
     { header: "Contacto", render: (p) => p.contacto ?? "—" },
     { header: "Teléfono", render: (p) => p.telefono ?? "—" },
     { header: "Correo", render: (p) => p.correo ?? "—" },
-    {
-      header: "",
-      render: (p) => (
-        <div className="flex gap-3">
-          <Link
-            href={`/compras/proveedores/${p.id}/editar`}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Editar
-          </Link>
-          <DeleteButton
-            action={eliminarProveedorAction.bind(null, p.id)}
-            confirmMessage={`¿Eliminar a ${p.nombre}? Los gastos ya registrados con este proveedor no se ven afectados.`}
-          />
-        </div>
-      ),
-    },
+    ...(puedeEscribir
+      ? [
+          {
+            header: "",
+            render: (p: ProveedorFila) => (
+              <div className="flex gap-3">
+                <Link
+                  href={`/compras/proveedores/${p.id}/editar`}
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Editar
+                </Link>
+                <DeleteButton
+                  action={eliminarProveedorAction.bind(null, p.id)}
+                  confirmMessage={`¿Eliminar a ${p.nombre}? Los gastos ya registrados con este proveedor no se ven afectados.`}
+                />
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Proveedores" description="Datos de los proveedores de la empresa." />
-      <ProveedorFormToggle>
-        <ProveedorForm />
-      </ProveedorFormToggle>
+      {puedeEscribir && (
+        <ProveedorFormToggle>
+          <ProveedorForm />
+        </ProveedorFormToggle>
+      )}
       <DataTable rows={proveedores} columns={columns} emptyMessage="Todavía no hay proveedores registrados." />
     </div>
   );

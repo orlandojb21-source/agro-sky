@@ -6,10 +6,11 @@ import { AsistenciaTabla, type AsistenciaFila } from "@/components/forms/Asisten
 import { VistaPreviaQuincena } from "@/components/forms/VistaPreviaQuincena";
 import { obtenerQuincenaActual } from "@/lib/planilla";
 import { obtenerResumenAsistenciaAction } from "@/lib/actions/asistencia";
-import { esSoporteOJefe } from "@/lib/roles";
+import { esSoporteOJefe, canWrite } from "@/lib/roles";
 
 export default async function AsistenciaPage() {
   const perfil = await requireSection("planilla");
+  const puedeEscribir = canWrite(perfil.rol, "planilla");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -67,11 +68,11 @@ export default async function AsistenciaPage() {
               <LinkButton href="/planilla/colaboradores" variant="secondary">
                 Colaboradores
               </LinkButton>
-              <LinkButton href="/planilla/nuevo">+ Nueva asistencia</LinkButton>
+              {puedeEscribir && <LinkButton href="/planilla/nuevo">+ Nueva asistencia</LinkButton>}
             </div>
           }
         />
-        <AsistenciaTabla asistencia={asistencia} />
+        <AsistenciaTabla asistencia={asistencia} puedeEscribir={puedeEscribir} />
       </div>
     </div>
   );

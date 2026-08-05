@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { GastoForm } from "@/components/forms/GastoForm";
 import type { CATEGORIAS_GASTO } from "@/lib/validation/gastos";
@@ -13,7 +13,7 @@ export default async function EditarGastoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("compras");
+  await requireWrite("compras");
 
   const supabase = await createClient();
   const [{ data: gasto }, { data: proveedores }] = await Promise.all([

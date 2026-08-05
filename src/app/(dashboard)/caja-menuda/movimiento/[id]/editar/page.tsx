@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { MovimientoForm } from "@/components/forms/MovimientoForm";
 
@@ -9,7 +9,7 @@ export default async function EditarMovimientoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("caja-menuda");
+  await requireWrite("caja-menuda");
 
   const supabase = await createClient();
   const [{ data: gasto }, { data: colaboradoresData }, { data: proveedoresData }] = await Promise.all([

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import {
   InformeDiarioForm,
@@ -15,6 +16,7 @@ export default async function EditarInformeDiarioPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  await requireWrite("informes");
 
   const supabase = await createClient();
   const [{ data: informe }, { data: informesCampoData }, { data: informesDiariosData }] = await Promise.all([

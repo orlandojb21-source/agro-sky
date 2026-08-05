@@ -1,11 +1,13 @@
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { CotizacionesTabla, type CotizacionFila } from "@/components/forms/CotizacionesTabla";
 
 export default async function CotizacionesPage() {
-  await requireSection("ventas");
+  const perfil = await requireSection("ventas");
+  const puedeEscribir = canWrite(perfil.rol, "ventas");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -26,9 +28,13 @@ export default async function CotizacionesPage() {
     <div>
       <PageHeader
         title="Cotizaciones"
-        action={<LinkButton href="/ventas/cotizaciones/nueva">+ Nueva cotización</LinkButton>}
+        action={
+          puedeEscribir ? (
+            <LinkButton href="/ventas/cotizaciones/nueva">+ Nueva cotización</LinkButton>
+          ) : undefined
+        }
       />
-      <CotizacionesTabla cotizaciones={cotizaciones} />
+      <CotizacionesTabla cotizaciones={cotizaciones} puedeEscribir={puedeEscribir} />
     </div>
   );
 }

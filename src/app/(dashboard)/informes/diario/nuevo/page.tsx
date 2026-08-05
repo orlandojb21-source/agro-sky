@@ -1,7 +1,10 @@
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { InformeDiarioForm, type InformeCampoOpcion } from "@/components/forms/InformeDiarioForm";
 
 export default async function NuevoInformeDiarioPage() {
+  await requireWrite("informes");
+
   const supabase = await createClient();
   const [{ data: informesCampoData }, { data: informesDiariosData }] = await Promise.all([
     supabase

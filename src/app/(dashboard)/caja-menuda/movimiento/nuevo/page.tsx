@@ -1,9 +1,9 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { MovimientoForm } from "@/components/forms/MovimientoForm";
 
 export default async function NuevoMovimientoPage() {
-  await requireSection("caja-menuda");
+  await requireWrite("caja-menuda");
 
   const supabase = await createClient();
   const [{ data }, { data: proveedoresData }] = await Promise.all([

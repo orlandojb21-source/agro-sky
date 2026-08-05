@@ -1,9 +1,9 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { SolicitudCompraForm, type CatalogoProductoCompra } from "@/components/forms/SolicitudCompraForm";
 
 export default async function NuevaSolicitudCompraPage() {
-  await requireSection("compras");
+  await requireWrite("compras");
 
   const supabase = await createClient();
   const { data: productos } = await supabase

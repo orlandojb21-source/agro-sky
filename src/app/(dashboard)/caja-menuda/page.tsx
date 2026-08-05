@@ -1,11 +1,13 @@
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { MovimientosTabla, type MovimientoFila } from "@/components/forms/MovimientosTabla";
 
 export default async function CajaMenudaPage() {
-  await requireSection("caja-menuda");
+  const perfil = await requireSection("caja-menuda");
+  const puedeEscribir = canWrite(perfil.rol, "caja-menuda");
 
   const supabase = await createClient();
   const [{ data: gastos }, { data: reposiciones }] = await Promise.all([
@@ -59,15 +61,17 @@ export default async function CajaMenudaPage() {
       <PageHeader
         title="Caja Menuda — Movimientos"
         action={
-          <div className="flex gap-2">
-            <LinkButton href="/caja-menuda/reposicion/nueva" variant="secondary">
-              + Reponer caja
-            </LinkButton>
-            <LinkButton href="/caja-menuda/movimiento/nuevo">+ Registrar movimiento</LinkButton>
-          </div>
+          puedeEscribir ? (
+            <div className="flex gap-2">
+              <LinkButton href="/caja-menuda/reposicion/nueva" variant="secondary">
+                + Reponer caja
+              </LinkButton>
+              <LinkButton href="/caja-menuda/movimiento/nuevo">+ Registrar movimiento</LinkButton>
+            </div>
+          ) : undefined
         }
       />
-      <MovimientosTabla movimientos={movimientos} />
+      <MovimientosTabla movimientos={movimientos} puedeEscribir={puedeEscribir} />
     </div>
   );
 }

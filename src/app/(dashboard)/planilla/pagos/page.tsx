@@ -1,6 +1,6 @@
 import { requireSection } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { esSoporteOJefe } from "@/lib/roles";
+import { esSoporteOJefe, canWrite } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { PagosPlanillaTabla, type PagoFila } from "@/components/forms/PagosPlanillaTabla";
@@ -59,6 +59,7 @@ export default async function PagosPlanillaPage() {
   // 0049), así que la consulta de abajo ya le devuelve solo pagos de Campo
   // sin necesidad de filtrar nada aquí.
   const puedeVerFijos = esSoporteOJefe(perfil.rol);
+  const puedeEscribir = canWrite(perfil.rol, "planilla");
 
   const supabase = await createClient();
   const { data: colaboradoresData } = await supabase
@@ -146,11 +147,11 @@ export default async function PagosPlanillaPage() {
               <LinkButton href="/planilla/colaboradores" variant="secondary">
                 Colaboradores
               </LinkButton>
-              <LinkButton href="/planilla/pagos/nuevo">+ Nuevo pago</LinkButton>
+              {puedeEscribir && <LinkButton href="/planilla/pagos/nuevo">+ Nuevo pago</LinkButton>}
             </div>
           }
         />
-        <PagosPlanillaTabla pagos={pagos} />
+        <PagosPlanillaTabla pagos={pagos} puedeEscribir={puedeEscribir} />
       </div>
     </div>
   );

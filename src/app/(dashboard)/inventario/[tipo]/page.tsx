@@ -1,4 +1,5 @@
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { tipoDesdeSegmento, etiquetaDeTipo } from "@/lib/inventario-tipo";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,7 +12,8 @@ export default async function InventarioSeccionPage({
   params: Promise<{ tipo: string }>;
 }) {
   const { tipo: segmento } = await params;
-  await requireSection("inventario");
+  const perfil = await requireSection("inventario");
+  const puedeEscribir = canWrite(perfil.rol, "inventario");
   const tipo = tipoDesdeSegmento(segmento);
 
   const supabase = await createClient();
@@ -41,9 +43,11 @@ export default async function InventarioSeccionPage({
       <PageHeader
         title={titulo}
         action={
-          <LinkButton href={`${seccionHref}/nuevo`}>
-            + Nuevo producto
-          </LinkButton>
+          puedeEscribir ? (
+            <LinkButton href={`${seccionHref}/nuevo`}>
+              + Nuevo producto
+            </LinkButton>
+          ) : undefined
         }
       />
       <ProductoTabla
@@ -51,6 +55,7 @@ export default async function InventarioSeccionPage({
         seccion={segmento}
         seccionHref={seccionHref}
         titulo={titulo}
+        puedeEscribir={puedeEscribir}
       />
     </div>
   );

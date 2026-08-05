@@ -23,7 +23,13 @@ function claseDiferencia(diferencia: number): string {
   return diferencia < 0 ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400";
 }
 
-export function ArqueosTabla({ arqueos }: { arqueos: ArqueoFila[] }) {
+export function ArqueosTabla({
+  arqueos,
+  puedeEscribir,
+}: {
+  arqueos: ArqueoFila[];
+  puedeEscribir: boolean;
+}) {
   if (arqueos.length === 0) {
     return (
       <div className="rounded-xl border border-green-100 bg-white p-10 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
@@ -73,7 +79,7 @@ export function ArqueosTabla({ arqueos }: { arqueos: ArqueoFila[] }) {
                     {a.nota ?? "—"}
                   </td>
                   <td className="px-3 py-3">
-                    <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />
+                    {puedeEscribir && <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />}
                   </td>
                 </tr>
               ))}
@@ -124,9 +130,11 @@ export function ArqueosTabla({ arqueos }: { arqueos: ArqueoFila[] }) {
               )}
             </div>
 
-            <div className="mt-3 flex border-t border-green-50 pt-3 dark:border-green-900/30">
-              <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />
-            </div>
+            {puedeEscribir && (
+              <div className="mt-3 flex border-t border-green-50 pt-3 dark:border-green-900/30">
+                <DeleteButton action={eliminarArqueoAction.bind(null, a.id)} />
+              </div>
+            )}
           </div>
         ))}
       </div>

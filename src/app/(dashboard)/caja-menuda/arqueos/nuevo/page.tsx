@@ -1,10 +1,10 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { calcularSaldoActual } from "@/lib/caja";
 import { ArqueoForm } from "@/components/forms/ArqueoForm";
 
 export default async function NuevoArqueoPage() {
-  await requireSection("caja-menuda");
+  await requireWrite("caja-menuda");
 
   const supabase = await createClient();
   const saldoEsperado = await calcularSaldoActual(supabase);

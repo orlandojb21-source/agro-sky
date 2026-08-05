@@ -1,9 +1,14 @@
+import { requirePerfil } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { ProyectoInformesTabla, type InformeProyectoFila } from "@/components/forms/ProyectoInformesTabla";
 
 export default async function ProyectosPage() {
+  const perfil = await requirePerfil();
+  const puedeEscribir = canWrite(perfil.rol, "informes");
+
   const supabase = await createClient();
   const { data } = await supabase
     .from("proyecto_informes")
@@ -25,9 +30,11 @@ export default async function ProyectosPage() {
     <div>
       <PageHeader
         title="Informes de Proyecto"
-        action={<LinkButton href="/informes/proyecto/nuevo">+ Nuevo informe</LinkButton>}
+        action={
+          puedeEscribir ? <LinkButton href="/informes/proyecto/nuevo">+ Nuevo informe</LinkButton> : undefined
+        }
       />
-      <ProyectoInformesTabla informes={informes} />
+      <ProyectoInformesTabla informes={informes} puedeEscribir={puedeEscribir} />
     </div>
   );
 }

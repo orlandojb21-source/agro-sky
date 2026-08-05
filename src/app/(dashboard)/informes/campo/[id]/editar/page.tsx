@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { InformeCampoForm } from "@/components/forms/InformeCampoForm";
 
@@ -11,6 +12,11 @@ export default async function EditarInformeCampoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // Campo puede crear un Informe de Campo pero no editarlo (pedido
+  // explícito del usuario, 2026-08-04) -- mismo bloqueo que
+  // editarInformeCampoAction en lib/actions/informesCampo.ts.
+  const perfil = await requireWrite("informes");
+  if (perfil.rol === "campo") redirect("/unauthorized");
 
   const supabase = await createClient();
   const [{ data: informe }, { data: parcelasData }, { data: productosData }, { data: colaboradoresData }] =

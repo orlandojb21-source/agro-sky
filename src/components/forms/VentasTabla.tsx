@@ -55,7 +55,13 @@ const FILTROS_VACIOS: Filtros = { texto: "", fechaDesde: "", fechaHasta: "", est
 const inputFiltro =
   "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
-export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
+export function VentasTabla({
+  ventas,
+  puedeEscribir,
+}: {
+  ventas: VentaFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
   // Getters locales (no toISOString, que usa UTC y puede correr la fecha en
@@ -208,17 +214,19 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                         >
                           Ver
                         </Link>
-                        {v.estadoPago === "pendiente" && (
+                        {puedeEscribir && v.estadoPago === "pendiente" && (
                           <MarcarCobradaButton
                             id={v.id}
                             label="Marcar cobrada"
                             className="text-sm text-green-700 hover:underline dark:text-green-300"
                           />
                         )}
-                        <DeleteButton
-                          action={eliminarVentaAction.bind(null, v.id)}
-                          confirmMessage="¿Eliminar esta venta? El stock de los productos Nuevo/Usado vendidos se devuelve al inventario. Esta acción no se puede deshacer."
-                        />
+                        {puedeEscribir && (
+                          <DeleteButton
+                            action={eliminarVentaAction.bind(null, v.id)}
+                            confirmMessage="¿Eliminar esta venta? El stock de los productos Nuevo/Usado vendidos se devuelve al inventario. Esta acción no se puede deshacer."
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -288,17 +296,19 @@ export function VentasTabla({ ventas }: { ventas: VentaFila[] }) {
                 >
                   Ver
                 </Link>
-                {v.estadoPago === "pendiente" && (
+                {puedeEscribir && v.estadoPago === "pendiente" && (
                   <MarcarCobradaButton
                     id={v.id}
                     label="Marcar cobrada"
                     className="text-sm text-green-700 hover:underline dark:text-green-300"
                   />
                 )}
-                <DeleteButton
-                  action={eliminarVentaAction.bind(null, v.id)}
-                  confirmMessage="¿Eliminar esta venta? El stock de los productos Nuevo/Usado vendidos se devuelve al inventario. Esta acción no se puede deshacer."
-                />
+                {puedeEscribir && (
+                  <DeleteButton
+                    action={eliminarVentaAction.bind(null, v.id)}
+                    confirmMessage="¿Eliminar esta venta? El stock de los productos Nuevo/Usado vendidos se devuelve al inventario. Esta acción no se puede deshacer."
+                  />
+                )}
               </div>
             </div>
           ))

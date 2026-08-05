@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { ProveedorForm } from "@/components/forms/ProveedorForm";
 
@@ -9,7 +9,7 @@ export default async function EditarProveedorPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("compras");
+  await requireWrite("compras");
 
   const supabase = await createClient();
   const { data: proveedor } = await supabase

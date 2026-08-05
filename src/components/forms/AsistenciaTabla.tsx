@@ -67,7 +67,13 @@ const inputFiltroMovil =
 const etiquetaFiltroMovil =
   "flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70";
 
-export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }) {
+export function AsistenciaTabla({
+  asistencia,
+  puedeEscribir,
+}: {
+  asistencia: AsistenciaFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
@@ -307,15 +313,17 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
                       {a.descripcion}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex gap-3">
-                        <Link
-                          href={`/planilla/${a.id}/editar`}
-                          className="text-sm text-green-700 hover:underline dark:text-green-300"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteButton action={eliminarAsistenciaAction.bind(null, a.id)} />
-                      </div>
+                      {puedeEscribir && (
+                        <div className="flex gap-3">
+                          <Link
+                            href={`/planilla/${a.id}/editar`}
+                            className="text-sm text-green-700 hover:underline dark:text-green-300"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteButton action={eliminarAsistenciaAction.bind(null, a.id)} />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -352,15 +360,17 @@ export function AsistenciaTabla({ asistencia }: { asistencia: AsistenciaFila[] }
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                <Link
-                  href={`/planilla/${a.id}/editar`}
-                  className="text-sm text-green-700 hover:underline dark:text-green-300"
-                >
-                  Editar
-                </Link>
-                <DeleteButton action={eliminarAsistenciaAction.bind(null, a.id)} />
-              </div>
+              {puedeEscribir && (
+                <div className="mt-3 flex flex-wrap gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+                  <Link
+                    href={`/planilla/${a.id}/editar`}
+                    className="text-sm text-green-700 hover:underline dark:text-green-300"
+                  >
+                    Editar
+                  </Link>
+                  <DeleteButton action={eliminarAsistenciaAction.bind(null, a.id)} />
+                </div>
+              )}
             </div>
           ))
         )}

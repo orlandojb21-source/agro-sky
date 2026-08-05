@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { AsistenciaForm } from "@/components/forms/AsistenciaForm";
 
@@ -9,7 +9,7 @@ export default async function EditarAsistenciaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireSection("planilla");
+  await requireWrite("planilla");
 
   const supabase = await createClient();
   const [{ data: asistencia }, { data: colaboradoresData }] = await Promise.all([

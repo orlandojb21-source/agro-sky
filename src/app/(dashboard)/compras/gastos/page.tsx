@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
@@ -20,7 +21,8 @@ type GastoFila = {
 };
 
 export default async function GastosPage() {
-  await requireSection("compras");
+  const perfil = await requireSection("compras");
+  const puedeEscribir = canWrite(perfil.rol, "compras");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -49,28 +51,35 @@ export default async function GastosPage() {
     { header: "Proveedor", render: (g) => g.proveedorNombre ?? "—" },
     { header: "N.° Factura", render: (g) => g.numeroFactura ?? "—" },
     { header: "Monto", render: (g) => formatMoney(g.monto) },
-    {
-      header: "",
-      render: (g) => (
-        <div className="flex gap-3">
-          <Link
-            href={`/compras/gastos/${g.id}/editar`}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Editar
-          </Link>
-          <DeleteButton
-            action={eliminarGastoAction.bind(null, g.id)}
-            confirmMessage="¿Eliminar este gasto? Esta acción no se puede deshacer."
-          />
-        </div>
-      ),
-    },
+    ...(puedeEscribir
+      ? [
+          {
+            header: "",
+            render: (g: GastoFila) => (
+              <div className="flex gap-3">
+                <Link
+                  href={`/compras/gastos/${g.id}/editar`}
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Editar
+                </Link>
+                <DeleteButton
+                  action={eliminarGastoAction.bind(null, g.id)}
+                  confirmMessage="¿Eliminar este gasto? Esta acción no se puede deshacer."
+                />
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Gastos" action={<LinkButton href="/compras/gastos/nuevo">+ Nuevo gasto</LinkButton>} />
+      <PageHeader
+        title="Gastos"
+        action={puedeEscribir ? <LinkButton href="/compras/gastos/nuevo">+ Nuevo gasto</LinkButton> : undefined}
+      />
       {gastos.length > 0 && (
         <p className="text-sm text-green-800 dark:text-green-200">
           Total registrado: <span className="font-semibold">{formatMoney(totalGeneral)}</span>

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { requirePerfil } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
@@ -17,6 +19,8 @@ export default async function DetalleInformeCampoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const perfil = await requirePerfil();
+  const puedeEditar = canWrite(perfil.rol, "informes") && perfil.rol !== "campo";
 
   const supabase = await createClient();
   const [{ data: informe }, { data: parcelasData }, { data: productosData }] = await Promise.all([
@@ -89,9 +93,11 @@ export default async function DetalleInformeCampoPage({
         </div>
         <div className="flex flex-wrap gap-2">
           <BotonExportarInformeCampo informe={informeExportable} />
-          <LinkButton href={`/informes/campo/${id}/editar`} variant="secondary">
-            Editar
-          </LinkButton>
+          {puedeEditar && (
+            <LinkButton href={`/informes/campo/${id}/editar`} variant="secondary">
+              Editar
+            </LinkButton>
+          )}
           <LinkButton href="/informes/campo" variant="secondary">
             Volver
           </LinkButton>
@@ -234,12 +240,14 @@ export default async function DetalleInformeCampoPage({
         </div>
       </div>
 
-      <div>
-        <DeleteButton
-          action={eliminarInformeCampoAction.bind(null, id)}
-          confirmMessage="¿Eliminar este informe? Esta acción no se puede deshacer."
-        />
-      </div>
+      {puedeEditar && (
+        <div>
+          <DeleteButton
+            action={eliminarInformeCampoAction.bind(null, id)}
+            confirmMessage="¿Eliminar este informe? Esta acción no se puede deshacer."
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
-import { requireSection } from "@/lib/session";
+import { requireWrite } from "@/lib/session";
 import { ServicioForm } from "@/components/forms/ServicioForm";
 
 export default async function NuevoServicioPage() {
-  await requireSection("inventario");
+  await requireWrite("inventario");
 
   return (
     <div>

@@ -1,11 +1,13 @@
 import { requireSection } from "@/lib/session";
+import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { SolicitudesCompraTabla, type SolicitudFila } from "@/components/forms/SolicitudesCompraTabla";
 
 export default async function ComprasPage() {
-  await requireSection("compras");
+  const perfil = await requireSection("compras");
+  const puedeEscribir = canWrite(perfil.rol, "compras");
 
   const supabase = await createClient();
   const [{ data: solicitudes }, { data: items }] = await Promise.all([
@@ -34,9 +36,11 @@ export default async function ComprasPage() {
     <div>
       <PageHeader
         title="Solicitudes de Compra"
-        action={<LinkButton href="/compras/nueva">+ Nueva solicitud</LinkButton>}
+        action={
+          puedeEscribir ? <LinkButton href="/compras/nueva">+ Nueva solicitud</LinkButton> : undefined
+        }
       />
-      <SolicitudesCompraTabla solicitudes={filas} />
+      <SolicitudesCompraTabla solicitudes={filas} puedeEscribir={puedeEscribir} />
     </div>
   );
 }

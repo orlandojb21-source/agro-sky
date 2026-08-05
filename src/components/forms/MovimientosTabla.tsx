@@ -105,7 +105,13 @@ function RegistrarVuelto({ id }: { id: string }) {
   );
 }
 
-export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[] }) {
+export function MovimientosTabla({
+  movimientos,
+  puedeEscribir,
+}: {
+  movimientos: MovimientoFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
@@ -395,7 +401,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                         <span className="text-green-800/80 dark:text-green-200/80">
                           {formatMoney(m.vuelto)}
                         </span>
-                      ) : m.entregado !== null ? (
+                      ) : m.entregado !== null && puedeEscribir ? (
                         <RegistrarVuelto id={m.id} />
                       ) : (
                         "—"
@@ -412,25 +418,27 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                       {formatMoney(salidaEfectiva(m))}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex gap-3">
-                        <Link
-                          href={
-                            m.tipo === "gasto"
-                              ? `/caja-menuda/movimiento/${m.id}/editar`
-                              : `/caja-menuda/reposicion/${m.id}/editar`
-                          }
-                          className="text-sm text-green-700 hover:underline dark:text-green-300"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteButton
-                          action={
-                            m.tipo === "gasto"
-                              ? eliminarGastoAction.bind(null, m.id)
-                              : eliminarReposicionAction.bind(null, m.id)
-                          }
-                        />
-                      </div>
+                      {puedeEscribir && (
+                        <div className="flex gap-3">
+                          <Link
+                            href={
+                              m.tipo === "gasto"
+                                ? `/caja-menuda/movimiento/${m.id}/editar`
+                                : `/caja-menuda/reposicion/${m.id}/editar`
+                            }
+                            className="text-sm text-green-700 hover:underline dark:text-green-300"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteButton
+                            action={
+                              m.tipo === "gasto"
+                                ? eliminarGastoAction.bind(null, m.id)
+                                : eliminarReposicionAction.bind(null, m.id)
+                            }
+                          />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -536,7 +544,7 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                 </div>
               )}
 
-              {m.entregado !== null && (
+              {m.entregado !== null && (m.vuelto !== null || puedeEscribir) && (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-green-50 pt-3 dark:border-green-900/30">
                   <p className="text-xs uppercase tracking-wide text-green-700/60 dark:text-green-300/60">
                     Vuelto
@@ -551,25 +559,27 @@ export function MovimientosTabla({ movimientos }: { movimientos: MovimientoFila[
                 </div>
               )}
 
-              <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                <Link
-                  href={
-                    m.tipo === "gasto"
-                      ? `/caja-menuda/movimiento/${m.id}/editar`
-                      : `/caja-menuda/reposicion/${m.id}/editar`
-                  }
-                  className="text-sm text-green-700 hover:underline dark:text-green-300"
-                >
-                  Editar
-                </Link>
-                <DeleteButton
-                  action={
-                    m.tipo === "gasto"
-                      ? eliminarGastoAction.bind(null, m.id)
-                      : eliminarReposicionAction.bind(null, m.id)
-                  }
-                />
-              </div>
+              {puedeEscribir && (
+                <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+                  <Link
+                    href={
+                      m.tipo === "gasto"
+                        ? `/caja-menuda/movimiento/${m.id}/editar`
+                        : `/caja-menuda/reposicion/${m.id}/editar`
+                    }
+                    className="text-sm text-green-700 hover:underline dark:text-green-300"
+                  >
+                    Editar
+                  </Link>
+                  <DeleteButton
+                    action={
+                      m.tipo === "gasto"
+                        ? eliminarGastoAction.bind(null, m.id)
+                        : eliminarReposicionAction.bind(null, m.id)
+                    }
+                  />
+                </div>
+              )}
             </div>
           ))
         )}

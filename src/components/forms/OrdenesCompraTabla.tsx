@@ -38,7 +38,13 @@ function BadgeEstado({ estado }: { estado: OrdenFila["estado"] }) {
   );
 }
 
-export function OrdenesCompraTabla({ ordenes }: { ordenes: OrdenFila[] }) {
+export function OrdenesCompraTabla({
+  ordenes,
+  puedeEscribir,
+}: {
+  ordenes: OrdenFila[];
+  puedeEscribir: boolean;
+}) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
   function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
@@ -156,7 +162,7 @@ export function OrdenesCompraTabla({ ordenes }: { ordenes: OrdenFila[] }) {
                         >
                           Ver
                         </Link>
-                        {o.estado === "pendiente_recepcion" && (
+                        {puedeEscribir && o.estado === "pendiente_recepcion" && (
                           <DeleteButton
                             action={eliminarOrdenAction.bind(null, o.id)}
                             confirmMessage="¿Eliminar esta orden de compra? Esta acción no se puede deshacer."
@@ -212,7 +218,7 @@ export function OrdenesCompraTabla({ ordenes }: { ordenes: OrdenFila[] }) {
                 >
                   Ver
                 </Link>
-                {o.estado === "pendiente_recepcion" && (
+                {puedeEscribir && o.estado === "pendiente_recepcion" && (
                   <DeleteButton
                     action={eliminarOrdenAction.bind(null, o.id)}
                     confirmMessage="¿Eliminar esta orden de compra? Esta acción no se puede deshacer."
