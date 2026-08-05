@@ -13,6 +13,12 @@
 > las cabeceras de seguridad nuevas). Quedan pendientes solo los ajustes
 > que se hacen desde el dashboard de Supabase (1.5, 1.6) y la confirmación
 > del plan de respaldos (sección 3) — ninguno de los dos es código.
+>
+> **Actualización 2026-08-04:** rediseño completo del modelo de roles y
+> permisos (ver 1.9) — de un modelo binario (acceso sí/no por sección) a
+> uno de 3 niveles (ninguno/lectura/escritura), con 2 roles nuevos de
+> solo lectura parcial o total. Verificado en 2 capas (servidor + UI) y
+> desplegado en producción.
 
 ## Cómo leer esto
 
@@ -229,6 +235,83 @@ tiempo, ya que Supabase/Vercel necesitan varios orígenes permitidos).
 
 ---
 
+### ✅ 1.9 Rediseño de roles: modelo de 3 niveles (lectura/escritura) por sección — Implementado 2026-08-04
+
+Hasta esta fecha, `SECTION_ACCESS` (`src/lib/roles.ts`) era un modelo
+binario: `Record<Seccion, Rol[]>` — o un rol tenía acceso completo a una
+sección, o no tenía ninguno. No existía el concepto de "solo lectura".
+El usuario pidió reestructurar los roles de la empresa a 6, dos de ellos
+de solo lectura (parcial o total):
+
+| Rol interno (sin cambios en BD) | Etiqueta | Acceso |
+|---|---|---|
+| `jefe` | Gerente General | Escritura en todo (sin cambios) |
+| `soporte` | Soporte IT | Escritura en todo (sin cambios) |
+| `administrador` | Administrador | Sin cambios |
+| `campo` | Campo | Escritura en Informe de Campo (**crear, no editar/eliminar**) y Bitácora |
+| `gerente` (**nuevo**) | Gerente | Solo lectura en las 9 secciones, sin excepción |
+| `rrhh_contabilidad` (**nuevo**) | Recursos Humanos y Contabilidad | Escritura en Planilla/Caja Menuda/Compras/Balance, lectura en el resto |
+
+**Modelo nuevo:** `SECTION_ACCESS: Record<Seccion, Record<Rol, NivelAcceso>>`
+con `NivelAcceso = "ninguno" | "lectura" | "escritura"`. `canAccess()`
+mantiene su firma/comportamiento de siempre; `canWrite()` es nuevo.
+
+**Enforcement en 2 capas, ambas verificadas por separado** (decisión
+explícita del usuario — no bastaba con esconder botones):
+
+1. **Servidor**: nuevo helper `requireWrite(seccion)` en `lib/session.ts`,
+   usado al inicio de las **72 funciones mutadoras** en los 21 archivos
+   de `lib/actions/`. Verificado con cuentas QA reales haciendo clics
+   reales en el navegador (no solo llamadas directas a la Server
+   Action) — ej. confirmado que `gerente` cae en `/unauthorized` al
+   intentar crear un gasto, y que la fila nunca llega a la base de
+   datos.
+2. **UI**: las ~35 páginas de lista/detalle/formulario esconden los
+   botones de crear/editar/eliminar cuando `canWrite()` es falso, y cada
+   ruta `nuevo`/`editar` cambia su gate de `requireSection` a
+   `requireWrite` (si alguien escribe la URL a mano, cae en
+   `/unauthorized` igual que si hubiera llamado la Server Action
+   directo). Verificado con 23 chequeos automatizados (Playwright +
+   cuentas QA desechables) tanto en local como contra producción
+   (`agroskypty.app`).
+
+**Excepción de Campo en Informe de Campo** (crear sí, editar/eliminar
+no): no cabe en el modelo genérico de 2 niveles, así que
+`editarInformeCampoAction`/`eliminarInformeCampoAction` agregan un
+chequeo puntual (`if (perfil.rol === "campo") redirect("/unauthorized")`)
+después de `requireWrite("informes")`, con el mismo chequeo repetido en
+la página `informes/campo/[id]/editar/page.tsx` para que la ruta
+tampoco sea alcanzable a mano.
+
+**Alcance explícito de este cambio — RLS de Postgres quedó fuera**, con
+**una única excepción, acotada y documentada**: el candado existente de
+"solo jefe/soporte gestionan pagos de colaboradores Fijos" vivía en RLS
+desde antes (migraciones `0034`/`0049`), no en la app. Extenderlo a
+`rrhh_contabilidad` (pedido explícito del usuario) requería tocar RLS
+sí o sí. En vez de reusar/ampliar `auth_gestiona_usuarios()` (que
+también protege Usuarios, y `rrhh_contabilidad` **no** debe tener
+escritura ahí), se creó una función nueva y angosta,
+`auth_gestiona_pagos_fijos()` (migración
+`0060_rrhh_contabilidad_pagos_fijos.sql`), usada en 3 políticas
+aditivas nuevas sobre `planilla_pagos` — sin tocar las políticas
+existentes de jefe/soporte. El resto del sistema sigue con
+`auth_tiene_perfil()` en RLS (cualquier perfil válido, sin distinguir
+rol), exactamente como antes — el candado real para todo lo demás vive
+en la capa de aplicación (los 2 puntos de arriba), riesgo residual
+aceptado igual que ya estaba documentado antes de este cambio.
+
+**Referencia ISO 27002:** 8.2 (Derechos de acceso privilegiado), 5.15
+(Control de acceso), 8.3 (Restricción de acceso a la información).
+
+**Verificado:** `tsc`/`lint`/`build` limpios; las 12 pruebas Playwright
+existentes siguen pasando sin cambios; 23 chequeos nuevos con 3 cuentas
+QA desechables (`gerente`, `rrhh_contabilidad`, `campo`) confirmando
+tanto el bloqueo de servidor como el ocultamiento de UI, repetidos
+contra producción tras cada despliegue. Commits `edbb48c` (Fase A+B:
+modelo + bloqueo de servidor) y `c6b2f86` (Fase C: UI).
+
+---
+
 ### 🟡 1.5 Política de contraseñas mínima (8 caracteres, sin verificación de filtraciones)
 
 `usuarioCreateSchema`/`usuarioPasswordSchema` exigen 8 caracteres, sin
@@ -392,6 +475,7 @@ proporción:
 | 1.3 | Límite de tamaño en subida de archivos | 🟠 Medio | ✅ Corregido 2026-08-02 |
 | 1.2 | `search_path` en funciones `security definer` | 🟠 Medio | ✅ Corregido 2026-08-02 |
 | 1.4 | Cabeceras de seguridad (incl. CSP con nonce) | 🟠 Medio | ✅ Corregido 2026-08-02 |
+| 1.9 | Rediseño de roles: 3 niveles (lectura/escritura) por sección | — (control de acceso) | ✅ Implementado 2026-08-04 |
 | Continuidad | Confirmar plan/respaldos de Supabase | 🔴 Alto (negocio) | ⏳ Pendiente — solo revisar el dashboard, no es código |
 | 1.5 / 1.6 | Ajustes de contraseña y rate-limit (Supabase dashboard) | 🟡 Bajo | ⏳ Pendiente — son interruptores, no es código |
 
