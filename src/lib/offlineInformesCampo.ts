@@ -32,6 +32,11 @@ export type DatosInformeCampoPendiente = {
   nombreFirmaCliente: string;
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
+  // Ruta ya subida a Storage (no un Blob) -- solo se guarda offline si la
+  // imagen se adjuntó con éxito ANTES de perder señal (adjuntar una
+  // imagen requiere conexión, igual que en Informe Diario). Vacía si no
+  // se adjuntó ninguna.
+  imagenRuta: string;
 };
 
 export type InformeCampoPendiente = {

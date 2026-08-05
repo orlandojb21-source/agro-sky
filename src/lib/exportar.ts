@@ -906,6 +906,7 @@ export type InformeCampoExportable = {
   firmaClienteUrl: string | null;
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
+  imagenUrl: string | null;
 };
 
 // Carga cualquier URL (ej. una URL firmada de Storage) como base64 vía un
@@ -1112,6 +1113,28 @@ export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
   doc.text("Informe de Campo", 14, 20);
 
   await dibujarCuerpoInformeCampo(doc, informe, 30, yEmpresa);
+
+  // Imagen adjunta -- opcional. Se ajusta al ancho de la página
+  // conservando su proporción real para no deformarla (mismo patrón que
+  // la captura del control del drone en Informe Diario).
+  if (informe.imagenUrl) {
+    const imagen = await cargarImagenBase64ConDimensiones(informe.imagenUrl);
+    if (imagen) {
+      doc.addPage();
+      const anchoPaginaImagen = doc.internal.pageSize.getWidth();
+      const altoPagina = doc.internal.pageSize.getHeight();
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Imagen adjunta", 14, 18);
+
+      const anchoMaximo = anchoPaginaImagen - 28;
+      const altoMaximo = altoPagina - 34;
+      const escala = Math.min(anchoMaximo / imagen.ancho, altoMaximo / imagen.alto, 1);
+      const anchoFinal = imagen.ancho * escala;
+      const altoFinal = imagen.alto * escala;
+      doc.addImage(imagen.dataUrl, "PNG", 14, 26, anchoFinal, altoFinal);
+    }
+  }
 
   doc.save(`${nombreArchivoInformeCampo(informe.cliente, informe.fecha)}.pdf`);
 }

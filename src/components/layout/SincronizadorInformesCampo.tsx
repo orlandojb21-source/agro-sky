@@ -61,6 +61,7 @@ export function SincronizadorInformesCampo() {
         fd.append("nombreFirmaCliente", item.datos.nombreFirmaCliente);
         fd.append("parcelas", JSON.stringify(item.datos.parcelas));
         fd.append("productos", JSON.stringify(item.datos.productos));
+        fd.append("imagenRuta", item.datos.imagenRuta);
         fd.append("firmaAgro", item.firmaAgroBlob, "firma-agro.png");
         fd.append("firmaCliente", item.firmaClienteBlob, "firma-cliente.png");
 

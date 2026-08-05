@@ -4,6 +4,8 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { useActionState } from "react";
 import { crearInformeCampoAction, editarInformeCampoAction } from "@/lib/actions/informesCampo";
 import { subirFirmaInformeCampoAction } from "@/lib/actions/informeCampoFirma";
+import { subirImagenInformeCampoAction } from "@/lib/actions/informeCampoImagen";
+import { comprimirImagen } from "@/lib/comprimirImagen";
 import { informeCampoSchema } from "@/lib/validation/informesCampo";
 import { guardarInformeCampoPendiente } from "@/lib/offlineInformesCampo";
 import { Field, SelectField } from "@/components/ui/Field";
@@ -13,6 +15,9 @@ import { SubmitButton, LinkButton } from "@/components/ui/Button";
 
 const CLASE_INPUT =
   "w-full rounded-lg border border-green-200 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+
+const CLASE_INPUT_IMAGEN =
+  "text-sm text-green-800 file:mr-3 file:rounded-lg file:border-0 file:bg-green-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-green-700 dark:text-green-200";
 
 // Valor que queda en el <input hidden> de una firma cuando se dibujó sin
 // señal (ver subirFirmaAgro/subirFirmaCliente) -- no es una ruta real de
@@ -72,6 +77,10 @@ export type ValoresInformeCampo = {
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
+  imagenRuta: string | null;
+  // URL firmada (temporal) de la imagen ya guardada, generada del lado del
+  // servidor solo para mostrarla -- nunca se envía en el formulario.
+  imagenUrl: string | null;
 };
 
 export function InformeCampoForm({
@@ -176,6 +185,20 @@ export function InformeCampoForm({
   const [guardadoLocalOk, setGuardadoLocalOk] = useState(false);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
+  // Imagen adjunta -- opcional, no bloquea guardar el informe. Se sube al
+  // elegirla (igual que en Informe Diario), no al enviar el formulario;
+  // requiere conexión en ese momento -- si falla (ej. sin señal en
+  // campo), se avisa con errorImagen y el informe se puede guardar igual
+  // sin ella.
+  const [imagenRuta, setImagenRuta] = useState(
+    v?.imagenRuta ?? valoresIniciales?.imagenRuta ?? "",
+  );
+  const [imagenPreviewUrl, setImagenPreviewUrl] = useState<string | null>(
+    valoresIniciales?.imagenUrl ?? null,
+  );
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [errorImagen, setErrorImagen] = useState<string | null>(null);
+
   if (state !== prevState) {
     setPrevState(state);
     setRemountKey((k) => k + 1);
@@ -243,6 +266,30 @@ export function InformeCampoForm({
     }
   }
 
+  async function elegirImagen(archivo: File | undefined) {
+    if (!archivo) return;
+    setErrorImagen(null);
+    setSubiendoImagen(true);
+    try {
+      const comprimida = await comprimirImagen(archivo);
+      setImagenPreviewUrl(URL.createObjectURL(comprimida));
+      const fd = new FormData();
+      fd.append("imagen", comprimida, "imagen.jpg");
+      const { ruta } = await subirImagenInformeCampoAction(fd);
+      setImagenRuta(ruta);
+    } catch (err) {
+      setErrorImagen(err instanceof Error ? err.message : "No se pudo subir la imagen. Intenta de nuevo.");
+    } finally {
+      setSubiendoImagen(false);
+    }
+  }
+
+  function quitarImagen() {
+    setImagenRuta("");
+    setImagenPreviewUrl(null);
+    setErrorImagen(null);
+  }
+
   // Guarda el informe completo (datos + las 2 firmas como PNG crudo) en
   // IndexedDB en vez de enviarlo al servidor -- SincronizadorInformesCampo
   // (montado en el layout general) lo sube solo en cuanto detecta señal de
@@ -286,6 +333,7 @@ export function InformeCampoForm({
         nombreFirmaCliente: raw.nombreFirmaCliente,
         parcelas: parcelasRaw,
         productos: productosRaw,
+        imagenRuta: raw.imagenRuta,
       });
 
       if (!parsed.success) {
@@ -310,6 +358,7 @@ export function InformeCampoForm({
           nombreFirmaCliente: parsed.data.nombreFirmaCliente,
           parcelas: parsed.data.parcelas,
           productos: parsed.data.productos,
+          imagenRuta: parsed.data.imagenRuta,
         },
         firmaAgroBlobRef.current,
         firmaClienteBlobRef.current,
@@ -350,6 +399,9 @@ export function InformeCampoForm({
     setFirmaClienteRuta("");
     firmaAgroBlobRef.current = null;
     firmaClienteBlobRef.current = null;
+    setImagenRuta("");
+    setImagenPreviewUrl(null);
+    setErrorImagen(null);
     setGuardadoLocalOk(false);
     setErrorLocal(null);
   }
@@ -399,6 +451,12 @@ export function InformeCampoForm({
       <input type="hidden" name="ayudantes" value={JSON.stringify(ayudantesParaEnviar)} />
       <input type="hidden" name="parcelas" value={JSON.stringify(parcelasParaEnviar)} />
       <input type="hidden" name="productos" value={JSON.stringify(productosParaEnviar)} />
+      <input type="hidden" name="imagenRuta" value={imagenRuta} />
+      <input
+        type="hidden"
+        name="imagenRutaAnterior"
+        value={valoresIniciales?.imagenRuta ?? ""}
+      />
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
@@ -688,6 +746,44 @@ export function InformeCampoForm({
             onGuardar={subirFirmaCliente}
             onRutaCambia={setFirmaClienteRuta}
           />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
+          Imagen adjunta (opcional)
+        </span>
+        <div className="flex flex-wrap items-center gap-4">
+          {imagenPreviewUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imagenPreviewUrl}
+              alt="Imagen adjunta"
+              className="h-24 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
+            />
+          )}
+          <div className="flex flex-col gap-1">
+            <input
+              type="file"
+              accept="image/*"
+              disabled={subiendoImagen}
+              onChange={(e) => elegirImagen(e.target.files?.[0])}
+              className={CLASE_INPUT_IMAGEN}
+            />
+            {subiendoImagen && (
+              <span className="text-xs text-green-700/70 dark:text-green-300/70">Subiendo imagen...</span>
+            )}
+            {errorImagen && <span className="text-xs text-red-600 dark:text-red-400">{errorImagen}</span>}
+            {imagenRuta && !subiendoImagen && (
+              <button
+                type="button"
+                onClick={quitarImagen}
+                className="self-start text-xs text-red-600 hover:underline dark:text-red-400"
+              >
+                Quitar imagen
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

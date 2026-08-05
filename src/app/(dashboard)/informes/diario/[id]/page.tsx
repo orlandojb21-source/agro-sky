@@ -95,6 +95,11 @@ export default async function DetalleInformeDiarioPage({
       productoActivo: p.producto_activo as string,
       ltsPorHectarea: Number(p.lts_por_hectarea),
     })),
+    // La copia del Informe de Campo embebida aquí solo dibuja su cuerpo
+    // (dibujarCuerpoInformeCampo, en lib/exportar.ts) -- esa función nunca
+    // lee imagenUrl, así que no vale la pena generar una URL firmada que
+    // nunca se usaría.
+    imagenUrl: null,
   };
 
   const informeExportable: InformeDiarioExportable = {

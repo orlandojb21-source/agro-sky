@@ -11,6 +11,7 @@ import { textoEquipoDeCampo } from "@/lib/proyectoGastos";
 import type { InformeCampoExportable } from "@/lib/exportar";
 
 const BUCKET_FIRMAS = "informes-campo-firmas";
+const BUCKET_IMAGENES = "informes-campo-imagenes";
 const DURACION_URL_FIRMADA_SEG = 3600;
 
 export default async function DetalleInformeCampoPage({
@@ -57,6 +58,13 @@ export default async function DetalleInformeCampoPage({
       .createSignedUrl(informe.firma_cliente_ruta, DURACION_URL_FIRMADA_SEG);
     firmaClienteUrl = data?.signedUrl ?? null;
   }
+  let imagenUrl: string | null = null;
+  if (informe.imagen_ruta) {
+    const { data } = await supabase.storage
+      .from(BUCKET_IMAGENES)
+      .createSignedUrl(informe.imagen_ruta as string, DURACION_URL_FIRMADA_SEG);
+    imagenUrl = data?.signedUrl ?? null;
+  }
 
   const ayudantes = (informe.ayudantes ?? []) as string[];
 
@@ -79,6 +87,7 @@ export default async function DetalleInformeCampoPage({
     firmaClienteUrl,
     parcelas: parcelas.map((p) => ({ numeroParcela: p.numeroParcela, hectareas: p.hectareas })),
     productos: productos.map((p) => ({ productoActivo: p.productoActivo, ltsPorHectarea: p.ltsPorHectarea })),
+    imagenUrl,
   };
 
   return (
@@ -252,6 +261,20 @@ export default async function DetalleInformeCampoPage({
           </p>
         </div>
       </div>
+
+      {imagenUrl && (
+        <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <p className="mb-2 text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+            Imagen adjunta
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imagenUrl}
+            alt="Imagen adjunta"
+            className="max-h-[400px] w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
+          />
+        </div>
+      )}
 
       {puedeEditar && (
         <div>

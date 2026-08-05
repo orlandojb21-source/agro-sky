@@ -76,6 +76,7 @@ export async function sincronizarInformeCampoPendienteAction(
     nombreFirmaCliente: raw.nombreFirmaCliente,
     parcelas,
     productos,
+    imagenRuta: raw.imagenRuta,
   });
 
   if (!parsed.success) {
@@ -100,6 +101,7 @@ export async function sincronizarInformeCampoPendienteAction(
     p_nombre_firma_agro: parsed.data.nombreFirmaAgro,
     p_firma_cliente_ruta: parsed.data.firmaClienteRuta,
     p_nombre_firma_cliente: parsed.data.nombreFirmaCliente,
+    p_imagen_ruta: parsed.data.imagenRuta,
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
   });

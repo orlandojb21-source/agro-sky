@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { InformeCampoForm } from "@/components/forms/InformeCampoForm";
 
 const BUCKET_FIRMAS = "informes-campo-firmas";
+const BUCKET_IMAGENES = "informes-campo-imagenes";
 const DURACION_URL_FIRMADA_SEG = 3600;
 
 export default async function EditarInformeCampoPage({
@@ -54,6 +55,13 @@ export default async function EditarInformeCampoPage({
       .createSignedUrl(informe.firma_cliente_ruta, DURACION_URL_FIRMADA_SEG);
     firmaClienteUrl = data?.signedUrl ?? null;
   }
+  let imagenUrl: string | null = null;
+  if (informe.imagen_ruta) {
+    const { data } = await supabase.storage
+      .from(BUCKET_IMAGENES)
+      .createSignedUrl(informe.imagen_ruta as string, DURACION_URL_FIRMADA_SEG);
+    imagenUrl = data?.signedUrl ?? null;
+  }
 
   return (
     <div>
@@ -91,6 +99,8 @@ export default async function EditarInformeCampoPage({
             productoActivo: p.producto_activo as string,
             ltsPorHectarea: Number(p.lts_por_hectarea),
           })),
+          imagenRuta: informe.imagen_ruta as string | null,
+          imagenUrl,
         }}
       />
     </div>
