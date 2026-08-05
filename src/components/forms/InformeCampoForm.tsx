@@ -59,7 +59,7 @@ export type ValoresInformeCampo = {
   horaFin: string;
   meteorologia: string;
   modeloDrone: string;
-  dosisPorHectarea: number;
+  dosisPorHectarea: string;
   operador: string;
   ayudantes: string[];
   firmaAgroRuta: string | null;
@@ -521,9 +521,7 @@ export function InformeCampoForm({
         <Field
           label="Dosis por Hectárea"
           name="dosisPorHectarea"
-          type="number"
-          min={0}
-          step="0.01"
+          placeholder="Ej. 2.8qxHA"
           defaultValue={v?.dosisPorHectarea ?? valoresIniciales?.dosisPorHectarea ?? undefined}
           required
         />

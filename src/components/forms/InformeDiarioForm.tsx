@@ -15,7 +15,7 @@ export type InformeCampoOpcion = {
   finca: string;
   fecha: string;
   operador: string;
-  dosisPorHectarea: number;
+  dosisPorHectarea: string;
   hectareas: number;
 };
 

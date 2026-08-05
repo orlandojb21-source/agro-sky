@@ -1,14 +1,5 @@
 import { z } from "zod";
 
-function numeroRequeridoPositivo(mensaje: string) {
-  return z
-    .string()
-    .trim()
-    .min(1, mensaje)
-    .transform((v) => Number(v))
-    .refine((v) => !Number.isNaN(v) && v > 0, mensaje);
-}
-
 export const parcelaInformeCampoSchema = z.object({
   numeroParcela: z.string().trim().min(1, "Falta el número de parcela"),
   hectareas: z.number().positive("Las hectáreas deben ser mayores a cero"),
@@ -32,7 +23,10 @@ const informeCampoBaseSchema = z.object({
   horaFin: z.string().min(1, "Hora de finalización requerida"),
   meteorologia: z.string().trim().min(1, "Meteorología requerida"),
   modeloDrone: z.string().trim().min(1, "Modelo de drone requerido"),
-  dosisPorHectarea: numeroRequeridoPositivo("La dosis por hectárea debe ser mayor a cero"),
+  // Texto libre (no solo números) -- en el campo a veces anotan la dosis
+  // con letras además del número, ej. "2.8qxHA" (pedido del usuario,
+  // 2026-08-05).
+  dosisPorHectarea: z.string().trim().min(1, "La dosis por hectárea es requerida"),
   // Determina la tarifa del cálculo de incentivos por hectárea de este
   // informe (ver lib/calculoIncentivos.ts) -- vive aquí y no en Asistencia
   // porque cada informe tiene su propia contabilidad de hectáreas, nunca

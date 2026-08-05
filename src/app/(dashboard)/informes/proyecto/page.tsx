@@ -29,7 +29,7 @@ export default async function ProyectosPage() {
   return (
     <div>
       <PageHeader
-        title="Informes de Proyecto"
+        title="Análisis de Proyecto"
         action={
           puedeEscribir ? <LinkButton href="/informes/proyecto/nuevo">+ Nuevo informe</LinkButton> : undefined
         }

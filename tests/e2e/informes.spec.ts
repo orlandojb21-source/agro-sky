@@ -20,9 +20,9 @@ test.describe("Informes — navegación y CRUD", () => {
     await page.goto("/informes/campo");
     await expect(page.getByRole("link", { name: "Informe de Campo" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Informe Diario" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Informe de Proyecto" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Análisis de Proyecto" })).toBeVisible();
 
-    await page.getByRole("link", { name: "Informe de Proyecto" }).click();
+    await page.getByRole("link", { name: "Análisis de Proyecto" }).click();
     await expect(page).toHaveURL(/\/informes\/proyecto$/);
 
     const respViejaProyectos = await page.goto("/proyectos", { waitUntil: "domcontentloaded" });

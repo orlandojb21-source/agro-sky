@@ -26,7 +26,7 @@ export default async function NuevoInformeDiarioPage() {
       finca: row.finca as string,
       fecha: row.fecha as string,
       operador: row.operador as string,
-      dosisPorHectarea: Number(row.dosis_por_hectarea),
+      dosisPorHectarea: row.dosis_por_hectarea as string,
       hectareas: ((row.informe_campo_parcelas ?? []) as { hectareas: number }[]).reduce(
         (s, p) => s + Number(p.hectareas),
         0,

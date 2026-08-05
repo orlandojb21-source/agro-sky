@@ -23,7 +23,7 @@ export type DatosInformeCampoPendiente = {
   horaFin: string;
   meteorologia: string;
   modeloDrone: string;
-  dosisPorHectarea: number;
+  dosisPorHectarea: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular";
   operador: string;
   ayudantes: string[];

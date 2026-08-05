@@ -22,7 +22,7 @@ export default async function NuevoInformeProyectoPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">
-        Nuevo informe de proyecto
+        Nuevo análisis de proyecto
       </h1>
       <ProyectoInformeForm
         fechaHoy={fechaHoy}

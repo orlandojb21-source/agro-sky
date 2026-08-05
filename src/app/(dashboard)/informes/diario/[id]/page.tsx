@@ -78,7 +78,7 @@ export default async function DetalleInformeDiarioPage({
     horaFin: informeCampoRow.hora_fin as string,
     meteorologia: informeCampoRow.meteorologia as string,
     modeloDrone: informeCampoRow.modelo_drone as string,
-    dosisPorHectarea: Number(informeCampoRow.dosis_por_hectarea),
+    dosisPorHectarea: informeCampoRow.dosis_por_hectarea as string,
     tipoProyecto: informeCampoRow.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
     operador: informeCampoRow.operador as string,
     ayudantes: (informeCampoRow.ayudantes ?? []) as string[],

@@ -7,7 +7,7 @@ import type { Rol } from "@/lib/roles";
 const TABS = [
   { href: "/informes/campo", label: "Informe de Campo" },
   { href: "/informes/diario", label: "Informe Diario" },
-  { href: "/informes/proyecto", label: "Informe de Proyecto" },
+  { href: "/informes/proyecto", label: "Análisis de Proyecto" },
 ];
 
 export function InformesSubNav({ rol }: { rol: Rol }) {

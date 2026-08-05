@@ -895,7 +895,7 @@ export type InformeCampoExportable = {
   horaFin: string;
   meteorologia: string;
   modeloDrone: string;
-  dosisPorHectarea: number;
+  dosisPorHectarea: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   operador: string;
   ayudantes: string[];
