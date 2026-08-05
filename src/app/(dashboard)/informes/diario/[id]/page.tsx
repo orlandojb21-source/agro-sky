@@ -77,6 +77,7 @@ export default async function DetalleInformeDiarioPage({
     horaInicio: informeCampoRow.hora_inicio as string,
     horaFin: informeCampoRow.hora_fin as string,
     meteorologia: informeCampoRow.meteorologia as string,
+    tipoAplicacion: informeCampoRow.tipo_aplicacion as "liquido" | "granulado" | null,
     modeloDrone: informeCampoRow.modelo_drone as string,
     dosisPorHectarea: informeCampoRow.dosis_por_hectarea as string,
     tipoProyecto: informeCampoRow.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,

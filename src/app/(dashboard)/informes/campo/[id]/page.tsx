@@ -67,6 +67,7 @@ export default async function DetalleInformeCampoPage({
     horaInicio: informe.hora_inicio as string,
     horaFin: informe.hora_fin as string,
     meteorologia: informe.meteorologia as string,
+    tipoAplicacion: informe.tipo_aplicacion as "liquido" | "granulado" | null,
     modeloDrone: informe.modelo_drone as string,
     dosisPorHectarea: informe.dosis_por_hectarea as string,
     tipoProyecto: informe.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
@@ -128,6 +129,18 @@ export default async function DetalleInformeCampoPage({
             Meteorología
           </p>
           <p className="text-green-900 dark:text-green-50">{informe.meteorologia as string}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+            Tipo de Aplicación
+          </p>
+          <p className="text-green-900 dark:text-green-50">
+            {informe.tipo_aplicacion === "liquido"
+              ? "Líquido"
+              : informe.tipo_aplicacion === "granulado"
+                ? "Granulado"
+                : "—"}
+          </p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">

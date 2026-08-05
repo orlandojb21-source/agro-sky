@@ -894,6 +894,7 @@ export type InformeCampoExportable = {
   horaInicio: string;
   horaFin: string;
   meteorologia: string;
+  tipoAplicacion: "liquido" | "granulado" | null;
   modeloDrone: string;
   dosisPorHectarea: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
@@ -996,6 +997,13 @@ async function dibujarCuerpoInformeCampo(
     `Finca: ${informe.finca}`,
     `Hora: ${informe.horaInicio.slice(0, 5)} a ${informe.horaFin.slice(0, 5)}`,
     `Meteorología: ${informe.meteorologia}`,
+    `Tipo de Aplicación: ${
+      informe.tipoAplicacion === "liquido"
+        ? "Líquido"
+        : informe.tipoAplicacion === "granulado"
+          ? "Granulado"
+          : "—"
+    }`,
     `Modelo de Drone: ${informe.modeloDrone}`,
     `Dosis por Hectárea: ${informe.dosisPorHectarea}`,
     equipo,

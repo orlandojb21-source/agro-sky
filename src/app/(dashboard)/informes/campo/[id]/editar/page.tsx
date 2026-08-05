@@ -71,6 +71,7 @@ export default async function EditarInformeCampoPage({
           horaInicio: informe.hora_inicio as string,
           horaFin: informe.hora_fin as string,
           meteorologia: informe.meteorologia as string,
+          tipoAplicacion: informe.tipo_aplicacion as "liquido" | "granulado" | null,
           modeloDrone: informe.modelo_drone as string,
           dosisPorHectarea: informe.dosis_por_hectarea as string,
           operador: informe.operador as string,

@@ -58,6 +58,7 @@ export type ValoresInformeCampo = {
   horaInicio: string;
   horaFin: string;
   meteorologia: string;
+  tipoAplicacion: "liquido" | "granulado" | null;
   modeloDrone: string;
   dosisPorHectarea: string;
   operador: string;
@@ -273,6 +274,7 @@ export function InformeCampoForm({
         horaInicio: raw.horaInicio,
         horaFin: raw.horaFin,
         meteorologia: raw.meteorologia,
+        tipoAplicacion: raw.tipoAplicacion,
         modeloDrone: raw.modeloDrone,
         dosisPorHectarea: raw.dosisPorHectarea,
         tipoProyecto: raw.tipoProyecto,
@@ -298,6 +300,7 @@ export function InformeCampoForm({
           horaInicio: parsed.data.horaInicio,
           horaFin: parsed.data.horaFin,
           meteorologia: parsed.data.meteorologia,
+          tipoAplicacion: parsed.data.tipoAplicacion,
           modeloDrone: parsed.data.modeloDrone,
           dosisPorHectarea: parsed.data.dosisPorHectarea,
           tipoProyecto: parsed.data.tipoProyecto,
@@ -452,6 +455,16 @@ export function InformeCampoForm({
             required
           />
         </div>
+        <SelectField
+          label="Tipo de Aplicación"
+          name="tipoAplicacion"
+          defaultValue={v?.tipoAplicacion ?? valoresIniciales?.tipoAplicacion ?? undefined}
+          required
+        >
+          <option value="">Selecciona...</option>
+          <option value="liquido">Líquido</option>
+          <option value="granulado">Granulado</option>
+        </SelectField>
       </div>
 
       <div className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">

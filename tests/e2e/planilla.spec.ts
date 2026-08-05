@@ -87,6 +87,7 @@ test.describe("Planilla — Asistencia + Informe de Campo + Pago", () => {
     await page.locator('input[name="horaInicio"]').fill("07:00");
     await page.locator('input[name="horaFin"]').fill("09:00");
     await page.locator('input[name="meteorologia"]').fill("Despejado");
+    await page.locator('select[name="tipoAplicacion"]').selectOption("liquido");
     await page.locator("table input").first().fill("1");
     await page.locator("table input[type='number']").first().fill(String(HECTAREAS));
     await page.locator('input[name="modeloDrone"]').fill("T40");

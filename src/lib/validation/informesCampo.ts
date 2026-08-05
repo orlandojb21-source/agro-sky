@@ -22,6 +22,7 @@ const informeCampoBaseSchema = z.object({
   horaInicio: z.string().min(1, "Hora de inicio requerida"),
   horaFin: z.string().min(1, "Hora de finalización requerida"),
   meteorologia: z.string().trim().min(1, "Meteorología requerida"),
+  tipoAplicacion: z.enum(["liquido", "granulado"], { message: "Selecciona el tipo de aplicación" }),
   modeloDrone: z.string().trim().min(1, "Modelo de drone requerido"),
   // Texto libre (no solo números) -- en el campo a veces anotan la dosis
   // con letras además del número, ej. "2.8qxHA" (pedido del usuario,
