@@ -627,7 +627,7 @@ export function PagoPlanillaForm({
       {esFijo && (
         <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
           <p className="text-sm text-green-900 dark:text-green-100">
-            Total a pagar (Monto + Bonificación − CSS − Seguro Educativo):{" "}
+            Total a pagar:{" "}
             <strong className="text-base">
               {formatMoney(
                 Math.round(
