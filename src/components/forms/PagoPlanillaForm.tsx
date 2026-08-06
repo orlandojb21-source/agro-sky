@@ -3,6 +3,8 @@
 import { useActionState, useMemo, useState } from "react";
 import { crearPagoAction, editarPagoAction } from "@/lib/actions/planilla";
 import { obtenerResumenAsistenciaAction, type ResumenAsistencia } from "@/lib/actions/asistencia";
+import { obtenerResumenControlHorarioAction, type ResumenControlHorario } from "@/lib/actions/controlHorario";
+import { obtenerQuincenaDeFecha } from "@/lib/planilla";
 import type { DetalleTalonarioCampo } from "@/lib/exportar";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
@@ -184,6 +186,12 @@ export function PagoPlanillaForm({
   const [detalleAsistencia, setDetalleAsistencia] = useState<DetalleDiaEditable[]>(detalleInicial);
   const [buscandoResumen, setBuscandoResumen] = useState(false);
   const [errorResumen, setErrorResumen] = useState<string | null>(null);
+  // Descuento por ausencias de un colaborador Fijo (Control de Horario) --
+  // independiente del resumen de Asistencia de arriba, que es solo para
+  // Campo. La quincena se calcula a partir de la fecha elegida en el
+  // formulario, no de la fecha de hoy.
+  const [resumenControlHorario, setResumenControlHorario] = useState<ResumenControlHorario | null>(null);
+  const [etiquetaQuincenaFijo, setEtiquetaQuincenaFijo] = useState<string | null>(null);
 
   if (state !== prevState) {
     setPrevState(state);
@@ -197,6 +205,8 @@ export function PagoPlanillaForm({
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
     setDetalleAsistencia(detalleInicial());
+    setResumenControlHorario(null);
+    setEtiquetaQuincenaFijo(null);
     setErrorResumen(null);
   }
 
@@ -210,6 +220,8 @@ export function PagoPlanillaForm({
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
     setDetalleAsistencia([]);
+    setResumenControlHorario(null);
+    setEtiquetaQuincenaFijo(null);
     setErrorResumen(null);
   }
 
@@ -233,6 +245,32 @@ export function PagoPlanillaForm({
       setMontoTexto(String(resultado.totalSugerido));
     } catch (err) {
       setErrorResumen(err instanceof Error ? err.message : "No se pudo consultar la asistencia.");
+    } finally {
+      setBuscandoResumen(false);
+    }
+  }
+
+  // Descuenta del salario base los días marcados "No" en Control de
+  // Horario dentro de la quincena a la que pertenece la fecha elegida --
+  // el resultado pre-llena Monto (y, con él, CSS/Seguro Educativo se
+  // recalculan solos vía cambiarMonto), pero todo sigue editable después.
+  async function verResumenControlHorario() {
+    if (!colaboradorActual || colaboradorActual.salario == null) return;
+    const quincena = obtenerQuincenaDeFecha(fechaHastaTexto);
+    setBuscandoResumen(true);
+    setErrorResumen(null);
+    try {
+      const resultado = await obtenerResumenControlHorarioAction(
+        colaboradorSeleccionado,
+        quincena.fechaDesde,
+        quincena.fechaHasta,
+        colaboradorActual.salario,
+      );
+      setResumenControlHorario(resultado);
+      setEtiquetaQuincenaFijo(quincena.etiqueta);
+      cambiarMonto(String(resultado.totalSugerido));
+    } catch (err) {
+      setErrorResumen(err instanceof Error ? err.message : "No se pudo consultar el control de horario.");
     } finally {
       setBuscandoResumen(false);
     }
@@ -442,6 +480,50 @@ export function PagoPlanillaForm({
                     </p>
                   </div>
               </>
+            )}
+          </div>
+        </div>
+      ) : esFijo ? (
+        <div className="flex flex-col gap-3">
+          <Field
+            label="Fecha"
+            name="fecha"
+            type="date"
+            value={fechaHastaTexto}
+            onChange={(e) => {
+              setFechaHastaTexto(e.target.value);
+              setResumenControlHorario(null);
+              setEtiquetaQuincenaFijo(null);
+            }}
+            required
+          />
+          <div className="rounded-lg border border-green-100 p-3 dark:border-green-900/40">
+            <button
+              type="button"
+              onClick={verResumenControlHorario}
+              disabled={buscandoResumen || !colaboradorSeleccionado || colaboradorActual?.salario == null}
+              className="rounded-lg border border-green-300 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 disabled:opacity-50 dark:border-green-700 dark:text-green-200 dark:hover:bg-green-950/40"
+            >
+              {buscandoResumen ? "Calculando..." : "Calcular pago sugerido"}
+            </button>
+            {colaboradorActual?.salario == null && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                Este colaborador no tiene un salario guardado en Colaboradores.
+              </p>
+            )}
+            {errorResumen && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errorResumen}</p>}
+            {resumenControlHorario && etiquetaQuincenaFijo && (
+              <p className="mt-2 text-sm text-green-800/80 dark:text-green-200/80">
+                Quincena del {etiquetaQuincenaFijo} — {resumenControlHorario.diasAusentes} día(s) de ausencia
+                marcados en Control de Horario sobre {resumenControlHorario.diasEsperados} esperados.
+                {resumenControlHorario.diasAusentes > 0 && (
+                  <>
+                    {" "}
+                    Descuento: <strong>{formatMoney(resumenControlHorario.totalDescuento)}</strong>.
+                  </>
+                )}{" "}
+                Total sugerido: <strong>{formatMoney(resumenControlHorario.totalSugerido)}</strong>.
+              </p>
             )}
           </div>
         </div>

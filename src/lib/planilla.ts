@@ -33,8 +33,7 @@ export type QuincenaActual = {
 // de la empresa, confirmado por el usuario 2026-08-04) -- calculado con
 // la misma hora de Panama que calcularTotalesMesActual, por la misma
 // razon (el servidor puede correr en otra zona horaria).
-export function obtenerQuincenaActual(): QuincenaActual {
-  const { anio, mes, dia } = hoyEnPanama();
+function quincenaDesdePartes(anio: number, mes: number, dia: number): QuincenaActual {
   const esPrimeraQuincena = dia <= 15;
   const ultimoDiaMes = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
   const diaHasta = esPrimeraQuincena ? 15 : ultimoDiaMes;
@@ -44,6 +43,22 @@ export function obtenerQuincenaActual(): QuincenaActual {
     fechaHasta: aISO(anio, mes, diaHasta),
     etiqueta: `${esPrimeraQuincena ? 1 : 16} al ${diaHasta} de ${MESES[mes]}`,
   };
+}
+
+export function obtenerQuincenaActual(): QuincenaActual {
+  const { anio, mes, dia } = hoyEnPanama();
+  return quincenaDesdePartes(anio, mes, dia);
+}
+
+// Igual que obtenerQuincenaActual(), pero para una fecha cualquiera (no
+// necesariamente hoy) -- usado para calcular a qué quincena pertenece la
+// fecha elegida en un formulario (ej. "Calcular pago sugerido" de un
+// colaborador Fijo en Pagos), en vez de asumir que siempre es la quincena
+// en curso. No depende de la hora del servidor porque la fecha ya viene
+// como texto "YYYY-MM-DD" desde el formulario.
+export function obtenerQuincenaDeFecha(fechaISO: string): QuincenaActual {
+  const [anio, mesUno, dia] = fechaISO.split("-").map(Number);
+  return quincenaDesdePartes(anio, mesUno - 1, dia);
 }
 
 export type TotalesMes = {
