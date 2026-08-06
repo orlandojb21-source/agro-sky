@@ -624,6 +624,25 @@ export function PagoPlanillaForm({
         </div>
       )}
 
+      {esFijo && (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
+          <p className="text-sm text-green-900 dark:text-green-100">
+            Total a pagar (Monto + Bonificación − CSS − Seguro Educativo):{" "}
+            <strong className="text-base">
+              {formatMoney(
+                Math.round(
+                  ((Number(montoTexto) || 0) +
+                    (Number(bonifTexto) || 0) -
+                    (Number(cssTexto) || 0) -
+                    (Number(seguroTexto) || 0)) *
+                    100,
+                ) / 100,
+              )}
+            </strong>
+          </p>
+        </div>
+      )}
+
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar pago"}</SubmitButton>
         <LinkButton href="/planilla/pagos" variant="secondary">
