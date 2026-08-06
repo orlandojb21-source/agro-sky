@@ -22,7 +22,10 @@ export default async function EditarPagoPlanillaPage({
       )
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("colaboradores").select("nombre, tipo, salario, aplica_deducciones").order("nombre"),
+    supabase
+      .from("colaboradores")
+      .select("nombre, tipo, salario, bonificacion, aplica_deducciones")
+      .order("nombre"),
   ]);
 
   // Si el administrador entra directo a la URL de un pago Fijo, RLS
@@ -34,6 +37,7 @@ export default async function EditarPagoPlanillaPage({
     nombre: c.nombre as string,
     tipo: c.tipo as "fijo" | "campo",
     salario: c.salario === null ? null : Number(c.salario),
+    bonificacion: c.bonificacion === null ? null : Number(c.bonificacion),
     aplicaDeducciones: c.aplica_deducciones as boolean,
   }));
 

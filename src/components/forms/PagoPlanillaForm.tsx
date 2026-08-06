@@ -23,6 +23,7 @@ export type ColaboradorOpcion = {
   nombre: string;
   tipo: "fijo" | "campo";
   salario: number | null;
+  bonificacion: number | null;
   aplicaDeducciones: boolean;
 };
 
@@ -85,6 +86,15 @@ function calcularDeduccion(montoTexto: string, tasa: number): string {
   return String(Math.round(monto * tasa * 100) / 100);
 }
 
+// El salario (y la bonificación, si aplica) de un colaborador Fijo se
+// guardan como monto MENSUAL en Colaboradores -- cada quincena paga la
+// mitad (confirmado por el usuario, 2026-08-06, tras ver que "Calcular
+// pago sugerido" mostraba el mensual completo como si fuera quincenal).
+function mitadTexto(valorMensual: number | null): string {
+  if (valorMensual === null) return "";
+  return String(Math.round((valorMensual / 2) * 100) / 100);
+}
+
 export function PagoPlanillaForm({
   fechaHoy,
   colaboradores,
@@ -120,7 +130,13 @@ export function PagoPlanillaForm({
           ? "campo"
           : "fijo";
       return [
-        { nombre: valoresIniciales.colaborador, tipo: tipoInferido, salario: null, aplicaDeducciones: true },
+        {
+          nombre: valoresIniciales.colaborador,
+          tipo: tipoInferido,
+          salario: null,
+          bonificacion: null,
+          aplicaDeducciones: true,
+        },
         ...colaboradores,
       ];
     }
@@ -137,7 +153,7 @@ export function PagoPlanillaForm({
   function datosIniciales(nombreColaborador: string) {
     const colaborador = opciones.find((c) => c.nombre === nombreColaborador);
     const esFijoColab = colaborador?.tipo === "fijo";
-    const montoSugerido = !esEdicion && esFijoColab && colaborador?.salario !== null ? String(colaborador!.salario) : "";
+    const montoSugerido = !esEdicion && esFijoColab ? mitadTexto(colaborador!.salario) : "";
     const monto =
       v?.monto ?? (valoresIniciales?.monto != null ? String(valoresIniciales.monto) : montoSugerido);
     const cssHistorico = v?.css ?? (valoresIniciales?.css != null ? String(valoresIniciales.css) : null);
@@ -145,7 +161,11 @@ export function PagoPlanillaForm({
       v?.seguroEducativo ?? (valoresIniciales?.seguroEducativo != null ? String(valoresIniciales.seguroEducativo) : null);
     const css = cssHistorico ?? (esFijoColab ? calcularDeduccion(monto, TASA_CSS) : "");
     const seguroEducativo = seguroHistorico ?? (esFijoColab ? calcularDeduccion(monto, TASA_SEGURO_EDUCATIVO) : "");
-    return { monto, css, seguroEducativo };
+    const bonificacionSugerida = !esEdicion && esFijoColab ? mitadTexto(colaborador!.bonificacion) : "";
+    const bonificacion =
+      v?.bonificacion ??
+      (valoresIniciales?.bonificacion != null ? String(valoresIniciales.bonificacion) : bonificacionSugerida);
+    return { monto, css, seguroEducativo, bonificacion };
   }
 
   const fechaHastaInicial = v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy;
@@ -180,6 +200,7 @@ export function PagoPlanillaForm({
   const [montoTexto, setMontoTexto] = useState(() => datosIniciales(colaboradorInicial).monto);
   const [cssTexto, setCssTexto] = useState(() => datosIniciales(colaboradorInicial).css);
   const [seguroTexto, setSeguroTexto] = useState(() => datosIniciales(colaboradorInicial).seguroEducativo);
+  const [bonifTexto, setBonifTexto] = useState(() => datosIniciales(colaboradorInicial).bonificacion);
   const [fechaDesdeTexto, setFechaDesdeTexto] = useState(fechaDesdeInicial);
   const [fechaHastaTexto, setFechaHastaTexto] = useState(fechaHastaInicial);
   const [resumenAsistencia, setResumenAsistencia] = useState<ResumenAsistencia | null>(null);
@@ -201,6 +222,7 @@ export function PagoPlanillaForm({
     setMontoTexto(iniciales.monto);
     setCssTexto(iniciales.css);
     setSeguroTexto(iniciales.seguroEducativo);
+    setBonifTexto(iniciales.bonificacion);
     setFechaDesdeTexto(fechaDesdeInicial);
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
@@ -216,6 +238,7 @@ export function PagoPlanillaForm({
     setMontoTexto(iniciales.monto);
     setCssTexto(iniciales.css);
     setSeguroTexto(iniciales.seguroEducativo);
+    setBonifTexto(iniciales.bonificacion);
     setFechaDesdeTexto(fechaDesdeInicial);
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
@@ -257,6 +280,7 @@ export function PagoPlanillaForm({
   async function verResumenControlHorario() {
     if (!colaboradorActual || colaboradorActual.salario == null) return;
     const quincena = obtenerQuincenaDeFecha(fechaHastaTexto);
+    const salarioQuincenal = Number(mitadTexto(colaboradorActual.salario));
     setBuscandoResumen(true);
     setErrorResumen(null);
     try {
@@ -264,11 +288,12 @@ export function PagoPlanillaForm({
         colaboradorSeleccionado,
         quincena.fechaDesde,
         quincena.fechaHasta,
-        colaboradorActual.salario,
+        salarioQuincenal,
       );
       setResumenControlHorario(resultado);
       setEtiquetaQuincenaFijo(quincena.etiqueta);
       cambiarMonto(String(resultado.totalSugerido));
+      setBonifTexto(mitadTexto(colaboradorActual.bonificacion));
     } catch (err) {
       setErrorResumen(err instanceof Error ? err.message : "No se pudo consultar el control de horario.");
     } finally {
@@ -522,7 +547,15 @@ export function PagoPlanillaForm({
                     Descuento: <strong>{formatMoney(resumenControlHorario.totalDescuento)}</strong>.
                   </>
                 )}{" "}
-                Total sugerido: <strong>{formatMoney(resumenControlHorario.totalSugerido)}</strong>.
+                Salario sugerido: <strong>{formatMoney(resumenControlHorario.totalSugerido)}</strong>
+                {Number(bonifTexto) > 0 && (
+                  <>
+                    {" "}
+                    + Bonificación: <strong>{formatMoney(Number(bonifTexto))}</strong> (sin descuento)
+                  </>
+                )}
+                . Total del pago:{" "}
+                <strong>{formatMoney(resumenControlHorario.totalSugerido + (Number(bonifTexto) || 0))}</strong>.
               </p>
             )}
           </div>
@@ -558,13 +591,13 @@ export function PagoPlanillaForm({
 
       {esFijo && (
         <Field
-          key={`bonificacion-${colaboradorSeleccionado}`}
           label="Bonificación (USD, opcional — no aplica CSS ni Seguro Educativo)"
           name="bonificacion"
           type="number"
           min={0}
           step="0.01"
-          defaultValue={v?.bonificacion ?? valoresIniciales?.bonificacion ?? undefined}
+          value={bonifTexto}
+          onChange={(e) => setBonifTexto(e.target.value)}
         />
       )}
 

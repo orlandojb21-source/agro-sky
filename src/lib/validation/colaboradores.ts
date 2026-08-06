@@ -5,7 +5,13 @@ const colaboradorBase = z.object({
   tipo: z.enum(["fijo", "campo"]),
   // Solo aplica a Fijo -- llega como string crudo del form, se valida con
   // .refine() abajo porque su obligatoriedad depende del tipo elegido.
+  // Es el monto MENSUAL (no quincenal) -- cada pago de quincena descuenta
+  // la mitad, ver PagoPlanillaForm.tsx.
   salario: z.string().trim().optional().default(""),
+  // Bonificación MENSUAL opcional -- a diferencia de salario, nunca lleva
+  // descuento de CSS/Seguro Educativo. No todos los colaboradores Fijos la
+  // tienen, por eso no es obligatoria.
+  bonificacion: z.string().trim().optional().default(""),
   // Checkbox HTML: llega "on" si esta marcado, o ni siquiera aparece en el
   // FormData si no lo esta -- por eso es opcional y se transforma a boolean.
   aplicaDeducciones: z
@@ -30,6 +36,12 @@ function salarioValido(data: { tipo: string; salario: string }): boolean {
   return data.salario !== "" && !Number.isNaN(n) && n > 0;
 }
 
+function bonificacionValida(data: { bonificacion: string }): boolean {
+  if (data.bonificacion === "") return true;
+  const n = Number(data.bonificacion);
+  return !Number.isNaN(n) && n >= 0;
+}
+
 function correoValido(correo: string): boolean {
   if (correo === "") return true;
   return z.string().email().safeParse(correo).success;
@@ -37,8 +49,12 @@ function correoValido(correo: string): boolean {
 
 export const colaboradorSchema = colaboradorBase
   .refine(salarioValido, {
-    message: "El salario quincenal es requerido para colaboradores fijos",
+    message: "El salario mensual es requerido para colaboradores fijos",
     path: ["salario"],
+  })
+  .refine(bonificacionValida, {
+    message: "La bonificación mensual no es válida",
+    path: ["bonificacion"],
   })
   .refine((data) => correoValido(data.correo), {
     message: "El correo no es válido",
@@ -48,8 +64,12 @@ export const colaboradorSchema = colaboradorBase
 export const colaboradorEditSchema = colaboradorBase
   .extend({ id: z.string().uuid() })
   .refine(salarioValido, {
-    message: "El salario quincenal es requerido para colaboradores fijos",
+    message: "El salario mensual es requerido para colaboradores fijos",
     path: ["salario"],
+  })
+  .refine(bonificacionValida, {
+    message: "La bonificación mensual no es válida",
+    path: ["bonificacion"],
   })
   .refine((data) => correoValido(data.correo), {
     message: "El correo no es válido",

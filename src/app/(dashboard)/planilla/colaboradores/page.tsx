@@ -135,7 +135,7 @@ export default async function ColaboradoresPage() {
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <ListaColaboradores
-          titulo="Fijos (salario quincenal)"
+          titulo="Fijos (salario mensual)"
           colaboradores={fijos}
           puedeEscribir={puedeEscribir}
         />

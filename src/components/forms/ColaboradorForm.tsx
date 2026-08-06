@@ -13,6 +13,7 @@ type ValoresColaborador = {
   nombre: string;
   tipo: "fijo" | "campo";
   salario: number | null;
+  bonificacion: number | null;
   aplicaDeducciones: boolean;
   cedula: string | null;
   correo: string | null;
@@ -118,7 +119,7 @@ export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: Valor
             onChange={(e) => setTipoSeleccionado(e.target.value as "fijo" | "campo")}
             required
           >
-            <option value="fijo">Fijo (salario quincenal)</option>
+            <option value="fijo">Fijo (salario mensual)</option>
             <option value="campo">Campo (pago por día)</option>
           </SelectField>
         </div>
@@ -126,13 +127,23 @@ export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: Valor
           <>
             <div className="min-w-[160px]">
               <Field
-                label="Salario quincenal (USD)"
+                label="Salario mensual (USD)"
                 name="salario"
                 type="number"
                 min={0}
                 step="0.01"
                 defaultValue={state.values?.salario ?? valoresIniciales?.salario ?? undefined}
                 required
+              />
+            </div>
+            <div className="min-w-[160px]">
+              <Field
+                label="Bonificación mensual (USD, opcional — no aplica CSS ni Seguro Educativo)"
+                name="bonificacion"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={state.values?.bonificacion ?? valoresIniciales?.bonificacion ?? undefined}
               />
             </div>
             <label className="flex items-center gap-2 pb-2.5 text-sm text-green-900 dark:text-green-100">

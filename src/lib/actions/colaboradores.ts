@@ -32,6 +32,8 @@ export async function crearColaboradorAction(
     nombre: parsed.data.nombre,
     tipo: parsed.data.tipo,
     salario: parsed.data.tipo === "fijo" ? Number(parsed.data.salario) : null,
+    bonificacion:
+      parsed.data.tipo === "fijo" && parsed.data.bonificacion !== "" ? Number(parsed.data.bonificacion) : null,
     aplica_deducciones: parsed.data.tipo === "fijo" ? parsed.data.aplicaDeducciones : true,
     cedula: parsed.data.cedula || null,
     correo: parsed.data.correo || null,
@@ -68,6 +70,8 @@ export async function editarColaboradorAction(
       nombre: parsed.data.nombre,
       tipo: parsed.data.tipo,
       salario: parsed.data.tipo === "fijo" ? Number(parsed.data.salario) : null,
+      bonificacion:
+        parsed.data.tipo === "fijo" && parsed.data.bonificacion !== "" ? Number(parsed.data.bonificacion) : null,
       aplica_deducciones: parsed.data.tipo === "fijo" ? parsed.data.aplicaDeducciones : true,
       cedula: parsed.data.cedula || null,
       correo: parsed.data.correo || null,
