@@ -5,32 +5,44 @@ import {
   BalanceDashboard,
   type VentaBalance,
   type PagoPlanillaBalance,
+  type GastoCompraBalance,
 } from "@/components/forms/BalanceDashboard";
 import type { MovimientoExportable } from "@/lib/exportar";
+import type { CATEGORIAS_GASTO as CATEGORIAS_GASTO_COMPRAS } from "@/lib/validation/gastos";
 
 export default async function BalancePage() {
   await requireSection("balance");
 
   const supabase = await createClient();
-  const [{ data: gastos }, { data: reposiciones }, { data: ventasData }, { data: pagosData }, { data: colaboradoresData }] =
-    await Promise.all([
-      supabase
-        .from("caja_gastos")
-        .select(
-          "fecha, categoria, nombre, numero_recibo, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
-        )
-        .order("fecha", { ascending: false }),
-      supabase.from("caja_reposiciones").select("fecha, monto, nota").order("fecha", { ascending: false }),
-      supabase
-        .from("ventas")
-        .select("fecha, subtotal_gravado, subtotal_exento, itbms")
-        .order("fecha", { ascending: false }),
-      supabase
-        .from("planilla_pagos")
-        .select("fecha, colaborador, monto, bonificacion")
-        .order("fecha", { ascending: false }),
-      supabase.from("colaboradores").select("nombre").order("nombre"),
-    ]);
+  const [
+    { data: gastos },
+    { data: reposiciones },
+    { data: ventasData },
+    { data: pagosData },
+    { data: colaboradoresData },
+    { data: gastosComprasData },
+  ] = await Promise.all([
+    supabase
+      .from("caja_gastos")
+      .select(
+        "fecha, categoria, nombre, numero_recibo, concepto, monto, colaborador, previsto, entregado, vuelto, nota",
+      )
+      .order("fecha", { ascending: false }),
+    supabase.from("caja_reposiciones").select("fecha, monto, nota").order("fecha", { ascending: false }),
+    supabase
+      .from("ventas")
+      .select("fecha, subtotal_gravado, subtotal_exento, itbms")
+      .order("fecha", { ascending: false }),
+    supabase
+      .from("planilla_pagos")
+      .select("fecha, colaborador, monto, bonificacion")
+      .order("fecha", { ascending: false }),
+    supabase.from("colaboradores").select("nombre").order("nombre"),
+    supabase
+      .from("gastos")
+      .select("fecha, categoria, categoria_otro, numero_factura, monto, proveedores ( nombre )")
+      .order("fecha", { ascending: false }),
+  ]);
 
   const movimientos: MovimientoExportable[] = [
     ...(gastos ?? []).map((g) => ({
@@ -83,17 +95,27 @@ export default async function BalancePage() {
 
   const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
 
+  const gastosCompras: GastoCompraBalance[] = (gastosComprasData ?? []).map((g) => ({
+    fecha: g.fecha as string,
+    categoria: g.categoria as (typeof CATEGORIAS_GASTO_COMPRAS)[number],
+    categoriaOtro: g.categoria_otro as string | null,
+    proveedorNombre: (g.proveedores as unknown as { nombre: string } | null)?.nombre ?? null,
+    numeroFactura: g.numero_factura as string | null,
+    monto: Number(g.monto),
+  }));
+
   return (
     <div>
       <PageHeader
         title="Balance"
-        description="Todo el dinero que entra y sale de Agro Sky: Ventas, Caja Menuda y Planilla. Cuando Compras esté listo, también aparecerá aquí."
+        description="Todo el dinero que entra y sale de Agro Sky: Ventas, Caja Menuda, Planilla y Gastos de Compras."
       />
       <BalanceDashboard
         movimientos={movimientos}
         ventas={ventas}
         pagosPlanilla={pagosPlanilla}
         colaboradores={colaboradores}
+        gastosCompras={gastosCompras}
       />
     </div>
   );

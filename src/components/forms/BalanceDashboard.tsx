@@ -19,6 +19,10 @@ import {
 } from "@/lib/exportar";
 import { formatMoney } from "@/lib/format";
 import { CATEGORIAS_GASTO } from "@/lib/categorias";
+import {
+  CATEGORIA_GASTO_LABEL,
+  CATEGORIAS_GASTO as CATEGORIAS_GASTO_COMPRAS,
+} from "@/lib/validation/gastos";
 
 const COLORES_CATEGORIA = ["#dc2626", "#ea580c", "#ca8a04", "#65a30d", "#0891b2", "#7c3aed"];
 
@@ -66,6 +70,21 @@ export type PagoPlanillaBalance = {
   monto: number;
 };
 
+// Gastos operativos fijos de la empresa (alquiler, luz, agua, internet,
+// teléfono, etc.) registrados en Compras > Gastos -- distintos de Caja
+// Menuda (gastos chicos del día a día) y de Órdenes de Compra (piezas de
+// Inventario), ver migración 0056_proveedores_gastos.sql. Categorías
+// propias (alquiler/luz/agua/internet/telefono/otro), no las de
+// lib/categorias.ts (esas son de Caja Menuda/Planilla).
+export type GastoCompraBalance = {
+  fecha: string;
+  categoria: (typeof CATEGORIAS_GASTO_COMPRAS)[number];
+  categoriaOtro: string | null;
+  proveedorNombre: string | null;
+  numeroFactura: string | null;
+  monto: number;
+};
+
 type BarraDatos = { nombre: string; monto: number; color: string };
 
 function GraficaDosBarras({ datos }: { datos: BarraDatos[] }) {
@@ -99,11 +118,13 @@ export function BalanceDashboard({
   ventas,
   pagosPlanilla,
   colaboradores,
+  gastosCompras,
 }: {
   movimientos: MovimientoExportable[];
   ventas: VentaBalance[];
   pagosPlanilla: PagoPlanillaBalance[];
   colaboradores: string[];
+  gastosCompras: GastoCompraBalance[];
 }) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [desde, setDesde] = useState("");
@@ -163,6 +184,15 @@ export function BalanceDashboard({
     });
   }, [pagosPlanilla, fechaDesde, fechaHasta, listo]);
 
+  const gastosComprasFiltrados = useMemo(() => {
+    if (!listo) return [];
+    return gastosCompras.filter((g) => {
+      if (fechaDesde && g.fecha < fechaDesde) return false;
+      if (fechaHasta && g.fecha > fechaHasta) return false;
+      return true;
+    });
+  }, [gastosCompras, fechaDesde, fechaHasta, listo]);
+
   const totalReposiciones = movimientosFiltrados
     .filter((m) => m.tipo === "reposicion")
     .reduce((suma, m) => suma + m.monto, 0);
@@ -172,15 +202,24 @@ export function BalanceDashboard({
   const totalVentas = ventasFiltradas.reduce((suma, v) => suma + v.ingreso, 0);
   const totalItbms = ventasFiltradas.reduce((suma, v) => suma + v.itbms, 0);
   const totalPlanilla = pagosFiltrados.reduce((suma, p) => suma + p.monto, 0);
+  const totalGastosCompras = gastosComprasFiltrados.reduce((suma, g) => suma + g.monto, 0);
 
   // Reponer la caja menuda no es un ingreso de la empresa -- es plata que
   // la empresa ya tenia (banco, ventas, capital del dueno) movida a otro
   // "bolsillo" interno para gastos del dia a dia. Contarla como ingreso
   // duplicaria esa plata en el resumen general (ver Ventas como el ingreso
-  // real y Gastos/Planilla como el egreso real).
+  // real y Gastos/Planilla/Compras como el egreso real).
   const totalIngresos = totalVentas;
-  const totalEgresos = totalGastosCaja + totalPlanilla;
+  const totalEgresos = totalGastosCaja + totalPlanilla + totalGastosCompras;
   const gananciaNeta = totalIngresos - totalEgresos;
+
+  const totalesPorCategoriaCompras = CATEGORIAS_GASTO_COMPRAS.map((c) => ({
+    categoria: c,
+    etiqueta: CATEGORIA_GASTO_LABEL[c],
+    monto: gastosComprasFiltrados
+      .filter((g) => g.categoria === c)
+      .reduce((suma, g) => suma + g.monto, 0),
+  })).filter((c) => c.monto > 0);
 
   const totalesPorColaborador = colaboradores.map((c) => ({
     nombre: c,
@@ -206,8 +245,13 @@ export function BalanceDashboard({
     totalesPorCategoria.find((c) => c.categoria === categoriaFiltro)?.monto ?? 0;
 
   const hayDatosCaja = listo && movimientosFiltrados.length > 0;
+  const hayDatosCompras = listo && gastosComprasFiltrados.length > 0;
   const hayAlgunDato =
-    listo && (movimientosFiltrados.length > 0 || ventasFiltradas.length > 0 || pagosFiltrados.length > 0);
+    listo &&
+    (movimientosFiltrados.length > 0 ||
+      ventasFiltradas.length > 0 ||
+      pagosFiltrados.length > 0 ||
+      gastosComprasFiltrados.length > 0);
   const nombreArchivoCaja = `agro-sky-balance-caja-menuda-${periodo}`;
 
   return (
@@ -312,9 +356,9 @@ export function BalanceDashboard({
             </div>
 
             <p className="mt-3 text-xs text-green-700/60 dark:text-green-300/60">
-              Ingresos = Ventas (sin ITBMS). Egresos = Gastos de Caja Menuda + Planilla. Las
-              reposiciones de Caja Menuda no cuentan aquí porque no son dinero nuevo, es solo un
-              traslado a esa caja (se ven aparte, más abajo).
+              Ingresos = Ventas (sin ITBMS). Egresos = Gastos de Caja Menuda + Planilla + Gastos de
+              Compras. Las reposiciones de Caja Menuda no cuentan aquí porque no son dinero nuevo, es
+              solo un traslado a esa caja (se ven aparte, más abajo).
               {totalItbms > 0
                 ? ` ITBMS cobrado en ventas de este período (no incluido arriba, se le debe al gobierno): ${formatMoney(totalItbms)}.`
                 : ""}
@@ -511,6 +555,43 @@ export function BalanceDashboard({
                   </p>
                   <p className="text-lg font-semibold text-red-900 dark:text-red-100">
                     {formatMoney(totalPlanilla)}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+            <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Compras — Gastos</h2>
+            <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
+              Gastos operativos fijos (alquiler, luz, agua, internet, teléfono, etc.), registrados en
+              Compras &gt; Gastos.
+            </p>
+
+            {!hayDatosCompras ? (
+              <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
+                No hay gastos de Compras para este período.
+              </p>
+            ) : (
+              <>
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {totalesPorCategoriaCompras.map((c) => (
+                    <div key={c.categoria}>
+                      <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                        {c.etiqueta}
+                      </p>
+                      <p className="text-lg font-semibold text-green-900 dark:text-green-50">
+                        {formatMoney(c.monto)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 inline-block rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-center dark:border-red-900/40 dark:bg-red-950/20">
+                  <p className="text-xs font-medium uppercase tracking-wide text-red-700 dark:text-red-400">
+                    Total gastos de Compras
+                  </p>
+                  <p className="text-lg font-semibold text-red-900 dark:text-red-100">
+                    {formatMoney(totalGastosCompras)}
                   </p>
                 </div>
               </>
