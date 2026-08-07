@@ -40,7 +40,8 @@ export type NivelAcceso = "ninguno" | "lectura" | "escritura";
 // administrador y campo quedan igual que antes salvo lo pedido puntual
 // (campo gana Bitácora). gerente es de solo lectura a las 9 secciones,
 // sin excepción, incluidas Balance y Usuarios. rrhh_contabilidad escribe
-// en Planilla/Caja Menuda/Compras/Balance, lee todo lo demás.
+// en Planilla/Caja Menuda/Compras/Balance/Ventas (Ventas se sumó
+// 2026-08-06, tras aprobarse la Fase de roles), lee todo lo demás.
 //
 // Restricciones MÁS angostas que esta tabla (no caben en un modelo de 3
 // niveles por sección) siguen viviendo aparte, sin tocar: esSoporteOJefe()
@@ -95,7 +96,7 @@ export const SECTION_ACCESS: Record<Seccion, Record<Rol, NivelAcceso>> = {
     soporte: "escritura",
     campo: "ninguno",
     gerente: "lectura",
-    rrhh_contabilidad: "lectura",
+    rrhh_contabilidad: "escritura",
   },
   // Administrador no ve Balance -- pedido explícito del usuario, sin cambios.
   balance: {
