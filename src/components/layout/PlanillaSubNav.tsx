@@ -7,6 +7,7 @@ const TABS = [
   { href: "/planilla", label: "Asistencia" },
   { href: "/planilla/horario", label: "Control de Horario" },
   { href: "/planilla/pagos", label: "Pagos" },
+  { href: "/planilla/prestamos", label: "Préstamos" },
 ];
 
 export function PlanillaSubNav() {

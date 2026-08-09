@@ -30,6 +30,12 @@ const pagoBase = z.object({
   css: z.string().trim().optional().default(""),
   seguroEducativo: z.string().trim().optional().default(""),
   bonificacion: z.string().trim().optional().default(""),
+  // Descuento de un préstamo activo del colaborador (Fijo o Campo) --
+  // prestamoId identifica a cuál préstamo pertenece este abono; llegan
+  // vacíos si el colaborador no tiene préstamo activo. Se validan juntos
+  // con prestamoNoDejaNegativo abajo.
+  prestamoId: z.string().trim().optional().default(""),
+  montoPrestamo: z.string().trim().optional().default(""),
   // Foto del detalle día/informe armado por "Calcular pago sugerido"
   // (PagoPlanillaForm) -- llega como JSON en texto porque viaja en un
   // <input type="hidden">, se valida por separado con parseDetalleCalculo
@@ -41,6 +47,24 @@ function montoOpcionalValido(valor: string): boolean {
   if (valor === "") return true;
   const n = Number(valor);
   return !Number.isNaN(n) && n >= 0;
+}
+
+// El descuento de un préstamo nunca puede dejar el pago neto en negativo
+// (pedido explícito del usuario) -- se descuenta lo que se pueda, nunca
+// más de lo que el colaborador iba a recibir esa quincena.
+function prestamoNoDejaPagoNegativo(data: {
+  monto: number;
+  bonificacion: string;
+  css: string;
+  seguroEducativo: string;
+  montoPrestamo: string;
+}): boolean {
+  if (data.montoPrestamo === "") return true;
+  const prestamo = Number(data.montoPrestamo);
+  if (Number.isNaN(prestamo)) return true; // lo atrapa montoOpcionalValido
+  const neto =
+    data.monto + (Number(data.bonificacion) || 0) - (Number(data.css) || 0) - (Number(data.seguroEducativo) || 0) - prestamo;
+  return neto >= -0.005; // tolerancia de redondeo
 }
 
 // La jornada queda ligada al tipo de trabajo (pedido del usuario): Proyecto
@@ -66,6 +90,14 @@ export const pagoSchema = pagoBase
   .refine((data) => montoOpcionalValido(data.bonificacion), {
     message: "La bonificación debe ser un número mayor o igual a cero",
     path: ["bonificacion"],
+  })
+  .refine((data) => montoOpcionalValido(data.montoPrestamo), {
+    message: "El descuento de préstamo debe ser un número mayor o igual a cero",
+    path: ["montoPrestamo"],
+  })
+  .refine(prestamoNoDejaPagoNegativo, {
+    message: "El descuento de préstamo no puede dejar el pago en negativo",
+    path: ["montoPrestamo"],
   })
   .refine(jornadaCoincideConTipoTrabajo, {
     message: "La jornada no coincide con el tipo de trabajo seleccionado",
@@ -114,6 +146,14 @@ export const pagoEditSchema = pagoBase
   .refine((data) => montoOpcionalValido(data.bonificacion), {
     message: "La bonificación debe ser un número mayor o igual a cero",
     path: ["bonificacion"],
+  })
+  .refine((data) => montoOpcionalValido(data.montoPrestamo), {
+    message: "El descuento de préstamo debe ser un número mayor o igual a cero",
+    path: ["montoPrestamo"],
+  })
+  .refine(prestamoNoDejaPagoNegativo, {
+    message: "El descuento de préstamo no puede dejar el pago en negativo",
+    path: ["montoPrestamo"],
   })
   .refine(jornadaCoincideConTipoTrabajo, {
     message: "La jornada no coincide con el tipo de trabajo seleccionado",

@@ -67,6 +67,21 @@ export type VentaBalance = {
 export type PagoPlanillaBalance = {
   fecha: string;
   colaborador: string;
+  // Ya viene neto de descuento de préstamo (ver balance/page.tsx) -- es lo
+  // que realmente salió de la empresa esta quincena.
+  monto: number;
+  // Monto del descuento de préstamo de este pago, si tuvo -- aparte de
+  // "monto" solo para poder mostrar "abonado en el período" en la sección
+  // Préstamos, sin tener que sumarlo de nuevo desde otro lado.
+  montoPrestamo: number;
+};
+
+// Préstamos que la empresa le hace a un colaborador (Fijo o Campo) -- no
+// es Ingreso ni Egreso real (mismo criterio que las reposiciones de Caja
+// Menuda: es plata que la empresa ya tenía, movida a otro lado, no gasto
+// nuevo). Se muestra aparte, solo informativo.
+export type PrestamoBalance = {
+  fecha: string;
   monto: number;
 };
 
@@ -119,12 +134,14 @@ export function BalanceDashboard({
   pagosPlanilla,
   colaboradores,
   gastosCompras,
+  prestamos,
 }: {
   movimientos: MovimientoExportable[];
   ventas: VentaBalance[];
   pagosPlanilla: PagoPlanillaBalance[];
   colaboradores: string[];
   gastosCompras: GastoCompraBalance[];
+  prestamos: PrestamoBalance[];
 }) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [desde, setDesde] = useState("");
@@ -193,6 +210,15 @@ export function BalanceDashboard({
     });
   }, [gastosCompras, fechaDesde, fechaHasta, listo]);
 
+  const prestamosFiltrados = useMemo(() => {
+    if (!listo) return [];
+    return prestamos.filter((p) => {
+      if (fechaDesde && p.fecha < fechaDesde) return false;
+      if (fechaHasta && p.fecha > fechaHasta) return false;
+      return true;
+    });
+  }, [prestamos, fechaDesde, fechaHasta, listo]);
+
   const totalReposiciones = movimientosFiltrados
     .filter((m) => m.tipo === "reposicion")
     .reduce((suma, m) => suma + m.monto, 0);
@@ -203,6 +229,8 @@ export function BalanceDashboard({
   const totalItbms = ventasFiltradas.reduce((suma, v) => suma + v.itbms, 0);
   const totalPlanilla = pagosFiltrados.reduce((suma, p) => suma + p.monto, 0);
   const totalGastosCompras = gastosComprasFiltrados.reduce((suma, g) => suma + g.monto, 0);
+  const totalPrestado = prestamosFiltrados.reduce((suma, p) => suma + p.monto, 0);
+  const totalAbonado = pagosFiltrados.reduce((suma, p) => suma + p.montoPrestamo, 0);
 
   // Reponer la caja menuda no es un ingreso de la empresa -- es plata que
   // la empresa ya tenia (banco, ventas, capital del dueno) movida a otro
@@ -246,12 +274,14 @@ export function BalanceDashboard({
 
   const hayDatosCaja = listo && movimientosFiltrados.length > 0;
   const hayDatosCompras = listo && gastosComprasFiltrados.length > 0;
+  const hayDatosPrestamos = listo && (prestamosFiltrados.length > 0 || totalAbonado > 0);
   const hayAlgunDato =
     listo &&
     (movimientosFiltrados.length > 0 ||
       ventasFiltradas.length > 0 ||
       pagosFiltrados.length > 0 ||
-      gastosComprasFiltrados.length > 0);
+      gastosComprasFiltrados.length > 0 ||
+      hayDatosPrestamos);
   const nombreArchivoCaja = `agro-sky-balance-caja-menuda-${periodo}`;
 
   return (
@@ -357,8 +387,9 @@ export function BalanceDashboard({
 
             <p className="mt-3 text-xs text-green-700/60 dark:text-green-300/60">
               Ingresos = Ventas (sin ITBMS). Egresos = Gastos de Caja Menuda + Planilla + Gastos de
-              Compras. Las reposiciones de Caja Menuda no cuentan aquí porque no son dinero nuevo, es
-              solo un traslado a esa caja (se ven aparte, más abajo).
+              Compras. Las reposiciones de Caja Menuda y los préstamos a colaboradores no cuentan aquí
+              porque no son dinero nuevo, es plata que la empresa ya tenía movida a otro lado (se ven
+              aparte, más abajo).
               {totalItbms > 0
                 ? ` ITBMS cobrado en ventas de este período (no incluido arriba, se le debe al gobierno): ${formatMoney(totalItbms)}.`
                 : ""}
@@ -595,6 +626,40 @@ export function BalanceDashboard({
                   </p>
                 </div>
               </>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+            <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Préstamos</h2>
+            <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
+              Préstamos de la empresa a colaboradores -- no cuentan como Ingreso ni Egreso arriba (es
+              plata que la empresa ya tenía, no gasto nuevo); lo que sí reduce el gasto real de Planilla
+              es lo que se va abonando cada quincena.
+            </p>
+
+            {!hayDatosPrestamos ? (
+              <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
+                No hay préstamos ni abonos para este período.
+              </p>
+            ) : (
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:max-w-sm">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                    Prestado en el período
+                  </p>
+                  <p className="text-xl font-semibold text-green-900 dark:text-green-50">
+                    {formatMoney(totalPrestado)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                    Abonado en el período
+                  </p>
+                  <p className="text-xl font-semibold text-green-900 dark:text-green-50">
+                    {formatMoney(totalAbonado)}
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </>

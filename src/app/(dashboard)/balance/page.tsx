@@ -6,6 +6,7 @@ import {
   type VentaBalance,
   type PagoPlanillaBalance,
   type GastoCompraBalance,
+  type PrestamoBalance,
 } from "@/components/forms/BalanceDashboard";
 import type { MovimientoExportable } from "@/lib/exportar";
 import type { CATEGORIAS_GASTO as CATEGORIAS_GASTO_COMPRAS } from "@/lib/validation/gastos";
@@ -21,6 +22,7 @@ export default async function BalancePage() {
     { data: pagosData },
     { data: colaboradoresData },
     { data: gastosComprasData },
+    { data: prestamosData },
   ] = await Promise.all([
     supabase
       .from("caja_gastos")
@@ -35,13 +37,14 @@ export default async function BalancePage() {
       .order("fecha", { ascending: false }),
     supabase
       .from("planilla_pagos")
-      .select("fecha, colaborador, monto, bonificacion")
+      .select("fecha, colaborador, monto, bonificacion, monto_prestamo")
       .order("fecha", { ascending: false }),
     supabase.from("colaboradores").select("nombre").order("nombre"),
     supabase
       .from("gastos")
       .select("fecha, categoria, categoria_otro, numero_factura, monto, proveedores ( nombre )")
       .order("fecha", { ascending: false }),
+    supabase.from("prestamos").select("fecha, monto").order("fecha", { ascending: false }),
   ]);
 
   const movimientos: MovimientoExportable[] = [
@@ -85,13 +88,21 @@ export default async function BalancePage() {
     itbms: Number(v.itbms),
   }));
 
-  const pagosPlanilla: PagoPlanillaBalance[] = (pagosData ?? []).map((p) => ({
-    fecha: p.fecha as string,
-    colaborador: p.colaborador as string,
-    // La bonificacion tambien es un costo real de planilla, aunque no
-    // tenga CSS/Seguro Educativo -- se incluye en el total pagado.
-    monto: Number(p.monto) + Number(p.bonificacion ?? 0),
-  }));
+  const pagosPlanilla: PagoPlanillaBalance[] = (pagosData ?? []).map((p) => {
+    const montoPrestamo = Number(p.monto_prestamo ?? 0);
+    return {
+      fecha: p.fecha as string,
+      colaborador: p.colaborador as string,
+      // La bonificacion tambien es un costo real de planilla, aunque no
+      // tenga CSS/Seguro Educativo -- se incluye en el total pagado. El
+      // descuento de préstamo, en cambio, NO es plata que vuelve a salir
+      // de la empresa esta quincena -- ya salió cuando se dio el préstamo
+      // (se ve aparte, en la sección Préstamos), así que se resta acá para
+      // que el total de Planilla refleje el gasto real de esta quincena.
+      monto: Number(p.monto) + Number(p.bonificacion ?? 0) - montoPrestamo,
+      montoPrestamo,
+    };
+  });
 
   const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
 
@@ -102,6 +113,11 @@ export default async function BalancePage() {
     proveedorNombre: (g.proveedores as unknown as { nombre: string } | null)?.nombre ?? null,
     numeroFactura: g.numero_factura as string | null,
     monto: Number(g.monto),
+  }));
+
+  const prestamos: PrestamoBalance[] = (prestamosData ?? []).map((p) => ({
+    fecha: p.fecha as string,
+    monto: Number(p.monto),
   }));
 
   return (
@@ -116,6 +132,7 @@ export default async function BalancePage() {
         pagosPlanilla={pagosPlanilla}
         colaboradores={colaboradores}
         gastosCompras={gastosCompras}
+        prestamos={prestamos}
       />
     </div>
   );

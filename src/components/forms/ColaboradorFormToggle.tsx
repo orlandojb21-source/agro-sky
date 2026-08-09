@@ -5,7 +5,13 @@ import { useState } from "react";
 // El form de Colaboradores creció bastante (cedula/correo/telefono/
 // direccion/foto) -- se colapsa detras de un boton para que la pagina no
 // abra siempre con un formulario grande antes de la lista.
-export function ColaboradorFormToggle({ children }: { children: React.ReactNode }) {
+export function ColaboradorFormToggle({
+  children,
+  label = "+ Agregar colaborador",
+}: {
+  children: React.ReactNode;
+  label?: string;
+}) {
   const [abierto, setAbierto] = useState(false);
 
   if (!abierto) {
@@ -14,7 +20,7 @@ export function ColaboradorFormToggle({ children }: { children: React.ReactNode 
         onClick={() => setAbierto(true)}
         className="self-start rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm"
       >
-        + Agregar colaborador
+        {label}
       </button>
     );
   }

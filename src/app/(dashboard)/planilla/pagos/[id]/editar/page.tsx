@@ -18,7 +18,7 @@ export default async function EditarPagoPlanillaPage({
     supabase
       .from("planilla_pagos")
       .select(
-        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion, detalle_calculo",
+        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion, prestamo_id, monto_prestamo, detalle_calculo",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -65,6 +65,8 @@ export default async function EditarPagoPlanillaPage({
           css: pago.css === null ? null : Number(pago.css),
           seguroEducativo: pago.seguro_educativo === null ? null : Number(pago.seguro_educativo),
           bonificacion: pago.bonificacion === null ? null : Number(pago.bonificacion),
+          prestamoId: pago.prestamo_id as string | null,
+          montoPrestamo: pago.monto_prestamo === null ? null : Number(pago.monto_prestamo),
           detalleCalculo: pago.detalle_calculo as DetalleTalonarioCampo[] | null,
         }}
       />

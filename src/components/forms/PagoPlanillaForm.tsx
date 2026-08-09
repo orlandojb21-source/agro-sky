@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { crearPagoAction, editarPagoAction } from "@/lib/actions/planilla";
 import { obtenerResumenAsistenciaAction, type ResumenAsistencia } from "@/lib/actions/asistencia";
 import { obtenerResumenControlHorarioAction, type ResumenControlHorario } from "@/lib/actions/controlHorario";
+import { obtenerPrestamoActivoAction, type PrestamoActivo } from "@/lib/actions/prestamos";
 import { obtenerQuincenaDeFecha } from "@/lib/planilla";
 import type { DetalleTalonarioCampo } from "@/lib/exportar";
 import { Field, SelectField } from "@/components/ui/Field";
@@ -74,6 +75,8 @@ type ValoresPago = {
   css?: number | null;
   seguroEducativo?: number | null;
   bonificacion?: number | null;
+  prestamoId?: string | null;
+  montoPrestamo?: number | null;
   // Foto del detalle guardada con el pago (planilla_pagos.detalle_calculo)
   // -- null en un pago histórico o en uno donde el monto se escribió a
   // mano sin usar "Calcular pago sugerido".
@@ -213,6 +216,40 @@ export function PagoPlanillaForm({
   // formulario, no de la fecha de hoy.
   const [resumenControlHorario, setResumenControlHorario] = useState<ResumenControlHorario | null>(null);
   const [etiquetaQuincenaFijo, setEtiquetaQuincenaFijo] = useState<string | null>(null);
+  // Préstamo activo del colaborador elegido (Fijo o Campo, no distingue
+  // tipo) -- se consulta solo, sin botón, cada vez que cambia el
+  // colaborador (incluida la carga inicial del formulario). Si no tiene
+  // préstamo activo, queda null y no aparece ninguna caja.
+  const [prestamoActivo, setPrestamoActivo] = useState<PrestamoActivo | null>(null);
+  const [montoPrestamoTexto, setMontoPrestamoTexto] = useState(() => v?.montoPrestamo ?? "");
+
+  useEffect(() => {
+    let cancelado = false;
+    const promesa = colaboradorSeleccionado
+      ? obtenerPrestamoActivoAction(colaboradorSeleccionado)
+      : Promise.resolve(null);
+    promesa
+      .then((resultado) => {
+        if (cancelado) return;
+        setPrestamoActivo(resultado);
+        if (!resultado || v?.montoPrestamo) return;
+        // Si se está editando el mismo pago que ya tenía este préstamo
+        // aplicado, se respeta el monto guardado; si no, se sugiere la
+        // cuota (topada al saldo pendiente) -- sigue editable después.
+        if (esEdicion && valoresIniciales?.prestamoId === resultado.id && valoresIniciales?.montoPrestamo != null) {
+          setMontoPrestamoTexto(String(valoresIniciales.montoPrestamo));
+        } else {
+          const sugerido = Math.min(resultado.cuotaQuincenal, resultado.saldoPendiente);
+          setMontoPrestamoTexto(sugerido > 0 ? String(Math.round(sugerido * 100) / 100) : "");
+        }
+      })
+      .catch(() => {
+        if (!cancelado) setPrestamoActivo(null);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [colaboradorSeleccionado, esEdicion, valoresIniciales?.prestamoId, valoresIniciales?.montoPrestamo, v?.montoPrestamo]);
 
   if (state !== prevState) {
     setPrevState(state);
@@ -230,6 +267,8 @@ export function PagoPlanillaForm({
     setResumenControlHorario(null);
     setEtiquetaQuincenaFijo(null);
     setErrorResumen(null);
+    setPrestamoActivo(null);
+    setMontoPrestamoTexto(v?.montoPrestamo ?? "");
   }
 
   function cambiarColaborador(nombre: string) {
@@ -246,6 +285,8 @@ export function PagoPlanillaForm({
     setResumenControlHorario(null);
     setEtiquetaQuincenaFijo(null);
     setErrorResumen(null);
+    setPrestamoActivo(null);
+    setMontoPrestamoTexto("");
   }
 
   // El monto se pre-llena con el cálculo sugerido, pero sigue totalmente
@@ -624,6 +665,27 @@ export function PagoPlanillaForm({
         </div>
       )}
 
+      {prestamoActivo && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+          <p className="text-sm text-amber-900 dark:text-amber-100">
+            Este colaborador tiene un préstamo activo — saldo pendiente:{" "}
+            <strong>{formatMoney(prestamoActivo.saldoPendiente)}</strong>.
+          </p>
+          <div className="mt-2 max-w-[240px]">
+            <Field
+              label="Descuento de préstamo esta quincena (USD)"
+              name="montoPrestamo"
+              type="number"
+              min={0}
+              step="0.01"
+              value={montoPrestamoTexto}
+              onChange={(e) => setMontoPrestamoTexto(e.target.value)}
+            />
+          </div>
+          <input type="hidden" name="prestamoId" value={prestamoActivo.id} />
+        </div>
+      )}
+
       {esFijo && (
         <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
           <p className="text-sm text-green-900 dark:text-green-100">
@@ -634,9 +696,23 @@ export function PagoPlanillaForm({
                   ((Number(montoTexto) || 0) +
                     (Number(bonifTexto) || 0) -
                     (Number(cssTexto) || 0) -
-                    (Number(seguroTexto) || 0)) *
+                    (Number(seguroTexto) || 0) -
+                    (Number(montoPrestamoTexto) || 0)) *
                     100,
                 ) / 100,
+              )}
+            </strong>
+          </p>
+        </div>
+      )}
+
+      {esCampo && prestamoActivo && (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
+          <p className="text-sm text-green-900 dark:text-green-100">
+            Total a pagar:{" "}
+            <strong className="text-base">
+              {formatMoney(
+                Math.round(((Number(montoTexto) || 0) - (Number(montoPrestamoTexto) || 0)) * 100) / 100,
               )}
             </strong>
           </p>
