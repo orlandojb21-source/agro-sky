@@ -13,12 +13,16 @@ const informeDiarioBaseSchema = z.object({
   cliente: z.string().trim().min(1, "Nombre requerido"),
   fecha: z.string().min(1, "Fecha requerida"),
   hectareasAplicadas: z.coerce.number().positive("Las hectáreas aplicadas deben ser mayores a cero"),
-  tipoAplicacion: z.string().trim().min(1, "Tipo de aplicación requerido"),
+  // Dosis se autollena al elegir el Informe de Campo, así que sigue
+  // requerida -- los otros 5 campos técnicos NO se autollenan (el
+  // administrador no siempre los tiene a mano al momento de crear el
+  // informe), así que quedan opcionales para no bloquear el guardado.
   dosis: z.string().trim().min(1, "Dosis requerida"),
-  boquillas: z.string().trim().min(1, "Boquillas requeridas"),
-  alturaVuelo: z.string().trim().min(1, "Altura de vuelo requerida"),
-  anchoPases: z.string().trim().min(1, "Ancho de pases requerido"),
-  velocidad: z.string().trim().min(1, "Velocidad requerida"),
+  tipoAplicacion: z.string().trim().optional().default(""),
+  boquillas: z.string().trim().optional().default(""),
+  alturaVuelo: z.string().trim().optional().default(""),
+  anchoPases: z.string().trim().optional().default(""),
+  velocidad: z.string().trim().optional().default(""),
   nota: z.string().trim().optional().default(""),
 });
 

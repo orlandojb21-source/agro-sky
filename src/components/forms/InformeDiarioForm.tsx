@@ -182,34 +182,34 @@ export function InformeDiarioForm({
           required
         />
         <Field
-          label="Tipo de Aplicación"
+          label="Tipo de Aplicación (opcional)"
           name="tipoAplicacion"
           defaultValue={v?.tipoAplicacion ?? valoresIniciales?.tipoAplicacion ?? undefined}
-          required
+          placeholder="Opcional"
         />
         <Field
-          label="Boquillas"
+          label="Boquillas (opcional)"
           name="boquillas"
           defaultValue={v?.boquillas ?? valoresIniciales?.boquillas ?? undefined}
-          required
+          placeholder="Opcional"
         />
         <Field
-          label="Altura de Vuelo"
+          label="Altura de Vuelo (opcional)"
           name="alturaVuelo"
           defaultValue={v?.alturaVuelo ?? valoresIniciales?.alturaVuelo ?? undefined}
-          required
+          placeholder="Opcional"
         />
         <Field
-          label="Ancho de Pases"
+          label="Ancho de Pases (opcional)"
           name="anchoPases"
           defaultValue={v?.anchoPases ?? valoresIniciales?.anchoPases ?? undefined}
-          required
+          placeholder="Opcional"
         />
         <Field
-          label="Velocidad"
+          label="Velocidad (opcional)"
           name="velocidad"
           defaultValue={v?.velocidad ?? valoresIniciales?.velocidad ?? undefined}
-          required
+          placeholder="Opcional"
         />
       </div>
 

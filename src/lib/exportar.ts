@@ -1223,12 +1223,12 @@ export async function exportarInformeDiarioPDF(informe: InformeDiarioExportable)
     `Nombre: ${informe.cliente}`,
     `Fecha: ${formatDateOnly(informe.fecha)}`,
     `Hectáreas Aplicadas: ${informe.hectareasAplicadas}`,
-    `Tipo de Aplicación: ${informe.tipoAplicacion}`,
+    `Tipo de Aplicación: ${informe.tipoAplicacion || "—"}`,
     `Dosis: ${informe.dosis}`,
-    `Boquillas: ${informe.boquillas}`,
-    `Altura de Vuelo: ${informe.alturaVuelo}`,
-    `Ancho de Pases: ${informe.anchoPases}`,
-    `Velocidad: ${informe.velocidad}`,
+    `Boquillas: ${informe.boquillas || "—"}`,
+    `Altura de Vuelo: ${informe.alturaVuelo || "—"}`,
+    `Ancho de Pases: ${informe.anchoPases || "—"}`,
+    `Velocidad: ${informe.velocidad || "—"}`,
   ]) {
     doc.text(linea, 14, y);
     y += 6;

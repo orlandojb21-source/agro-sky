@@ -147,7 +147,7 @@ export default async function DetalleInformeDiarioPage({
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Tipo de Aplicación
           </p>
-          <p className="text-green-900 dark:text-green-50">{informe.tipo_aplicacion as string}</p>
+          <p className="text-green-900 dark:text-green-50">{(informe.tipo_aplicacion as string) || "—"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">Dosis</p>
@@ -157,25 +157,25 @@ export default async function DetalleInformeDiarioPage({
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Boquillas
           </p>
-          <p className="text-green-900 dark:text-green-50">{informe.boquillas as string}</p>
+          <p className="text-green-900 dark:text-green-50">{(informe.boquillas as string) || "—"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Altura de Vuelo
           </p>
-          <p className="text-green-900 dark:text-green-50">{informe.altura_vuelo as string}</p>
+          <p className="text-green-900 dark:text-green-50">{(informe.altura_vuelo as string) || "—"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Ancho de Pases
           </p>
-          <p className="text-green-900 dark:text-green-50">{informe.ancho_pases as string}</p>
+          <p className="text-green-900 dark:text-green-50">{(informe.ancho_pases as string) || "—"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Velocidad
           </p>
-          <p className="text-green-900 dark:text-green-50">{informe.velocidad as string}</p>
+          <p className="text-green-900 dark:text-green-50">{(informe.velocidad as string) || "—"}</p>
         </div>
         {informe.nota ? (
           <div className="col-span-2 sm:col-span-4">
