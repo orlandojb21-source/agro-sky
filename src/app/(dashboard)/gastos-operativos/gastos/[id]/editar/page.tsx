@@ -19,7 +19,9 @@ export default async function EditarGastoPage({
   const [{ data: gasto }, { data: proveedores }, categorias] = await Promise.all([
     supabase
       .from("gastos")
-      .select("id, fecha, proveedor_id, categoria, categoria_otro, numero_factura, monto, descripcion, comprobante_ruta")
+      .select(
+        "id, fecha, proveedor_id, categoria, categoria_otro, numero_factura, monto, descripcion, comprobante_ruta, estado_pago, fecha_tope_pago",
+      )
       .eq("id", id)
       .maybeSingle(),
     supabase.from("proveedores").select("id, nombre").order("nombre"),
@@ -54,6 +56,8 @@ export default async function EditarGastoPage({
           descripcion: gasto.descripcion as string | null,
           comprobanteRuta: gasto.comprobante_ruta as string | null,
           comprobanteUrl,
+          estadoPago: gasto.estado_pago as "pagada" | "por_pagar",
+          fechaTopePago: gasto.fecha_tope_pago as string | null,
         }}
       />
     </div>

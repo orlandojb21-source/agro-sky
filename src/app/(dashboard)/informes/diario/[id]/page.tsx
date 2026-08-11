@@ -11,7 +11,6 @@ import { formatDateOnly } from "@/lib/format";
 import type { InformeCampoExportable, InformeDiarioExportable } from "@/lib/exportar";
 
 const BUCKET_FIRMAS = "informes-campo-firmas";
-const BUCKET_CAPTURAS = "informes-diarios-capturas";
 const DURACION_URL_FIRMADA_SEG = 3600;
 
 export default async function DetalleInformeDiarioPage({
@@ -62,14 +61,6 @@ export default async function DetalleInformeDiarioPage({
     firmaClienteUrl = data?.signedUrl ?? null;
   }
 
-  let imagenControlUrl: string | null = null;
-  if (informe.imagen_control_ruta) {
-    const { data } = await supabase.storage
-      .from(BUCKET_CAPTURAS)
-      .createSignedUrl(informe.imagen_control_ruta as string, DURACION_URL_FIRMADA_SEG);
-    imagenControlUrl = data?.signedUrl ?? null;
-  }
-
   const informeCampoExportable: InformeCampoExportable = {
     cliente: informeCampoRow.cliente as string,
     fecha: informeCampoRow.fecha as string,
@@ -81,6 +72,7 @@ export default async function DetalleInformeDiarioPage({
     modeloDrone: informeCampoRow.modelo_drone as string,
     dosisPorHectarea: informeCampoRow.dosis_por_hectarea as string,
     tipoProyecto: informeCampoRow.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
+    jornada: informeCampoRow.jornada as "completo" | "medio",
     operador: informeCampoRow.operador as string,
     ayudantes: (informeCampoRow.ayudantes ?? []) as string[],
     nombreFirmaAgro: informeCampoRow.nombre_firma_agro as string | null,
@@ -113,7 +105,6 @@ export default async function DetalleInformeDiarioPage({
     anchoPases: informe.ancho_pases as string,
     velocidad: informe.velocidad as string,
     nota: informe.nota as string | null,
-    imagenControlUrl,
     informeCampo: informeCampoExportable,
   };
 
@@ -207,20 +198,6 @@ export default async function DetalleInformeDiarioPage({
           Ver Informe de Campo completo
         </Link>
       </div>
-
-      {imagenControlUrl && (
-        <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-          <p className="mb-2 text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-            Captura del control del drone
-          </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imagenControlUrl}
-            alt="Captura del control del drone"
-            className="max-h-[400px] w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
-          />
-        </div>
-      )}
 
       {puedeEscribir && (
         <div>

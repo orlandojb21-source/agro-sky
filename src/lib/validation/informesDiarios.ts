@@ -20,7 +20,6 @@ const informeDiarioBaseSchema = z.object({
   anchoPases: z.string().trim().min(1, "Ancho de pases requerido"),
   velocidad: z.string().trim().min(1, "Velocidad requerida"),
   nota: z.string().trim().optional().default(""),
-  imagenControlRuta: z.string().trim().optional().default(""),
 });
 
 export const informeDiarioSchema = informeDiarioBaseSchema;

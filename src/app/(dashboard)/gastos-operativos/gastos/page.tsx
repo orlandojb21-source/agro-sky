@@ -18,6 +18,8 @@ type GastoFila = {
   categoriaOtro: string | null;
   numeroFactura: string | null;
   monto: number;
+  estadoPago: "pagada" | "por_pagar";
+  fechaTopePago: string | null;
 };
 
 export default async function GastosPage() {
@@ -27,7 +29,9 @@ export default async function GastosPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("gastos")
-    .select("id, fecha, categoria, categoria_otro, numero_factura, monto, proveedores ( nombre )")
+    .select(
+      "id, fecha, categoria, categoria_otro, numero_factura, monto, estado_pago, fecha_tope_pago, proveedores ( nombre )",
+    )
     .order("fecha", { ascending: false });
 
   const gastos: GastoFila[] = (data ?? []).map((g) => ({
@@ -38,6 +42,8 @@ export default async function GastosPage() {
     categoriaOtro: g.categoria_otro as string | null,
     numeroFactura: g.numero_factura as string | null,
     monto: Number(g.monto),
+    estadoPago: g.estado_pago as "pagada" | "por_pagar",
+    fechaTopePago: g.fecha_tope_pago as string | null,
   }));
 
   const totalGeneral = gastos.reduce((s, g) => s + g.monto, 0);
@@ -52,6 +58,19 @@ export default async function GastosPage() {
     { header: "Proveedor", render: (g) => g.proveedorNombre ?? "—" },
     { header: "N.° Factura", render: (g) => g.numeroFactura ?? "—" },
     { header: "Monto", render: (g) => formatMoney(g.monto) },
+    {
+      header: "Estado",
+      render: (g) =>
+        g.estadoPago === "pagada" ? (
+          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">
+            Pagada
+          </span>
+        ) : (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/40 dark:text-red-300">
+            Por pagar{g.fechaTopePago ? ` — tope ${formatDateOnly(g.fechaTopePago)}` : ""}
+          </span>
+        ),
+    },
     ...(puedeEscribir
       ? [
           {

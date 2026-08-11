@@ -112,6 +112,7 @@ type InformeCampoFila = {
   fecha: string;
   cliente: string;
   tipo_proyecto: TipoProyecto | null;
+  jornada: Jornada;
   informe_campo_parcelas: { hectareas: number }[] | null;
 };
 
@@ -121,12 +122,15 @@ type InformeCampoFila = {
 // tarifas de lib/calculoIncentivos.ts -- el resultado PRE-LLENA el campo
 // de monto, pero sigue siendo editable a mano (nunca se guarda solo).
 //
-// Cada Informe de Campo tiene su propia contabilidad de hectáreas -- si
-// una persona aparece en más de un informe el mismo día (ej. un proyecto
-// en la mañana y otro distinto en la tarde), NUNCA se suman las hectáreas
-// entre esos informes. Cada uno se calcula por separado con su propio
-// tipo de proyecto y sus propias hectáreas, y los montos resultantes se
-// suman al final.
+// Desde 2026-08-10: Asistencia solo registra Oficina -- el Informe de
+// Campo es la única fuente para Proyecto (Ingenio Santa Rosa/Particular),
+// ya no hace falta cruzar con una fila de planilla_asistencia tipo
+// "proyecto" (que ya no se puede crear desde el formulario, ver
+// AsistenciaForm.tsx). Cada Informe de Campo tiene su propia contabilidad
+// de hectáreas -- si una persona aparece en más de un informe el mismo
+// día, NUNCA se suman las hectáreas entre esos informes, cada uno se
+// calcula por separado con su propio tipo de proyecto, jornada y
+// hectáreas, y los montos resultantes se suman al final.
 export async function obtenerResumenAsistenciaAction(
   colaborador: string,
   fechaDesde: string,
@@ -135,123 +139,109 @@ export async function obtenerResumenAsistenciaAction(
   await requirePerfil();
   const supabase = await createClient();
 
-  const { data: dias, error } = await supabase
+  const { data: diasOficina, error } = await supabase
     .from("planilla_asistencia")
-    .select("fecha, rol_dia, tipo_trabajo, jornada")
+    .select("fecha, rol_dia, jornada")
     .eq("colaborador", colaborador)
+    .eq("tipo_trabajo", "oficina")
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
 
   if (error) throw new Error(error.message || "No se pudo consultar la asistencia.");
 
-  const diasProyectoFechas = [...new Set((dias ?? []).filter((d) => d.tipo_trabajo === "proyecto").map((d) => d.fecha))];
-
-  const informesPorFecha = new Map<string, InformeCampoFila[]>();
-  if (diasProyectoFechas.length > 0) {
-    const [{ data: comoOperador }, { data: comoAyudante }] = await Promise.all([
+  const [{ data: comoOperador, error: errorOperador }, { data: comoAyudante, error: errorAyudante }] =
+    await Promise.all([
       supabase
         .from("informes_campo")
-        .select("fecha, cliente, tipo_proyecto, informe_campo_parcelas ( hectareas )")
+        .select("fecha, cliente, tipo_proyecto, jornada, informe_campo_parcelas ( hectareas )")
         .eq("operador", colaborador)
-        .in("fecha", diasProyectoFechas),
+        .gte("fecha", fechaDesde)
+        .lte("fecha", fechaHasta),
       supabase
         .from("informes_campo")
-        .select("fecha, cliente, tipo_proyecto, informe_campo_parcelas ( hectareas )")
+        .select("fecha, cliente, tipo_proyecto, jornada, informe_campo_parcelas ( hectareas )")
         .contains("ayudantes", [colaborador])
-        .in("fecha", diasProyectoFechas),
+        .gte("fecha", fechaDesde)
+        .lte("fecha", fechaHasta),
     ]);
-    for (const informe of [...(comoOperador ?? []), ...(comoAyudante ?? [])] as InformeCampoFila[]) {
-      const lista = informesPorFecha.get(informe.fecha) ?? [];
-      lista.push(informe);
-      informesPorFecha.set(informe.fecha, lista);
-    }
+
+  if (errorOperador || errorAyudante) {
+    throw new Error("No se pudo consultar los Informes de Campo.");
   }
 
   let totalSugerido = 0;
-  let diasOficina = 0;
+  let diasOficinaCount = 0;
   let diasProyecto = 0;
   let hectareasProyecto = 0;
   const detalle: DetalleDiaAsistencia[] = [];
 
-  for (const dia of dias ?? []) {
-    if (dia.tipo_trabajo === "oficina") {
-      diasOficina += 1;
-      const monto = calcularPagoOficina(dia.rol_dia as RolDia, dia.jornada as Jornada);
-      totalSugerido += monto;
-      detalle.push({
-        fecha: dia.fecha,
-        rolDia: dia.rol_dia as RolDia,
-        tipoTrabajo: "oficina",
-        jornada: dia.jornada as Jornada,
-        tipoProyecto: null,
-        hectareas: null,
-        clienteInforme: null,
-        monto,
-      });
-      continue;
-    }
+  for (const dia of diasOficina ?? []) {
+    diasOficinaCount += 1;
+    const monto = calcularPagoOficina(dia.rol_dia as RolDia, dia.jornada as Jornada);
+    totalSugerido += monto;
+    detalle.push({
+      fecha: dia.fecha,
+      rolDia: dia.rol_dia as RolDia,
+      tipoTrabajo: "oficina",
+      jornada: dia.jornada as Jornada,
+      tipoProyecto: null,
+      hectareas: null,
+      clienteInforme: null,
+      monto,
+    });
+  }
 
+  // Como operador, el rol siempre es "operador"; como ayudante, siempre
+  // "ayudante" -- son 2 campos distintos del mismo Informe de Campo
+  // (nunca la misma persona en ambos a la vez), se infiere de cuál de
+  // las 2 consultas trajo el informe, no de un campo aparte.
+  const informesConRol: (InformeCampoFila & { rolDia: RolDia })[] = [
+    ...(comoOperador ?? []).map((i) => ({ ...(i as InformeCampoFila), rolDia: "operador" as const })),
+    ...(comoAyudante ?? []).map((i) => ({ ...(i as InformeCampoFila), rolDia: "ayudante" as const })),
+  ];
+
+  for (const informe of informesConRol) {
     diasProyecto += 1;
-    const informes = informesPorFecha.get(dia.fecha) ?? [];
-
-    if (informes.length === 0) {
-      // Día de Proyecto sin ningún Informe de Campo asociado -- no hay de
-      // dónde sacar hectáreas, queda en 0 para que el jefe lo revise.
+    const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce(
+      (s, p) => s + Number(p.hectareas),
+      0,
+    );
+    if (!informe.tipo_proyecto) {
+      // Informe todavía sin clasificar (Ingenio/Particular) -- no se
+      // puede calcular, queda en 0 para que el jefe lo revise.
       detalle.push({
-        fecha: dia.fecha,
-        rolDia: dia.rol_dia as RolDia,
+        fecha: informe.fecha,
+        rolDia: informe.rolDia,
         tipoTrabajo: "proyecto",
-        jornada: null,
+        jornada: informe.jornada,
         tipoProyecto: null,
-        hectareas: null,
-        clienteInforme: null,
+        hectareas: hectareasInforme,
+        clienteInforme: informe.cliente,
         monto: 0,
       });
       continue;
     }
-
-    for (const informe of informes) {
-      const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce(
-        (s, p) => s + Number(p.hectareas),
-        0,
-      );
-      if (!informe.tipo_proyecto) {
-        // Informe todavía sin clasificar (Ingenio/Particular) -- no se
-        // puede calcular, queda en 0 para que el jefe lo revise.
-        detalle.push({
-          fecha: dia.fecha,
-          rolDia: dia.rol_dia as RolDia,
-          tipoTrabajo: "proyecto",
-          jornada: null,
-          tipoProyecto: null,
-          hectareas: hectareasInforme,
-          clienteInforme: informe.cliente,
-          monto: 0,
-        });
-        continue;
-      }
-      hectareasProyecto += hectareasInforme;
-      const monto = calcularPagoProyecto(dia.rol_dia as RolDia, informe.tipo_proyecto, hectareasInforme);
-      totalSugerido += monto;
-      detalle.push({
-        fecha: dia.fecha,
-        rolDia: dia.rol_dia as RolDia,
-        tipoTrabajo: "proyecto",
-        jornada: null,
-        tipoProyecto: informe.tipo_proyecto,
-        hectareas: hectareasInforme,
-        clienteInforme: informe.cliente,
-        monto,
-      });
-    }
+    hectareasProyecto += hectareasInforme;
+    const monto = calcularPagoProyecto(informe.rolDia, informe.tipo_proyecto, hectareasInforme, informe.jornada);
+    totalSugerido += monto;
+    detalle.push({
+      fecha: informe.fecha,
+      rolDia: informe.rolDia,
+      tipoTrabajo: "proyecto",
+      jornada: informe.jornada,
+      tipoProyecto: informe.tipo_proyecto,
+      hectareas: hectareasInforme,
+      clienteInforme: informe.cliente,
+      monto,
+    });
   }
 
   detalle.sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   return {
-    totalDias: dias?.length ?? 0,
+    totalDias: diasOficinaCount + informesConRol.length,
     totalSugerido: Math.round(totalSugerido * 100) / 100,
-    diasOficina,
+    diasOficina: diasOficinaCount,
     diasProyecto,
     hectareasProyecto,
     detalle,

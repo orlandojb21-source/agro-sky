@@ -33,6 +33,11 @@ const informeCampoBaseSchema = z.object({
   // porque cada informe tiene su propia contabilidad de hectáreas, nunca
   // se suman entre informes distintos del mismo día.
   tipoProyecto: z.enum(["ingenio_santa_rosa", "particular"], { message: "Selecciona el tipo de proyecto" }),
+  // Un solo valor para todo el informe (aplica a todo el equipo, igual
+  // que hora de inicio/fin) -- cuando es "medio", el pago calculado por
+  // lib/calculoIncentivos.ts se divide entre 2 (pedido del usuario,
+  // 2026-08-10).
+  jornada: z.enum(["completo", "medio"], { message: "Selecciona la jornada" }),
   operador: z.string().trim().min(1, "Selecciona un operador"),
   ayudantes: z.array(z.string().trim().min(1)).default([]),
   firmaAgroRuta: z.string().trim().min(1, "Falta la firma de Agro Sky"),

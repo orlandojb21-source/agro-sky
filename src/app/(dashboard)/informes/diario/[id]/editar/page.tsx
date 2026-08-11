@@ -7,9 +7,6 @@ import {
   type ValoresInformeDiario,
 } from "@/components/forms/InformeDiarioForm";
 
-const BUCKET_CAPTURAS = "informes-diarios-capturas";
-const DURACION_URL_FIRMADA_SEG = 3600;
-
 export default async function EditarInformeDiarioPage({
   params,
 }: {
@@ -53,14 +50,6 @@ export default async function EditarInformeDiarioPage({
       ),
     }));
 
-  let imagenControlUrl: string | null = null;
-  if (informe.imagen_control_ruta) {
-    const { data } = await supabase.storage
-      .from(BUCKET_CAPTURAS)
-      .createSignedUrl(informe.imagen_control_ruta as string, DURACION_URL_FIRMADA_SEG);
-    imagenControlUrl = data?.signedUrl ?? null;
-  }
-
   const valoresIniciales: ValoresInformeDiario = {
     id: informe.id as string,
     informeCampoId: informe.informe_campo_id as string,
@@ -74,8 +63,6 @@ export default async function EditarInformeDiarioPage({
     anchoPases: informe.ancho_pases as string,
     velocidad: informe.velocidad as string,
     nota: informe.nota as string | null,
-    imagenControlRuta: informe.imagen_control_ruta as string | null,
-    imagenControlUrl,
   };
 
   return (

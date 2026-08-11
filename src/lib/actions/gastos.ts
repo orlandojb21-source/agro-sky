@@ -36,6 +36,8 @@ export async function crearGastoAction(
     monto: parsed.data.monto,
     descripcion: parsed.data.descripcion || null,
     comprobante_ruta: parsed.data.comprobanteRuta || null,
+    estado_pago: parsed.data.estadoPago,
+    fecha_tope_pago: parsed.data.estadoPago === "por_pagar" ? parsed.data.fechaTopePago : null,
     registrado_por: perfil.id,
   });
 
@@ -74,6 +76,8 @@ export async function editarGastoAction(
       monto: parsed.data.monto,
       descripcion: parsed.data.descripcion || null,
       comprobante_ruta: parsed.data.comprobanteRuta || null,
+      estado_pago: parsed.data.estadoPago,
+      fecha_tope_pago: parsed.data.estadoPago === "por_pagar" ? parsed.data.fechaTopePago : null,
     })
     .eq("id", parsed.data.id);
 

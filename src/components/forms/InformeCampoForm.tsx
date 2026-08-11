@@ -82,6 +82,9 @@ export type ValoresInformeCampo = {
   nombreFirmaCliente: string | null;
   firmaClienteUrl: string | null;
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
+  // Un solo valor para todo el informe -- cuando es "medio", el pago
+  // calculado por lib/calculoIncentivos.ts se divide entre 2.
+  jornada: "completo" | "medio";
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
   // "url" es la URL firmada (temporal) de cada imagen ya guardada,
@@ -341,6 +344,7 @@ export function InformeCampoForm({
         modeloDrone: raw.modeloDrone,
         dosisPorHectarea: raw.dosisPorHectarea,
         tipoProyecto: raw.tipoProyecto,
+        jornada: raw.jornada,
         operador: raw.operador,
         ayudantes: ayudantesRaw,
         firmaAgroRuta: raw.firmaAgroRuta,
@@ -368,6 +372,7 @@ export function InformeCampoForm({
           modeloDrone: parsed.data.modeloDrone,
           dosisPorHectarea: parsed.data.dosisPorHectarea,
           tipoProyecto: parsed.data.tipoProyecto,
+          jornada: parsed.data.jornada,
           operador: parsed.data.operador,
           ayudantes: parsed.data.ayudantes,
           nombreFirmaAgro: parsed.data.nombreFirmaAgro,
@@ -514,6 +519,15 @@ export function InformeCampoForm({
           defaultValue={v?.horaFin ?? valoresIniciales?.horaFin ?? undefined}
           required
         />
+        <SelectField
+          label="Jornada"
+          name="jornada"
+          defaultValue={v?.jornada ?? valoresIniciales?.jornada ?? "completo"}
+          required
+        >
+          <option value="completo">Día completo</option>
+          <option value="medio">Medio día</option>
+        </SelectField>
         <div className="sm:col-span-2">
           <Field
             label="Meteorología"

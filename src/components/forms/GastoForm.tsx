@@ -25,6 +25,8 @@ type ValoresGasto = {
   // URL firmada (temporal) del comprobante ya guardado, generada del lado
   // del servidor solo para mostrarla -- nunca se envía en el formulario.
   comprobanteUrl: string | null;
+  estadoPago: "pagada" | "por_pagar";
+  fechaTopePago: string | null;
 };
 
 const CLASE_INPUT_ARCHIVO =
@@ -53,6 +55,9 @@ export function GastoForm({
   const categoriaInicial = state.values?.categoria ?? valoresIniciales?.categoria ?? "alquiler";
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(categoriaInicial);
 
+  const estadoPagoInicial = state.values?.estadoPago ?? valoresIniciales?.estadoPago ?? "pagada";
+  const [estadoPagoSeleccionado, setEstadoPagoSeleccionado] = useState(estadoPagoInicial);
+
   const [comprobanteRuta, setComprobanteRuta] = useState(valoresIniciales?.comprobanteRuta ?? "");
   const [comprobantePreviewUrl, setComprobantePreviewUrl] = useState<string | null>(
     valoresIniciales?.comprobanteUrl ?? null,
@@ -64,6 +69,7 @@ export function GastoForm({
     setPrevState(state);
     setRemountKey((k) => k + 1);
     setCategoriaSeleccionada(categoriaInicial);
+    setEstadoPagoSeleccionado(estadoPagoInicial);
     setComprobanteRuta(valoresIniciales?.comprobanteRuta ?? "");
     setComprobantePreviewUrl(valoresIniciales?.comprobanteUrl ?? null);
     setErrorComprobante(null);
@@ -155,6 +161,25 @@ export function GastoForm({
           defaultValue={state.values?.monto ?? valoresIniciales?.monto ?? undefined}
           required
         />
+        <SelectField
+          label="Estado de pago"
+          name="estadoPago"
+          defaultValue={estadoPagoInicial}
+          onChange={(e) => setEstadoPagoSeleccionado(e.target.value as "pagada" | "por_pagar")}
+          required
+        >
+          <option value="pagada">Pagada</option>
+          <option value="por_pagar">Por pagar</option>
+        </SelectField>
+        {estadoPagoSeleccionado === "por_pagar" && (
+          <Field
+            label="Fecha tope de pago"
+            name="fechaTopePago"
+            type="date"
+            defaultValue={state.values?.fechaTopePago ?? valoresIniciales?.fechaTopePago ?? undefined}
+            required
+          />
+        )}
       </div>
 
       <Field

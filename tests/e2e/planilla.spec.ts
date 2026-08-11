@@ -12,6 +12,7 @@ import { adminDb, PREFIJO_QA } from "./qaData";
 const DIR_AUTH = path.resolve(__dirname, ".auth");
 const COLABORADOR = `${PREFIJO_QA} Operador Planilla`;
 const FECHA = "2026-05-10";
+const FECHA_OFICINA = "2026-05-09"; // día aparte: Oficina y Proyecto ya no comparten fila/flujo
 const HECTAREAS = 20; // 15 incluidas en el salario base + 5 de excedente
 // Fórmula esperada (Operador, Ingenio Santa Rosa): base 30 + (20-15) x 1.5 = 37.5
 const MONTO_ESPERADO = 37.5;
@@ -56,15 +57,22 @@ test.describe("Planilla — Asistencia + Informe de Campo + Pago", () => {
     await adminDb.from("colaboradores").delete().eq("nombre", COLABORADOR);
   });
 
-  test("CP-PLANILLA-01: registrar Asistencia de un día de Proyecto", async ({ browser }) => {
+  test("CP-PLANILLA-01: registrar Asistencia de un día de Oficina (Proyecto ya no se crea aquí)", async ({
+    browser,
+  }) => {
     const context = await browser.newContext({ storageState: path.join(DIR_AUTH, "jefe.json") });
     const page = await context.newPage();
 
+    // Desde el cambio de 2026-08-10, Asistencia solo registra Oficina --
+    // un día de Proyecto lo confirma el propio Informe de Campo (ver
+    // CP-PLANILLA-02/03). Por eso el formulario de creación ya no ofrece
+    // el <select name="tipoTrabajo"> (queda fijo en "oficina").
     await page.goto("/planilla/nuevo");
     await page.locator('select[name="colaborador"]').selectOption(COLABORADOR);
-    await page.locator('input[name="fecha"]').fill(FECHA);
+    await page.locator('input[name="fecha"]').fill(FECHA_OFICINA);
     await page.locator('select[name="rolDia"]').selectOption("operador");
-    await page.locator('select[name="tipoTrabajo"]').selectOption("proyecto");
+    await expect(page.getByText("Oficina", { exact: true })).toBeVisible();
+    await page.locator('select[name="jornada"]').selectOption("completo");
     await page.locator('input[name="descripcion"]').fill(`${PREFIJO_QA} — suite de pruebas`);
     await page.getByRole("button", { name: /Guardar/ }).click();
     await page.waitForURL(/\/planilla$/, { timeout: 15000 });

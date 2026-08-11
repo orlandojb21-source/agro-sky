@@ -898,6 +898,7 @@ export type InformeCampoExportable = {
   modeloDrone: string;
   dosisPorHectarea: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
+  jornada: "completo" | "medio";
   operador: string;
   ayudantes: string[];
   nombreFirmaAgro: string | null;
@@ -997,6 +998,7 @@ async function dibujarCuerpoInformeCampo(
     `Fecha: ${formatDateOnly(informe.fecha)}`,
     `Finca: ${informe.finca}`,
     `Hora: ${informe.horaInicio.slice(0, 5)} a ${informe.horaFin.slice(0, 5)}`,
+    `Jornada: ${informe.jornada === "medio" ? "Medio día" : "Día completo"}`,
     `Meteorología: ${informe.meteorologia}`,
     `Tipo de Aplicación: ${
       informe.tipoAplicacion === "liquido"
@@ -1166,7 +1168,6 @@ export type InformeDiarioExportable = {
   anchoPases: string;
   velocidad: string;
   nota: string | null;
-  imagenControlUrl: string | null;
   informeCampo: InformeCampoExportable;
 };
 
@@ -1245,27 +1246,6 @@ export async function exportarInformeDiarioPDF(informe: InformeDiarioExportable)
   doc.setFont("helvetica", "bold");
   doc.text("Copia del Informe de Campo", 14, 18);
   await dibujarCuerpoInformeCampo(doc, informe.informeCampo, 28, 0);
-
-  // Captura del control del drone -- opcional, la sube el administrador a
-  // mano (se la manda el operador por fuera de la app). Se ajusta al ancho
-  // de la página conservando su proporción real para no deformarla.
-  if (informe.imagenControlUrl) {
-    const imagen = await cargarImagenBase64ConDimensiones(informe.imagenControlUrl);
-    if (imagen) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Captura del control del drone", 14, 18);
-
-      const altoPagina = doc.internal.pageSize.getHeight();
-      const anchoMaximo = anchoPagina - 28;
-      const altoMaximo = altoPagina - 34;
-      const escala = Math.min(anchoMaximo / imagen.ancho, altoMaximo / imagen.alto, 1);
-      const anchoFinal = imagen.ancho * escala;
-      const altoFinal = imagen.alto * escala;
-      doc.addImage(imagen.dataUrl, "PNG", 14, 26, anchoFinal, altoFinal);
-    }
-  }
 
   doc.save(`${nombreArchivoInformeDiario(informe.cliente, informe.fecha)}.pdf`);
 }

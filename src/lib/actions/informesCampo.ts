@@ -41,6 +41,7 @@ export async function crearInformeCampoAction(
     modeloDrone: raw.modeloDrone,
     dosisPorHectarea: raw.dosisPorHectarea,
     tipoProyecto: raw.tipoProyecto,
+    jornada: raw.jornada,
     operador: raw.operador,
     ayudantes,
     firmaAgroRuta: raw.firmaAgroRuta,
@@ -77,6 +78,7 @@ export async function crearInformeCampoAction(
     p_imagenes: parsed.data.imagenes,
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
+    p_jornada: parsed.data.jornada,
   });
 
   if (error) {
@@ -123,6 +125,7 @@ export async function editarInformeCampoAction(
     modeloDrone: raw.modeloDrone,
     dosisPorHectarea: raw.dosisPorHectarea,
     tipoProyecto: raw.tipoProyecto,
+    jornada: raw.jornada,
     operador: raw.operador,
     ayudantes,
     firmaAgroRuta: raw.firmaAgroRuta,
@@ -170,6 +173,7 @@ export async function editarInformeCampoAction(
     p_imagenes: parsed.data.imagenes,
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
+    p_jornada: parsed.data.jornada,
   });
 
   if (error) {

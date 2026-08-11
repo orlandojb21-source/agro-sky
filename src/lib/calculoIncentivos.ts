@@ -4,11 +4,14 @@
 // nunca se guarda un monto sin que él lo confirme.
 //
 // Oficina: tarifa fija según jornada, sin hectáreas.
-// Proyecto (siempre jornada completa, no hay "medio día" en Proyecto): el
-// salario base cubre hasta cierta cantidad de hectáreas; cada hectárea
-// que pase de ese umbral suma una tarifa marginal aparte -- NO es "el
-// mayor entre base y hectareas×tarifa" (así se diseñó una primera vez,
-// pero el usuario lo corrigió con estos números reales).
+// Proyecto: el salario base cubre hasta cierta cantidad de hectáreas;
+// cada hectárea que pase de ese umbral suma una tarifa marginal aparte --
+// NO es "el mayor entre base y hectareas×tarifa" (así se diseñó una
+// primera vez, pero el usuario lo corrigió con estos números reales).
+// Desde 2026-08-10, Proyecto también puede ser medio día (se marca en el
+// Informe de Campo, un solo valor para todo el equipo) -- cuando es medio
+// día, el resultado completo de la fórmula se divide entre 2 (se
+// mantiene el cálculo por hectáreas, solo se parte el total a la mitad).
 //
 // El umbral de hectáreas incluidas en el salario base es 20 para Trabajo
 // Particular y 15 para Ingenio Santa Rosa (2026-08-01: se había corregido
@@ -51,8 +54,16 @@ export function calcularPagoOficina(rol: RolDia, jornada: Jornada): number {
   return TARIFAS_OFICINA[rol][jornada];
 }
 
-export function calcularPagoProyecto(rol: RolDia, tipoProyecto: TipoProyecto, hectareas: number): number {
+export function calcularPagoProyecto(
+  rol: RolDia,
+  tipoProyecto: TipoProyecto,
+  hectareas: number,
+  jornada: Jornada,
+): number {
   const { base, hectareasIncluidas, tarifaMarginal } = TARIFAS_PROYECTO[rol][tipoProyecto];
   const excedente = Math.max(0, hectareas - hectareasIncluidas);
-  return Math.round((base + excedente * tarifaMarginal) * 100) / 100;
+  const total = base + excedente * tarifaMarginal;
+  // Un solo redondeo al final (no redondear antes de dividir) para no
+  // acumular error de redondeo.
+  return Math.round((jornada === "medio" ? total / 2 : total) * 100) / 100;
 }

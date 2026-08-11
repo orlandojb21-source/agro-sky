@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeDiarioSchema, informeDiarioEditSchema } from "@/lib/validation/informesDiarios";
-import { eliminarImagenControlAction } from "@/lib/actions/informeDiarioImagen";
 import type { ActionState } from "./types";
 
 function mensajeError(error: { code?: string }): string {
@@ -43,7 +42,6 @@ export async function crearInformeDiarioAction(
     ancho_pases: parsed.data.anchoPases,
     velocidad: parsed.data.velocidad,
     nota: parsed.data.nota || null,
-    imagen_control_ruta: parsed.data.imagenControlRuta || null,
     registrado_por: perfil.id,
   });
 
@@ -80,19 +78,10 @@ export async function editarInformeDiarioAction(
       ancho_pases: parsed.data.anchoPases,
       velocidad: parsed.data.velocidad,
       nota: parsed.data.nota || null,
-      imagen_control_ruta: parsed.data.imagenControlRuta || null,
     })
     .eq("id", parsed.data.id);
 
   if (error) return { error: mensajeError(error), values: raw };
-
-  // Si se reemplazó o se quitó la imagen, se limpia la anterior en Storage
-  // (best-effort, ver eliminarImagenControlAction) para no ir dejando
-  // archivos huérfanos acumulándose -- mismo patrón que editarColaboradorAction.
-  const imagenControlRutaAnterior = raw.imagenControlRutaAnterior;
-  if (imagenControlRutaAnterior && imagenControlRutaAnterior !== parsed.data.imagenControlRuta) {
-    await eliminarImagenControlAction(imagenControlRutaAnterior).catch(() => {});
-  }
 
   revalidatePath("/informes/diario");
   revalidatePath(`/informes/diario/${parsed.data.id}`);
@@ -103,18 +92,8 @@ export async function eliminarInformeDiarioAction(id: string) {
   await requireWrite("informes");
   const supabase = await createClient();
 
-  const { data: informe } = await supabase
-    .from("informes_diarios")
-    .select("imagen_control_ruta")
-    .eq("id", id)
-    .maybeSingle();
-
   const { error } = await supabase.from("informes_diarios").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el informe diario.");
-
-  if (informe?.imagen_control_ruta) {
-    await eliminarImagenControlAction(informe.imagen_control_ruta).catch(() => {});
-  }
 
   revalidatePath("/informes/diario");
 }

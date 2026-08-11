@@ -55,6 +55,7 @@ export function SincronizadorInformesCampo() {
         fd.append("modeloDrone", item.datos.modeloDrone);
         fd.append("dosisPorHectarea", String(item.datos.dosisPorHectarea));
         fd.append("tipoProyecto", item.datos.tipoProyecto);
+        fd.append("jornada", item.datos.jornada);
         fd.append("operador", item.datos.operador);
         fd.append("ayudantes", JSON.stringify(item.datos.ayudantes));
         fd.append("nombreFirmaAgro", item.datos.nombreFirmaAgro);

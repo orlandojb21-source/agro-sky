@@ -70,6 +70,7 @@ export async function sincronizarInformeCampoPendienteAction(
     modeloDrone: raw.modeloDrone,
     dosisPorHectarea: raw.dosisPorHectarea,
     tipoProyecto: raw.tipoProyecto,
+    jornada: raw.jornada,
     operador: raw.operador,
     ayudantes,
     firmaAgroRuta: rutaAgro,
@@ -106,6 +107,7 @@ export async function sincronizarInformeCampoPendienteAction(
     p_imagenes: parsed.data.imagenes,
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
+    p_jornada: parsed.data.jornada,
   });
 
   if (error) {

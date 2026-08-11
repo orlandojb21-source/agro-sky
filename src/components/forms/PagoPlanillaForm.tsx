@@ -53,14 +53,15 @@ function descripcionDetalle(d: DetalleDiaEditable): string {
   if (d.tipoTrabajo === "oficina") {
     return `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`;
   }
+  const jornadaTexto = d.jornada === "medio" ? " (medio día)" : "";
   if (d.hectareas === null) {
     return "Proyecto — sin Informe de Campo ese día (monto a definir a mano)";
   }
   if (!d.tipoProyecto) {
-    return `Proyecto — ${d.clienteInforme} (${d.hectareas} ha, informe sin clasificar Ingenio/Particular)`;
+    return `Proyecto${jornadaTexto} — ${d.clienteInforme} (${d.hectareas} ha, informe sin clasificar Ingenio/Particular)`;
   }
   const tipo = d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular";
-  return `Proyecto — ${tipo} · ${d.clienteInforme} (${d.hectareas} ha)`;
+  return `Proyecto — ${tipo}${jornadaTexto} · ${d.clienteInforme} (${d.hectareas} ha)`;
 }
 
 type ValoresPago = {

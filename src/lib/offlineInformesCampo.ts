@@ -26,6 +26,7 @@ export type DatosInformeCampoPendiente = {
   modeloDrone: string;
   dosisPorHectarea: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular";
+  jornada: "completo" | "medio";
   operador: string;
   ayudantes: string[];
   nombreFirmaAgro: string;

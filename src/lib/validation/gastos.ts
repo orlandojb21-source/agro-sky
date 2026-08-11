@@ -16,6 +16,11 @@ export const CATEGORIA_GASTO_LABEL: Record<string, string> = {
   otro: "Otro",
 };
 
+function fechaTopeValida(data: { estadoPago: string; fechaTopePago: string }): boolean {
+  if (data.estadoPago !== "por_pagar") return true;
+  return data.fechaTopePago !== "";
+}
+
 const gastoBase = z
   .object({
     fecha: z.string().trim().min(1, "Fecha requerida"),
@@ -33,10 +38,20 @@ const gastoBase = z
     // URL pública) -- se sube antes de enviar el formulario, ver
     // subirComprobanteGastoAction en lib/actions/gastoComprobante.ts.
     comprobanteRuta: z.string().trim().optional().default(""),
+    // "Por pagar" (crédito) exige una fecha tope, para poder avisar dentro
+    // de la app cuando esté próxima o vencida -- ver
+    // gastos-operativos/layout.tsx. "Pagada" es el default: un gasto
+    // recién registrado se asume ya pagado salvo que se diga lo contrario.
+    estadoPago: z.enum(["pagada", "por_pagar"]).default("pagada"),
+    fechaTopePago: z.string().trim().optional().default(""),
   })
   .refine((data) => data.categoria !== "otro" || data.categoriaOtro !== "", {
     message: "Escribe la categoría del gasto",
     path: ["categoriaOtro"],
+  })
+  .refine(fechaTopeValida, {
+    message: "Escribe la fecha tope de pago",
+    path: ["fechaTopePago"],
   });
 
 export const gastoSchema = gastoBase;
@@ -52,8 +67,14 @@ export const gastoEditSchema = z
     monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
     descripcion: z.string().trim().optional().default(""),
     comprobanteRuta: z.string().trim().optional().default(""),
+    estadoPago: z.enum(["pagada", "por_pagar"]).default("pagada"),
+    fechaTopePago: z.string().trim().optional().default(""),
   })
   .refine((data) => data.categoria !== "otro" || data.categoriaOtro !== "", {
     message: "Escribe la categoría del gasto",
     path: ["categoriaOtro"],
+  })
+  .refine(fechaTopeValida, {
+    message: "Escribe la fecha tope de pago",
+    path: ["fechaTopePago"],
   });

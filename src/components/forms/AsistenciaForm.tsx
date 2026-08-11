@@ -39,7 +39,15 @@ export function AsistenciaForm({
   const v = state.values;
 
   const colaboradorInicial = v?.colaborador ?? valoresIniciales?.colaborador ?? colaboradores[0]?.nombre ?? "";
-  const tipoTrabajoInicial = v?.tipoTrabajo ?? valoresIniciales?.tipoTrabajo ?? "proyecto";
+  // Asistencia solo registra Oficina de ahora en adelante -- Proyecto
+  // (Ingenio Santa Rosa/Particular) lo confirma el propio Informe de
+  // Campo (pedido del usuario, 2026-08-10). Un registro histórico que ya
+  // era "proyecto" se sigue pudiendo editar tal cual (no se pierde ni se
+  // fuerza a migrar), pero ya no se puede crear uno nuevo así.
+  const esProyectoHistorico = esEdicion && valoresIniciales?.tipoTrabajo === "proyecto";
+  const tipoTrabajoInicial = esProyectoHistorico
+    ? (v?.tipoTrabajo ?? valoresIniciales?.tipoTrabajo ?? "proyecto")
+    : "oficina";
   const jornadaInicial = v?.jornada ?? valoresIniciales?.jornada ?? "completo";
   // Si la jornada guardada es "proyecto" pero el tipo de trabajo cambia a
   // Oficina, la jornada de Oficina que se sugiere no debe arrancar en
@@ -99,16 +107,26 @@ export function AsistenciaForm({
       </SelectField>
 
       <div className="grid grid-cols-2 gap-4">
-        <SelectField
-          label="Tipo de trabajo"
-          name="tipoTrabajo"
-          defaultValue={tipoTrabajoInicial}
-          onChange={(e) => setTipoTrabajoSeleccionado(e.target.value)}
-          required
-        >
-          <option value="proyecto">Proyecto</option>
-          <option value="oficina">Oficina</option>
-        </SelectField>
+        {esProyectoHistorico ? (
+          <SelectField
+            label="Tipo de trabajo"
+            name="tipoTrabajo"
+            defaultValue={tipoTrabajoInicial}
+            onChange={(e) => setTipoTrabajoSeleccionado(e.target.value)}
+            required
+          >
+            <option value="proyecto">Proyecto</option>
+            <option value="oficina">Oficina</option>
+          </SelectField>
+        ) : (
+          <div className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+            Tipo de trabajo
+            <input type="hidden" name="tipoTrabajo" value="oficina" />
+            <p className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 text-green-700/80 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300/80">
+              Oficina
+            </p>
+          </div>
+        )}
         {tipoTrabajoSeleccionado === "proyecto" ? (
           <div className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
             Jornada
@@ -124,11 +142,18 @@ export function AsistenciaForm({
           </SelectField>
         )}
       </div>
-      {tipoTrabajoSeleccionado === "proyecto" && (
+      {tipoTrabajoSeleccionado === "proyecto" ? (
         <p className="text-xs text-green-700/60 dark:text-green-300/60">
           El tipo de proyecto (Ingenio Santa Rosa / Trabajo Particular) ya no se marca aquí — se marca en cada
           Informe de Campo, junto con sus hectáreas.
         </p>
+      ) : (
+        !esProyectoHistorico && (
+          <p className="text-xs text-green-700/60 dark:text-green-300/60">
+            Asistencia solo registra días de Oficina — un día de Proyecto (Ingenio Santa Rosa / Trabajo
+            Particular) lo confirma el propio Informe de Campo, no hace falta registrarlo aquí también.
+          </p>
+        )
       )}
 
       <Field

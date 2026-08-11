@@ -85,6 +85,7 @@ export default async function DetalleInformeCampoPage({
     modeloDrone: informe.modelo_drone as string,
     dosisPorHectarea: informe.dosis_por_hectarea as string,
     tipoProyecto: informe.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
+    jornada: informe.jornada as "completo" | "medio",
     operador: informe.operador as string,
     ayudantes,
     nombreFirmaAgro: informe.nombre_firma_agro as string | null,
@@ -137,6 +138,12 @@ export default async function DetalleInformeCampoPage({
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">Hora</p>
           <p className="text-green-900 dark:text-green-50">
             {(informe.hora_inicio as string).slice(0, 5)} a {(informe.hora_fin as string).slice(0, 5)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">Jornada</p>
+          <p className="text-green-900 dark:text-green-50">
+            {informe.jornada === "medio" ? "Medio día" : "Día completo"}
           </p>
         </div>
         <div>

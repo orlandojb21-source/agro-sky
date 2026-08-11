@@ -7,7 +7,7 @@ import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
 
 // Bucket privado (ver migración 0064) -- imagen_ruta en informes_campo
 // guarda solo esta ruta, nunca una URL pública. Mismo patrón que
-// informeDiarioImagen.ts: se sube directo desde el formulario (no ligada
+// colaboradorFoto.ts: se sube directo desde el formulario (no ligada
 // todavía al id del informe, que puede no existir aún si se está creando
 // uno nuevo) y se referencia recién al guardar el formulario.
 const BUCKET = "informes-campo-imagenes";
