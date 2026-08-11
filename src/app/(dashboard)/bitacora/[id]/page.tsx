@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { ReasignarOperadorForm } from "@/components/forms/ReasignarOperadorForm";
+import { RegistrarVueloDroneForm } from "@/components/forms/RegistrarVueloDroneForm";
 import { eliminarDroneAction } from "@/lib/actions/drones";
 import { formatDateOnly } from "@/lib/format";
 
@@ -14,20 +15,28 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
   const puedeEscribir = canWrite(perfil.rol, "bitacora");
 
   const supabase = await createClient();
-  const [{ data: drone }, { data: asignacionesData }, { data: colaboradoresData }] = await Promise.all([
-    supabase.from("drones").select("*").eq("id", id).maybeSingle(),
-    supabase
-      .from("drones_operadores")
-      .select("id, operador, fecha_desde, fecha_hasta")
-      .eq("drone_id", id)
-      .order("fecha_desde", { ascending: false }),
-    supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
-  ]);
+  const [{ data: drone }, { data: asignacionesData }, { data: vuelosData }, { data: colaboradoresData }] =
+    await Promise.all([
+      supabase.from("drones").select("*").eq("id", id).maybeSingle(),
+      supabase
+        .from("drones_operadores")
+        .select("id, operador, fecha_desde, fecha_hasta")
+        .eq("drone_id", id)
+        .order("fecha_desde", { ascending: false }),
+      supabase
+        .from("drones_vuelos")
+        .select("id, fecha, operador, horas_vuelo, area_cubierta, vuelos")
+        .eq("drone_id", id)
+        .order("fecha", { ascending: false })
+        .order("creado_en", { ascending: false }),
+      supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
+    ]);
 
   if (!drone) notFound();
 
   const colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
   const asignaciones = asignacionesData ?? [];
+  const vuelos = vuelosData ?? [];
   const operadorActual = asignaciones.find((a) => a.fecha_hasta === null)?.operador as string | undefined;
 
   return (
@@ -109,6 +118,62 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">Vuelos</p>
           <p className="text-green-900 dark:text-green-50">{drone.vuelos as number}</p>
         </div>
+      </div>
+
+      {puedeEscribir && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
+            Registrar vuelo (Bitácora de Vuelo)
+          </h2>
+          <RegistrarVueloDroneForm
+            droneId={id}
+            colaboradoresCampo={colaboradoresCampo}
+            operadorSugerido={operadorActual ?? null}
+            fechaHoy={new Date().toISOString().slice(0, 10)}
+          />
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+          Bitácora de Vuelo
+        </h2>
+        {vuelos.length === 0 ? (
+          <p className="px-4 py-6 text-center text-sm text-green-700/70 dark:text-green-200/70">
+            Todavía no hay vuelos registrados.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-3 py-2 font-medium">Fecha</th>
+                  <th className="px-3 py-2 font-medium">Operador</th>
+                  <th className="px-3 py-2 font-medium">Horas de Vuelo</th>
+                  <th className="px-3 py-2 font-medium">Área Cubierta</th>
+                  <th className="px-3 py-2 font-medium">Vuelos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vuelos.map((v) => (
+                  <tr key={v.id as string} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {formatDateOnly(v.fecha as string)}
+                    </td>
+                    <td className="px-3 py-3 text-green-900 dark:text-green-50">{v.operador as string}</td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {Number(v.horas_vuelo)}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {Number(v.area_cubierta)} ha
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{v.vuelos as number}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {puedeEscribir && (
