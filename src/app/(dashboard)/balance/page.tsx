@@ -9,7 +9,7 @@ import {
   type PrestamoBalance,
 } from "@/components/forms/BalanceDashboard";
 import type { MovimientoExportable } from "@/lib/exportar";
-import type { CATEGORIAS_GASTO as CATEGORIAS_GASTO_COMPRAS } from "@/lib/validation/gastos";
+import { obtenerCategoriasGasto } from "@/lib/categorias";
 
 export default async function BalancePage() {
   await requireSection("balance");
@@ -23,6 +23,8 @@ export default async function BalancePage() {
     { data: colaboradoresData },
     { data: gastosComprasData },
     { data: prestamosData },
+    categoriasCajaMenuda,
+    categoriasCompras,
   ] = await Promise.all([
     supabase
       .from("caja_gastos")
@@ -45,6 +47,8 @@ export default async function BalancePage() {
       .select("fecha, categoria, categoria_otro, numero_factura, monto, proveedores ( nombre )")
       .order("fecha", { ascending: false }),
     supabase.from("prestamos").select("fecha, monto").order("fecha", { ascending: false }),
+    obtenerCategoriasGasto(supabase, "caja_menuda"),
+    obtenerCategoriasGasto(supabase, "compras"),
   ]);
 
   const movimientos: MovimientoExportable[] = [
@@ -108,7 +112,7 @@ export default async function BalancePage() {
 
   const gastosCompras: GastoCompraBalance[] = (gastosComprasData ?? []).map((g) => ({
     fecha: g.fecha as string,
-    categoria: g.categoria as (typeof CATEGORIAS_GASTO_COMPRAS)[number],
+    categoria: g.categoria as string,
     categoriaOtro: g.categoria_otro as string | null,
     proveedorNombre: (g.proveedores as unknown as { nombre: string } | null)?.nombre ?? null,
     numeroFactura: g.numero_factura as string | null,
@@ -133,6 +137,8 @@ export default async function BalancePage() {
         colaboradores={colaboradores}
         gastosCompras={gastosCompras}
         prestamos={prestamos}
+        categoriasCajaMenuda={categoriasCajaMenuda}
+        categoriasCompras={categoriasCompras}
       />
     </div>
   );

@@ -18,11 +18,7 @@ import {
   type MovimientoExportable,
 } from "@/lib/exportar";
 import { formatMoney } from "@/lib/format";
-import { CATEGORIAS_GASTO } from "@/lib/categorias";
-import {
-  CATEGORIA_GASTO_LABEL,
-  CATEGORIAS_GASTO as CATEGORIAS_GASTO_COMPRAS,
-} from "@/lib/validation/gastos";
+import { CATEGORIA_GASTO_LABEL } from "@/lib/validation/gastos";
 
 const COLORES_CATEGORIA = ["#dc2626", "#ea580c", "#ca8a04", "#65a30d", "#0891b2", "#7c3aed"];
 
@@ -89,11 +85,10 @@ export type PrestamoBalance = {
 // teléfono, etc.) registrados en Compras > Gastos -- distintos de Caja
 // Menuda (gastos chicos del día a día) y de Órdenes de Compra (piezas de
 // Inventario), ver migración 0056_proveedores_gastos.sql. Categorías
-// propias (alquiler/luz/agua/internet/telefono/otro), no las de
-// lib/categorias.ts (esas son de Caja Menuda/Planilla).
+// propias, administrables (ver migración 0068), no las de Caja Menuda.
 export type GastoCompraBalance = {
   fecha: string;
-  categoria: (typeof CATEGORIAS_GASTO_COMPRAS)[number];
+  categoria: string;
   categoriaOtro: string | null;
   proveedorNombre: string | null;
   numeroFactura: string | null;
@@ -135,6 +130,8 @@ export function BalanceDashboard({
   colaboradores,
   gastosCompras,
   prestamos,
+  categoriasCajaMenuda,
+  categoriasCompras,
 }: {
   movimientos: MovimientoExportable[];
   ventas: VentaBalance[];
@@ -142,6 +139,8 @@ export function BalanceDashboard({
   colaboradores: string[];
   gastosCompras: GastoCompraBalance[];
   prestamos: PrestamoBalance[];
+  categoriasCajaMenuda: string[];
+  categoriasCompras: string[];
 }) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [desde, setDesde] = useState("");
@@ -241,9 +240,9 @@ export function BalanceDashboard({
   const totalEgresos = totalGastosCaja + totalPlanilla + totalGastosCompras;
   const gananciaNeta = totalIngresos - totalEgresos;
 
-  const totalesPorCategoriaCompras = CATEGORIAS_GASTO_COMPRAS.map((c) => ({
+  const totalesPorCategoriaCompras = categoriasCompras.map((c) => ({
     categoria: c,
-    etiqueta: CATEGORIA_GASTO_LABEL[c],
+    etiqueta: CATEGORIA_GASTO_LABEL[c] ?? c,
     monto: gastosComprasFiltrados
       .filter((g) => g.categoria === c)
       .reduce((suma, g) => suma + g.monto, 0),
@@ -257,7 +256,7 @@ export function BalanceDashboard({
   // Gastos por categoria: suma de Caja Menuda (por su propia categoria) +
   // Planilla (siempre cuenta entero como "Planilla", ya que todo pago de
   // planilla es esa categoria por definicion).
-  const totalesPorCategoria = CATEGORIAS_GASTO.map((c, i) => {
+  const totalesPorCategoria = categoriasCajaMenuda.map((c, i) => {
     const deCaja = movimientosFiltrados
       .filter((m) => m.tipo === "gasto" && m.categoria === c)
       .reduce((suma, m) => suma + m.monto, 0);
@@ -409,7 +408,7 @@ export function BalanceDashboard({
                   className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
                 >
                   <option value="">Todas</option>
-                  {CATEGORIAS_GASTO.map((c) => (
+                  {categoriasCajaMenuda.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>

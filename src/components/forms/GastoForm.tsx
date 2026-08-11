@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { crearGastoAction, editarGastoAction } from "@/lib/actions/gastos";
 import { subirComprobanteGastoAction } from "@/lib/actions/gastoComprobante";
 import { comprimirImagen } from "@/lib/comprimirImagen";
-import { CATEGORIAS_GASTO, CATEGORIA_GASTO_LABEL } from "@/lib/validation/gastos";
+import { CATEGORIA_GASTO_LABEL } from "@/lib/validation/gastos";
+import { CategoriaGastoField } from "@/components/forms/CategoriaGastoField";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -15,7 +16,7 @@ type ValoresGasto = {
   id?: string;
   fecha: string;
   proveedorId: string | null;
-  categoria: (typeof CATEGORIAS_GASTO)[number];
+  categoria: string;
   categoriaOtro: string | null;
   numeroFactura: string | null;
   monto: number;
@@ -31,10 +32,12 @@ const CLASE_INPUT_ARCHIVO =
 
 export function GastoForm({
   proveedores,
+  categorias,
   fechaHoy,
   valoresIniciales,
 }: {
   proveedores: ProveedorOpcion[];
+  categorias: string[];
   fechaHoy: string;
   valoresIniciales?: ValoresGasto;
 }) {
@@ -47,10 +50,7 @@ export function GastoForm({
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
 
-  const categoriaInicial =
-    (state.values?.categoria as (typeof CATEGORIAS_GASTO)[number] | undefined) ??
-    valoresIniciales?.categoria ??
-    "alquiler";
+  const categoriaInicial = state.values?.categoria ?? valoresIniciales?.categoria ?? "alquiler";
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(categoriaInicial);
 
   const [comprobanteRuta, setComprobanteRuta] = useState(valoresIniciales?.comprobanteRuta ?? "");
@@ -124,19 +124,14 @@ export function GastoForm({
             </option>
           ))}
         </SelectField>
-        <SelectField
-          label="Categoría"
-          name="categoria"
-          defaultValue={categoriaInicial}
-          onChange={(e) => setCategoriaSeleccionada(e.target.value as (typeof CATEGORIAS_GASTO)[number])}
+        <CategoriaGastoField
+          contexto="compras"
+          categoriasIniciales={categorias}
+          etiquetas={CATEGORIA_GASTO_LABEL}
+          valorInicial={categoriaInicial}
+          onChange={setCategoriaSeleccionada}
           required
-        >
-          {CATEGORIAS_GASTO.map((c) => (
-            <option key={c} value={c}>
-              {CATEGORIA_GASTO_LABEL[c]}
-            </option>
-          ))}
-        </SelectField>
+        />
         {categoriaSeleccionada === "otro" && (
           <Field
             label="¿Cuál?"

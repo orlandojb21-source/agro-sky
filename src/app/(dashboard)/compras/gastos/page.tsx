@@ -7,14 +7,14 @@ import { LinkButton } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { eliminarGastoAction } from "@/lib/actions/gastos";
-import { CATEGORIA_GASTO_LABEL, type CATEGORIAS_GASTO } from "@/lib/validation/gastos";
+import { CATEGORIA_GASTO_LABEL } from "@/lib/validation/gastos";
 import { formatDateOnly, formatMoney } from "@/lib/format";
 
 type GastoFila = {
   id: string;
   fecha: string;
   proveedorNombre: string | null;
-  categoria: (typeof CATEGORIAS_GASTO)[number];
+  categoria: string;
   categoriaOtro: string | null;
   numeroFactura: string | null;
   monto: number;
@@ -34,7 +34,7 @@ export default async function GastosPage() {
     id: g.id as string,
     fecha: g.fecha as string,
     proveedorNombre: (g.proveedores as unknown as { nombre: string } | null)?.nombre ?? null,
-    categoria: g.categoria as (typeof CATEGORIAS_GASTO)[number],
+    categoria: g.categoria as string,
     categoriaOtro: g.categoria_otro as string | null,
     numeroFactura: g.numero_factura as string | null,
     monto: Number(g.monto),
@@ -46,7 +46,8 @@ export default async function GastosPage() {
     { header: "Fecha", render: (g) => formatDateOnly(g.fecha) },
     {
       header: "Categoría",
-      render: (g) => (g.categoria === "otro" ? (g.categoriaOtro ?? "Otro") : CATEGORIA_GASTO_LABEL[g.categoria]),
+      render: (g) =>
+        g.categoria === "otro" ? (g.categoriaOtro ?? "Otro") : (CATEGORIA_GASTO_LABEL[g.categoria] ?? g.categoria),
     },
     { header: "Proveedor", render: (g) => g.proveedorNombre ?? "—" },
     { header: "N.° Factura", render: (g) => g.numeroFactura ?? "—" },

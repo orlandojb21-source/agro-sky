@@ -1,15 +1,13 @@
 import { z } from "zod";
 
-export const CATEGORIAS_GASTO = [
-  "alquiler",
-  "luz",
-  "agua",
-  "internet",
-  "telefono",
-  "otro",
-] as const;
-
-export const CATEGORIA_GASTO_LABEL: Record<(typeof CATEGORIAS_GASTO)[number], string> = {
+// Etiquetas bonitas solo para las 6 categorías heredadas (guardadas en
+// minúsculas desde antes de que la lista fuera administrable, ver
+// migración 0068_categorias_gasto_dinamicas.sql) -- una categoría nueva
+// agregada desde "+ Agregar categoría nueva" se guarda y se muestra tal
+// cual la escriba el usuario, sin pasar por este mapa. No exhaustivo a
+// propósito (Record<string, string>, no un enum): la lista real de
+// categorías ya no vive en el código, vive en categorias_gasto.
+export const CATEGORIA_GASTO_LABEL: Record<string, string> = {
   alquiler: "Alquiler",
   luz: "Luz",
   agua: "Agua",
@@ -22,9 +20,11 @@ const gastoBase = z
   .object({
     fecha: z.string().trim().min(1, "Fecha requerida"),
     proveedorId: z.string().trim().optional().default(""),
-    categoria: z.enum(CATEGORIAS_GASTO),
+    categoria: z.string().trim().min(1, "Selecciona una categoría"),
     // Solo aplica cuando categoria = "otro" -- se valida con .refine() abajo
-    // porque su obligatoriedad depende de la categoría elegida.
+    // porque su obligatoriedad depende de la categoría elegida. Se
+    // mantiene por compatibilidad con datos viejos aunque ahora se puede
+    // agregar una categoría real en vez de usar "otro" + texto libre.
     categoriaOtro: z.string().trim().optional().default(""),
     numeroFactura: z.string().trim().optional().default(""),
     monto: z.coerce.number().positive("El monto debe ser mayor a 0"),
@@ -46,7 +46,7 @@ export const gastoEditSchema = z
     id: z.string().uuid(),
     fecha: z.string().trim().min(1, "Fecha requerida"),
     proveedorId: z.string().trim().optional().default(""),
-    categoria: z.enum(CATEGORIAS_GASTO),
+    categoria: z.string().trim().min(1, "Selecciona una categoría"),
     categoriaOtro: z.string().trim().optional().default(""),
     numeroFactura: z.string().trim().optional().default(""),
     monto: z.coerce.number().positive("El monto debe ser mayor a 0"),

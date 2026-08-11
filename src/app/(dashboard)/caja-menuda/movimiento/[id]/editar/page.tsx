@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { obtenerCategoriasGasto } from "@/lib/categorias";
 import { MovimientoForm } from "@/components/forms/MovimientoForm";
 
 export default async function EditarMovimientoPage({
@@ -12,7 +13,7 @@ export default async function EditarMovimientoPage({
   await requireWrite("caja-menuda");
 
   const supabase = await createClient();
-  const [{ data: gasto }, { data: colaboradoresData }, { data: proveedoresData }] = await Promise.all([
+  const [{ data: gasto }, { data: colaboradoresData }, { data: proveedoresData }, categorias] = await Promise.all([
     supabase
       .from("caja_gastos")
       .select(
@@ -22,6 +23,7 @@ export default async function EditarMovimientoPage({
       .maybeSingle(),
     supabase.from("colaboradores").select("nombre").order("nombre"),
     supabase.from("proveedores").select("id, nombre").order("nombre"),
+    obtenerCategoriasGasto(supabase, "caja_menuda"),
   ]);
 
   if (!gasto) notFound();
@@ -38,6 +40,7 @@ export default async function EditarMovimientoPage({
         fechaHoy={gasto.fecha}
         colaboradores={colaboradores}
         proveedores={proveedores}
+        categorias={categorias}
         valoresIniciales={{
           id: gasto.id,
           fecha: gasto.fecha,

@@ -6,6 +6,7 @@ import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { gastoSchema, gastoEditSchema } from "@/lib/validation/gastos";
 import { eliminarComprobanteGastoAction } from "@/lib/actions/gastoComprobante";
+import { categoriaGastoValida } from "@/lib/categorias";
 import type { ActionState } from "./types";
 
 export async function crearGastoAction(
@@ -21,6 +22,11 @@ export async function crearGastoAction(
   }
 
   const supabase = await createClient();
+
+  if (!(await categoriaGastoValida(supabase, "compras", parsed.data.categoria))) {
+    return { error: "Categoría no válida.", values: raw };
+  }
+
   const { error } = await supabase.from("gastos").insert({
     fecha: parsed.data.fecha,
     proveedor_id: parsed.data.proveedorId || null,
@@ -52,6 +58,11 @@ export async function editarGastoAction(
   }
 
   const supabase = await createClient();
+
+  if (!(await categoriaGastoValida(supabase, "compras", parsed.data.categoria))) {
+    return { error: "Categoría no válida.", values: raw };
+  }
+
   const { error } = await supabase
     .from("gastos")
     .update({

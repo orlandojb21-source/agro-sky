@@ -10,7 +10,6 @@ import {
   registrarVueltoAction,
 } from "@/lib/actions/caja";
 import { formatMoney, formatDateOnly } from "@/lib/format";
-import { CATEGORIAS_GASTO } from "@/lib/categorias";
 
 export type MovimientoFila = {
   id: string;
@@ -108,9 +107,11 @@ function RegistrarVuelto({ id }: { id: string }) {
 export function MovimientosTabla({
   movimientos,
   puedeEscribir,
+  categorias,
 }: {
   movimientos: MovimientoFila[];
   puedeEscribir: boolean;
+  categorias: string[];
 }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
@@ -211,7 +212,7 @@ export function MovimientosTabla({
               className={inputFiltroMovil}
             >
               <option value="">Todas</option>
-              {CATEGORIAS_GASTO.map((c) => (
+              {categorias.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -305,7 +306,7 @@ export function MovimientosTabla({
                     className={inputFiltro}
                   >
                     <option value="">Todas</option>
-                    {CATEGORIAS_GASTO.map((c) => (
+                    {categorias.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>

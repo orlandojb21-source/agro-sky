@@ -13,6 +13,7 @@ import {
   arqueoSchema,
 } from "@/lib/validation/caja";
 import { DENOMINACIONES, calcularSaldoActual, detalleDesdeFormData } from "@/lib/caja";
+import { categoriaGastoValida } from "@/lib/categorias";
 import type { ActionState } from "./types";
 
 export async function crearGastoAction(
@@ -32,6 +33,11 @@ export async function crearGastoAction(
   const vuelto = detalleDesdeFormData(raw, "vuelto");
 
   const supabase = await createClient();
+
+  if (!(await categoriaGastoValida(supabase, "caja_menuda", parsed.data.categoria))) {
+    return { error: "Categoría no válida.", values: raw };
+  }
+
   const { error } = await supabase.from("caja_gastos").insert({
     fecha: parsed.data.fecha,
     categoria: parsed.data.categoria,
@@ -74,6 +80,11 @@ export async function editarGastoAction(
   const vuelto = detalleDesdeFormData(raw, "vuelto");
 
   const supabase = await createClient();
+
+  if (!(await categoriaGastoValida(supabase, "caja_menuda", parsed.data.categoria))) {
+    return { error: "Categoría no válida.", values: raw };
+  }
+
   const { error } = await supabase
     .from("caja_gastos")
     .update({

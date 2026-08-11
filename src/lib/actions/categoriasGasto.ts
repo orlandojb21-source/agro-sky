@@ -1,0 +1,48 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { requireWrite } from "@/lib/session";
+import { createClient } from "@/lib/supabase/server";
+import type { ContextoCategoriaGasto } from "@/lib/categorias";
+
+const SECCION_POR_CONTEXTO = {
+  caja_menuda: "caja-menuda",
+  compras: "compras",
+} as const;
+
+// Se llama directo desde el formulario del gasto (botón "+ Agregar
+// categoría nueva", no un <form> aparte) -- mismo patrón que
+// subirFotoColaboradorAction: una función simple que devuelve el
+// resultado o lanza un error, no un reducer de useActionState. Cualquiera
+// que ya pueda registrar un gasto en esa sección puede agregar categorías
+// (pedido explícito del usuario, 2026-08-07) -- mismo requireWrite que ya
+// protege crear el gasto, sin rol aparte.
+export async function crearCategoriaGastoAction(
+  contexto: ContextoCategoriaGasto,
+  nombre: string,
+): Promise<string> {
+  const perfil = await requireWrite(SECCION_POR_CONTEXTO[contexto]);
+  const nombreLimpio = nombre.trim();
+  if (!nombreLimpio) throw new Error("Escribe un nombre para la categoría.");
+
+  const supabase = await createClient();
+
+  const { data: existentes } = await supabase
+    .from("categorias_gasto")
+    .select("nombre")
+    .eq("contexto", contexto);
+  const yaExiste = (existentes ?? []).some(
+    (c) => (c.nombre as string).toLowerCase() === nombreLimpio.toLowerCase(),
+  );
+  if (yaExiste) throw new Error("Ya existe una categoría con ese nombre.");
+
+  const { error } = await supabase
+    .from("categorias_gasto")
+    .insert({ contexto, nombre: nombreLimpio, registrado_por: perfil.id });
+  if (error) throw new Error("No se pudo agregar la categoría. Intenta de nuevo.");
+
+  revalidatePath("/caja-menuda");
+  revalidatePath("/compras/gastos");
+  revalidatePath("/balance");
+  return nombreLimpio;
+}

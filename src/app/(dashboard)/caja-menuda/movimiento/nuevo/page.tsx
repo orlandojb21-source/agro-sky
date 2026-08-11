@@ -1,14 +1,16 @@
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { obtenerCategoriasGasto } from "@/lib/categorias";
 import { MovimientoForm } from "@/components/forms/MovimientoForm";
 
 export default async function NuevoMovimientoPage() {
   await requireWrite("caja-menuda");
 
   const supabase = await createClient();
-  const [{ data }, { data: proveedoresData }] = await Promise.all([
+  const [{ data }, { data: proveedoresData }, categorias] = await Promise.all([
     supabase.from("colaboradores").select("nombre").order("nombre"),
     supabase.from("proveedores").select("id, nombre").order("nombre"),
+    obtenerCategoriasGasto(supabase, "caja_menuda"),
   ]);
   const colaboradores = (data ?? []).map((c) => c.nombre as string);
   const proveedores = (proveedoresData ?? []).map((p) => ({ id: p.id as string, nombre: p.nombre as string }));
@@ -22,6 +24,7 @@ export default async function NuevoMovimientoPage() {
         fechaHoy={new Date().toISOString().slice(0, 10)}
         colaboradores={colaboradores}
         proveedores={proveedores}
+        categorias={categorias}
       />
     </div>
   );

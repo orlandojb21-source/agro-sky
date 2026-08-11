@@ -6,7 +6,7 @@ import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import { DenominacionGrid } from "@/components/forms/DenominacionGrid";
-import { CATEGORIAS_GASTO } from "@/lib/categorias";
+import { CategoriaGastoField } from "@/components/forms/CategoriaGastoField";
 
 const CONCEPTOS_SUGERIDOS = ["Transporte", "Comida", "Combustible", "Hospedaje", "Materiales", "Otro"];
 
@@ -46,11 +46,13 @@ export function MovimientoForm({
   fechaHoy,
   colaboradores,
   proveedores,
+  categorias,
   valoresIniciales,
 }: {
   fechaHoy: string;
   colaboradores: string[];
   proveedores: ProveedorOpcion[];
+  categorias: string[];
   valoresIniciales?: ValoresMovimiento;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -96,19 +98,12 @@ export function MovimientoForm({
         defaultValue={v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy}
         required
       />
-      <SelectField
-        label="Categoría"
-        name="categoria"
-        defaultValue={v?.categoria ?? valoresIniciales?.categoria ?? undefined}
+      <CategoriaGastoField
+        contexto="caja_menuda"
+        categoriasIniciales={categorias}
+        valorInicial={v?.categoria ?? valoresIniciales?.categoria ?? undefined}
         required
-      >
-        <option value="">Selecciona...</option>
-        {CATEGORIAS_GASTO.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </SelectField>
+      />
 
       <p className="text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
         Gasto (opcional)
