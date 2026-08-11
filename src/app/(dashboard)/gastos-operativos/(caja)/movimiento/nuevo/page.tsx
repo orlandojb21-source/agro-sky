@@ -4,7 +4,7 @@ import { obtenerCategoriasGasto } from "@/lib/categorias";
 import { MovimientoForm } from "@/components/forms/MovimientoForm";
 
 export default async function NuevoMovimientoPage() {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
 
   const supabase = await createClient();
   const [{ data }, { data: proveedoresData }, categorias] = await Promise.all([

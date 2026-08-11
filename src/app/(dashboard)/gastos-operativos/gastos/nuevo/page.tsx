@@ -4,7 +4,7 @@ import { obtenerCategoriasGasto } from "@/lib/categorias";
 import { GastoForm } from "@/components/forms/GastoForm";
 
 export default async function NuevoGastoPage() {
-  await requireWrite("compras");
+  await requireWrite("gastos-operativos");
 
   const supabase = await createClient();
   const [{ data }, categorias] = await Promise.all([

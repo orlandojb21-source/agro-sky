@@ -2,7 +2,7 @@ import { requireWrite } from "@/lib/session";
 import { ReposicionForm } from "@/components/forms/ReposicionForm";
 
 export default async function NuevaReposicionPage() {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
 
   return (
     <div>

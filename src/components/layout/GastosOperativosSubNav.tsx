@@ -4,20 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/gastos-operativos", label: "Movimientos" },
-  { href: "/gastos-operativos/arqueos", label: "Arqueos" },
+  { href: "/gastos-operativos", label: "Caja Menuda" },
+  { href: "/gastos-operativos/gastos", label: "Gastos" },
 ];
 
-export function CajaSubNav() {
+export function GastosOperativosSubNav() {
   const pathname = usePathname();
 
   return (
     <div className="flex flex-wrap gap-2">
       {TABS.map((tab) => {
+        // "Gastos" es un segmento propio (/gastos-operativos/gastos); "Caja
+        // Menuda" es todo lo demás bajo /gastos-operativos (movimientos,
+        // reposiciones, arqueos) -- por eso no alcanza con startsWith() para
+        // ambos, hay que excluir explícitamente el segmento de Gastos.
         const activo =
-          tab.href === "/gastos-operativos"
-            ? pathname === "/gastos-operativos"
-            : pathname.startsWith(tab.href);
+          tab.href === "/gastos-operativos/gastos"
+            ? pathname.startsWith("/gastos-operativos/gastos")
+            : pathname === "/gastos-operativos" ||
+              (pathname.startsWith("/gastos-operativos") && !pathname.startsWith("/gastos-operativos/gastos"));
         return (
           <Link
             key={tab.href}

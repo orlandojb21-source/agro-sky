@@ -13,7 +13,7 @@ export async function crearGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requireWrite("compras");
+  const perfil = await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoSchema.safeParse(raw);
@@ -41,15 +41,15 @@ export async function crearGastoAction(
 
   if (error) return { error: "No se pudo guardar el gasto. Intenta de nuevo.", values: raw };
 
-  revalidatePath("/compras/gastos");
-  redirect("/compras/gastos");
+  revalidatePath("/gastos-operativos/gastos");
+  redirect("/gastos-operativos/gastos");
 }
 
 export async function editarGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("compras");
+  await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoEditSchema.safeParse(raw);
@@ -87,12 +87,12 @@ export async function editarGastoAction(
     await eliminarComprobanteGastoAction(comprobanteRutaAnterior).catch(() => {});
   }
 
-  revalidatePath("/compras/gastos");
-  redirect("/compras/gastos");
+  revalidatePath("/gastos-operativos/gastos");
+  redirect("/gastos-operativos/gastos");
 }
 
 export async function eliminarGastoAction(id: string) {
-  await requireWrite("compras");
+  await requireWrite("gastos-operativos");
   const supabase = await createClient();
 
   const { data: gasto } = await supabase
@@ -108,5 +108,5 @@ export async function eliminarGastoAction(id: string) {
     await eliminarComprobanteGastoAction(gasto.comprobante_ruta).catch(() => {});
   }
 
-  revalidatePath("/compras/gastos");
+  revalidatePath("/gastos-operativos/gastos");
 }

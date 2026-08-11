@@ -9,7 +9,7 @@ export default async function EditarReposicionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
 
   const supabase = await createClient();
   const { data: reposicion } = await supabase

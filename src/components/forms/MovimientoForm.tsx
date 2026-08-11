@@ -199,7 +199,7 @@ export function MovimientoForm({
 
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar movimiento"}</SubmitButton>
-        <LinkButton href="/caja-menuda" variant="secondary">
+        <LinkButton href="/gastos-operativos" variant="secondary">
           Cancelar
         </LinkButton>
       </div>

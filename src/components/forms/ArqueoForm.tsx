@@ -119,7 +119,7 @@ export function ArqueoForm({ fechaHoy, saldoEsperado }: { fechaHoy: string; sald
 
       <div className="flex gap-3">
         <SubmitButton>Guardar arqueo</SubmitButton>
-        <LinkButton href="/caja-menuda/arqueos" variant="secondary">
+        <LinkButton href="/gastos-operativos/arqueos" variant="secondary">
           Cancelar
         </LinkButton>
       </div>

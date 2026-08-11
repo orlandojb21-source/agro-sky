@@ -10,7 +10,7 @@ export default async function EditarMovimientoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
 
   const supabase = await createClient();
   const [{ data: gasto }, { data: colaboradoresData }, { data: proveedoresData }, categorias] = await Promise.all([

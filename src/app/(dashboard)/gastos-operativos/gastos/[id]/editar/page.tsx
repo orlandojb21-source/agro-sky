@@ -13,7 +13,7 @@ export default async function EditarGastoPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireWrite("compras");
+  await requireWrite("gastos-operativos");
 
   const supabase = await createClient();
   const [{ data: gasto }, { data: proveedores }, categorias] = await Promise.all([

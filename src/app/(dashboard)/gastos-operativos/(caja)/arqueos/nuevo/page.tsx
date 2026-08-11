@@ -4,7 +4,7 @@ import { calcularSaldoActual } from "@/lib/caja";
 import { ArqueoForm } from "@/components/forms/ArqueoForm";
 
 export default async function NuevoArqueoPage() {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
 
   const supabase = await createClient();
   const saldoEsperado = await calcularSaldoActual(supabase);

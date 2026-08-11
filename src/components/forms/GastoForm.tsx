@@ -206,7 +206,7 @@ export function GastoForm({
           {esEdicion ? "Guardar cambios" : "+ Agregar gasto"}
         </SubmitButton>
         {esEdicion && (
-          <LinkButton href="/compras/gastos" variant="secondary">
+          <LinkButton href="/gastos-operativos/gastos" variant="secondary">
             Cancelar
           </LinkButton>
         )}

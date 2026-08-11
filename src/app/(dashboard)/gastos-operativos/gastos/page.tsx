@@ -21,8 +21,8 @@ type GastoFila = {
 };
 
 export default async function GastosPage() {
-  const perfil = await requireSection("compras");
-  const puedeEscribir = canWrite(perfil.rol, "compras");
+  const perfil = await requireSection("gastos-operativos");
+  const puedeEscribir = canWrite(perfil.rol, "gastos-operativos");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -59,7 +59,7 @@ export default async function GastosPage() {
             render: (g: GastoFila) => (
               <div className="flex gap-3">
                 <Link
-                  href={`/compras/gastos/${g.id}/editar`}
+                  href={`/gastos-operativos/gastos/${g.id}/editar`}
                   className="text-sm text-green-700 hover:underline dark:text-green-300"
                 >
                   Editar
@@ -79,7 +79,9 @@ export default async function GastosPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Gastos"
-        action={puedeEscribir ? <LinkButton href="/compras/gastos/nuevo">+ Nuevo gasto</LinkButton> : undefined}
+        action={
+          puedeEscribir ? <LinkButton href="/gastos-operativos/gastos/nuevo">+ Nuevo gasto</LinkButton> : undefined
+        }
       />
       {gastos.length > 0 && (
         <p className="text-sm text-green-800 dark:text-green-200">

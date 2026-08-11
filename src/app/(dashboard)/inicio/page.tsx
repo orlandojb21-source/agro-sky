@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/Logo";
 // Orden pedido por el usuario para los accesos directos del inicio.
 // Compras y Usuarios quedan fuera a propósito -- no se pidieron aquí.
 const SECCIONES_INICIO: Seccion[] = [
-  "caja-menuda",
+  "gastos-operativos",
   "inventario",
   "bitacora",
   "planilla",

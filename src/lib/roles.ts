@@ -19,7 +19,7 @@ export const ROL_LABEL: Record<Rol, string> = {
 export type Seccion =
   | "inventario"
   | "bitacora"
-  | "caja-menuda"
+  | "gastos-operativos"
   | "compras"
   | "planilla"
   | "ventas"
@@ -66,7 +66,7 @@ export const SECTION_ACCESS: Record<Seccion, Record<Rol, NivelAcceso>> = {
     gerente: "lectura",
     rrhh_contabilidad: "lectura",
   },
-  "caja-menuda": {
+  "gastos-operativos": {
     administrador: "escritura",
     jefe: "escritura",
     soporte: "escritura",

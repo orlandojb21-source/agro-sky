@@ -424,8 +424,8 @@ export function MovimientosTabla({
                           <Link
                             href={
                               m.tipo === "gasto"
-                                ? `/caja-menuda/movimiento/${m.id}/editar`
-                                : `/caja-menuda/reposicion/${m.id}/editar`
+                                ? `/gastos-operativos/movimiento/${m.id}/editar`
+                                : `/gastos-operativos/reposicion/${m.id}/editar`
                             }
                             className="text-sm text-green-700 hover:underline dark:text-green-300"
                           >
@@ -565,8 +565,8 @@ export function MovimientosTabla({
                   <Link
                     href={
                       m.tipo === "gasto"
-                        ? `/caja-menuda/movimiento/${m.id}/editar`
-                        : `/caja-menuda/reposicion/${m.id}/editar`
+                        ? `/gastos-operativos/movimiento/${m.id}/editar`
+                        : `/gastos-operativos/reposicion/${m.id}/editar`
                     }
                     className="text-sm text-green-700 hover:underline dark:text-green-300"
                   >

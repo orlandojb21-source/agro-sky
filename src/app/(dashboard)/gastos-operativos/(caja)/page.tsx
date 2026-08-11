@@ -7,8 +7,8 @@ import { LinkButton } from "@/components/ui/Button";
 import { MovimientosTabla, type MovimientoFila } from "@/components/forms/MovimientosTabla";
 
 export default async function CajaMenudaPage() {
-  const perfil = await requireSection("caja-menuda");
-  const puedeEscribir = canWrite(perfil.rol, "caja-menuda");
+  const perfil = await requireSection("gastos-operativos");
+  const puedeEscribir = canWrite(perfil.rol, "gastos-operativos");
 
   const supabase = await createClient();
   const [{ data: gastos }, { data: reposiciones }, categorias] = await Promise.all([
@@ -65,10 +65,10 @@ export default async function CajaMenudaPage() {
         action={
           puedeEscribir ? (
             <div className="flex gap-2">
-              <LinkButton href="/caja-menuda/reposicion/nueva" variant="secondary">
+              <LinkButton href="/gastos-operativos/reposicion/nueva" variant="secondary">
                 + Reponer caja
               </LinkButton>
-              <LinkButton href="/caja-menuda/movimiento/nuevo">+ Registrar movimiento</LinkButton>
+              <LinkButton href="/gastos-operativos/movimiento/nuevo">+ Registrar movimiento</LinkButton>
             </div>
           ) : undefined
         }

@@ -71,7 +71,7 @@ export function ReposicionForm({
 
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar reposición"}</SubmitButton>
-        <LinkButton href="/caja-menuda" variant="secondary">
+        <LinkButton href="/gastos-operativos" variant="secondary">
           Cancelar
         </LinkButton>
       </div>

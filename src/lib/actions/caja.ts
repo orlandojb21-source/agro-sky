@@ -20,7 +20,7 @@ export async function crearGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requireWrite("caja-menuda");
+  const perfil = await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoSchema.safeParse(raw);
@@ -59,15 +59,15 @@ export async function crearGastoAction(
 
   if (error) return { error: "No se pudo guardar el movimiento. Intenta de nuevo.", values: raw };
 
-  revalidatePath("/caja-menuda");
-  redirect("/caja-menuda");
+  revalidatePath("/gastos-operativos");
+  redirect("/gastos-operativos");
 }
 
 export async function editarGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoEditSchema.safeParse(raw);
@@ -108,16 +108,16 @@ export async function editarGastoAction(
 
   if (error) return { error: "No se pudo actualizar el movimiento. Intenta de nuevo.", values: raw };
 
-  revalidatePath("/caja-menuda");
-  redirect("/caja-menuda");
+  revalidatePath("/gastos-operativos");
+  redirect("/gastos-operativos");
 }
 
 export async function eliminarGastoAction(id: string) {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
   const supabase = await createClient();
   const { error } = await supabase.from("caja_gastos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el movimiento.");
-  revalidatePath("/caja-menuda");
+  revalidatePath("/gastos-operativos");
 }
 
 // Registrar el vuelto directo desde la tabla de Movimientos (sin pasar por
@@ -125,7 +125,7 @@ export async function eliminarGastoAction(id: string) {
 // MovimientosTabla para los movimientos que tienen "entregado" pero aun no
 // tienen "vuelto".
 export async function registrarVueltoAction(id: string, formData: FormData) {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = vueltoSchema.safeParse(raw);
@@ -143,14 +143,14 @@ export async function registrarVueltoAction(id: string, formData: FormData) {
 
   if (error) throw new Error("No se pudo registrar el vuelto.");
 
-  revalidatePath("/caja-menuda");
+  revalidatePath("/gastos-operativos");
 }
 
 export async function crearReposicionAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requireWrite("caja-menuda");
+  const perfil = await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reposicionSchema.safeParse(raw);
@@ -169,15 +169,15 @@ export async function crearReposicionAction(
 
   if (error) return { error: "No se pudo guardar la reposición. Intenta de nuevo.", values: raw };
 
-  revalidatePath("/caja-menuda");
-  redirect("/caja-menuda");
+  revalidatePath("/gastos-operativos");
+  redirect("/gastos-operativos");
 }
 
 export async function editarReposicionAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reposicionEditSchema.safeParse(raw);
@@ -200,23 +200,23 @@ export async function editarReposicionAction(
     return { error: "No se pudo actualizar la reposición. Intenta de nuevo.", values: raw };
   }
 
-  revalidatePath("/caja-menuda");
-  redirect("/caja-menuda");
+  revalidatePath("/gastos-operativos");
+  redirect("/gastos-operativos");
 }
 
 export async function eliminarReposicionAction(id: string) {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
   const supabase = await createClient();
   const { error } = await supabase.from("caja_reposiciones").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar la reposición.");
-  revalidatePath("/caja-menuda");
+  revalidatePath("/gastos-operativos");
 }
 
 export async function crearArqueoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requireWrite("caja-menuda");
+  const perfil = await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = arqueoSchema.safeParse(raw);
@@ -249,14 +249,14 @@ export async function crearArqueoAction(
 
   if (error) return { error: "No se pudo guardar el arqueo. Intenta de nuevo.", values: raw };
 
-  revalidatePath("/caja-menuda/arqueos");
-  redirect("/caja-menuda/arqueos");
+  revalidatePath("/gastos-operativos/arqueos");
+  redirect("/gastos-operativos/arqueos");
 }
 
 export async function eliminarArqueoAction(id: string) {
-  await requireWrite("caja-menuda");
+  await requireWrite("gastos-operativos");
   const supabase = await createClient();
   const { error } = await supabase.from("caja_arqueos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el arqueo.");
-  revalidatePath("/caja-menuda/arqueos");
+  revalidatePath("/gastos-operativos/arqueos");
 }

@@ -6,8 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { ContextoCategoriaGasto } from "@/lib/categorias";
 
 const SECCION_POR_CONTEXTO = {
-  caja_menuda: "caja-menuda",
-  compras: "compras",
+  caja_menuda: "gastos-operativos",
+  compras: "gastos-operativos",
 } as const;
 
 // Se llama directo desde el formulario del gasto (botón "+ Agregar
@@ -41,8 +41,8 @@ export async function crearCategoriaGastoAction(
     .insert({ contexto, nombre: nombreLimpio, registrado_por: perfil.id });
   if (error) throw new Error("No se pudo agregar la categoría. Intenta de nuevo.");
 
-  revalidatePath("/caja-menuda");
-  revalidatePath("/compras/gastos");
+  revalidatePath("/gastos-operativos");
+  revalidatePath("/gastos-operativos/gastos");
   revalidatePath("/balance");
   return nombreLimpio;
 }
