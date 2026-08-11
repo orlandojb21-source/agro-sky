@@ -6,6 +6,7 @@ import {
   type InformeCampoOpcion,
   type ValoresInformeDiario,
 } from "@/components/forms/InformeDiarioForm";
+import { obtenerImagenesPorInformeCampo } from "@/lib/informeCampoImagenesUrls";
 
 export default async function EditarInformeDiarioPage({
   params,
@@ -35,20 +36,26 @@ export default async function EditarInformeDiarioPage({
       .filter((d) => d.id !== id)
       .map((d) => d.informe_campo_id as string),
   );
-  const informesCampoDisponibles: InformeCampoOpcion[] = (informesCampoData ?? [])
-    .filter((row) => !idsVinculadosAOtros.has(row.id as string))
-    .map((row) => ({
-      id: row.id as string,
-      cliente: row.cliente as string,
-      finca: row.finca as string,
-      fecha: row.fecha as string,
-      operador: row.operador as string,
-      dosisPorHectarea: row.dosis_por_hectarea as string,
-      hectareas: ((row.informe_campo_parcelas ?? []) as { hectareas: number }[]).reduce(
-        (s, p) => s + Number(p.hectareas),
-        0,
-      ),
-    }));
+  const informesCampoFiltrados = (informesCampoData ?? []).filter(
+    (row) => !idsVinculadosAOtros.has(row.id as string),
+  );
+  const imagenesPorInforme = await obtenerImagenesPorInformeCampo(
+    supabase,
+    informesCampoFiltrados.map((row) => row.id as string),
+  );
+  const informesCampoDisponibles: InformeCampoOpcion[] = informesCampoFiltrados.map((row) => ({
+    id: row.id as string,
+    cliente: row.cliente as string,
+    finca: row.finca as string,
+    fecha: row.fecha as string,
+    operador: row.operador as string,
+    dosisPorHectarea: row.dosis_por_hectarea as string,
+    hectareas: ((row.informe_campo_parcelas ?? []) as { hectareas: number }[]).reduce(
+      (s, p) => s + Number(p.hectareas),
+      0,
+    ),
+    imagenUrls: imagenesPorInforme.get(row.id as string) ?? [],
+  }));
 
   const valoresIniciales: ValoresInformeDiario = {
     id: informe.id as string,

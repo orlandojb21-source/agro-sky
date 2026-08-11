@@ -8,6 +8,7 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { BotonExportarInformeDiario } from "@/components/forms/BotonExportarInformeDiario";
 import { eliminarInformeDiarioAction } from "@/lib/actions/informesDiarios";
 import { formatDateOnly } from "@/lib/format";
+import { obtenerImagenesPorInformeCampo } from "@/lib/informeCampoImagenesUrls";
 import type { InformeCampoExportable, InformeDiarioExportable } from "@/lib/exportar";
 
 const BUCKET_FIRMAS = "informes-campo-firmas";
@@ -45,6 +46,9 @@ export default async function DetalleInformeDiarioPage({
       .select("id, producto_activo, lts_por_hectarea")
       .eq("informe_id", informeCampoId),
   ]);
+
+  const imagenesInformeCampo = await obtenerImagenesPorInformeCampo(supabase, [informeCampoId]);
+  const imagenUrlsInformeCampo = imagenesInformeCampo.get(informeCampoId) ?? [];
 
   let firmaAgroUrl: string | null = null;
   if (informeCampoRow.firma_agro_ruta) {
@@ -197,6 +201,19 @@ export default async function DetalleInformeDiarioPage({
         >
           Ver Informe de Campo completo
         </Link>
+        {imagenUrlsInformeCampo.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-3">
+            {imagenUrlsInformeCampo.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={url}
+                src={url}
+                alt={`Imagen del Informe de Campo ${i + 1}`}
+                className="h-40 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {puedeEscribir && (

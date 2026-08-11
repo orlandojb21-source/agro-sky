@@ -15,6 +15,11 @@ export type InformeCampoOpcion = {
   operador: string;
   dosisPorHectarea: string;
   hectareas: number;
+  // URLs firmadas (generadas del lado del servidor) de las imágenes ya
+  // adjuntas en ese Informe de Campo -- se muestran como vista previa al
+  // elegirlo, ya que es la única fuente real de imagen ahora que Informe
+  // Diario dejó de tener su propio campo de adjuntar imagen.
+  imagenUrls: string[];
 };
 
 export type ValoresInformeDiario = {
@@ -117,11 +122,30 @@ export function InformeDiarioForm({
         ))}
       </SelectField>
       {informeCampoElegido && (
-        <p className="text-xs text-green-700/70 dark:text-green-300/70">
-          Vinculado a: {informeCampoElegido.cliente} — {informeCampoElegido.finca} —{" "}
-          {formatDateOnly(informeCampoElegido.fecha)} — {informeCampoElegido.hectareas} ha — Operador:{" "}
-          {informeCampoElegido.operador}
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-green-700/70 dark:text-green-300/70">
+            Vinculado a: {informeCampoElegido.cliente} — {informeCampoElegido.finca} —{" "}
+            {formatDateOnly(informeCampoElegido.fecha)} — {informeCampoElegido.hectareas} ha — Operador:{" "}
+            {informeCampoElegido.operador}
+          </p>
+          {informeCampoElegido.imagenUrls.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {informeCampoElegido.imagenUrls.map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={url}
+                  src={url}
+                  alt={`Imagen del Informe de Campo ${i + 1}`}
+                  className="h-32 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-green-700/60 dark:text-green-300/60">
+              Ese Informe de Campo todavía no tiene imágenes adjuntas.
+            </p>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
