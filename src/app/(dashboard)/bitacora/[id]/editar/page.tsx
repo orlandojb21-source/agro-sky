@@ -12,7 +12,7 @@ export default async function EditarDronePage({ params }: { params: Promise<{ id
     supabase
       .from("drones")
       .select(
-        "id, nombre, modelo, fecha_activacion, numero_serie_aeronave, numero_serie_fabrica, area_cubierta, horas_vuelo, vuelos",
+        "id, nombre, modelo, fecha_activacion, numero_serie_aeronave, numero_serie_placa_fc, numero_serie_fabrica, area_cubierta, horas_vuelo, vuelos",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -34,6 +34,7 @@ export default async function EditarDronePage({ params }: { params: Promise<{ id
           modelo: drone.modelo as string,
           fechaActivacion: drone.fecha_activacion as string | null,
           numeroSerieAeronave: drone.numero_serie_aeronave as string | null,
+          numeroSeriePlacaFc: drone.numero_serie_placa_fc as string | null,
           numeroSerieFabrica: drone.numero_serie_fabrica as string | null,
           areaCubierta: Number(drone.area_cubierta),
           horasVuelo: Number(drone.horas_vuelo),

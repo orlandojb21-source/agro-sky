@@ -12,6 +12,7 @@ type ValoresDrone = {
   modelo: string;
   fechaActivacion: string | null;
   numeroSerieAeronave: string | null;
+  numeroSeriePlacaFc: string | null;
   numeroSerieFabrica: string | null;
   areaCubierta: number;
   horasVuelo: number;
@@ -66,6 +67,12 @@ export function DroneForm({
           label="N/S de la aeronave (opcional)"
           name="numeroSerieAeronave"
           defaultValue={v?.numeroSerieAeronave ?? valoresIniciales?.numeroSerieAeronave ?? undefined}
+          placeholder="Opcional"
+        />
+        <Field
+          label="N/S de la placa del FC (opcional)"
+          name="numeroSeriePlacaFc"
+          defaultValue={v?.numeroSeriePlacaFc ?? valoresIniciales?.numeroSeriePlacaFc ?? undefined}
           placeholder="Opcional"
         />
         <Field

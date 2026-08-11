@@ -9,6 +9,7 @@ const droneBaseSchema = z.object({
   modelo: z.string().trim().min(1, "Modelo requerido"),
   fechaActivacion: z.string().trim().optional().default(""),
   numeroSerieAeronave: z.string().trim().optional().default(""),
+  numeroSeriePlacaFc: z.string().trim().optional().default(""),
   numeroSerieFabrica: z.string().trim().optional().default(""),
   areaCubierta: z.coerce.number().min(0, "El área cubierta no puede ser negativa").optional().default(0),
   horasVuelo: z.coerce.number().min(0, "Las horas de vuelo no pueden ser negativas").optional().default(0),

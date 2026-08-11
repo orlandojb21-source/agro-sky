@@ -51,7 +51,7 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-4 dark:border-green-900/40 dark:bg-green-950/10">
+      <div className="grid grid-cols-2 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-5 dark:border-green-900/40 dark:bg-green-950/10">
         <div>
           <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
             Fecha de activación
@@ -66,6 +66,14 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
           </p>
           <p className="text-green-900 dark:text-green-50">
             {(drone.numero_serie_aeronave as string | null) || "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+            N/S de la placa del FC
+          </p>
+          <p className="text-green-900 dark:text-green-50">
+            {(drone.numero_serie_placa_fc as string | null) || "—"}
           </p>
         </div>
         <div>
