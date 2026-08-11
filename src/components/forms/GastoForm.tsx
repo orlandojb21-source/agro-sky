@@ -197,7 +197,7 @@ export function GastoForm({
             <img
               src={comprobantePreviewUrl}
               alt="Comprobante del gasto"
-              className="h-20 w-20 rounded-lg border border-green-200 object-cover dark:border-green-800"
+              className="h-40 w-auto max-w-[220px] rounded-lg border border-green-200 object-contain dark:border-green-800"
             />
           )}
           <div className="flex flex-col gap-1">

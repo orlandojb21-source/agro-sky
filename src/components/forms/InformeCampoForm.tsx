@@ -786,10 +786,10 @@ export function InformeCampoForm({
                   <img
                     src={img.previewUrl}
                     alt={`Imagen adjunta ${i + 1}`}
-                    className="h-24 w-24 rounded-lg border border-green-200 object-cover dark:border-green-800"
+                    className="h-40 w-auto max-w-[220px] rounded-lg border border-green-200 object-contain dark:border-green-800"
                   />
                 ) : (
-                  <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-xs text-green-700/60 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300/60">
+                  <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-xs text-green-700/60 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300/60">
                     Imagen {i + 1}
                   </div>
                 )}

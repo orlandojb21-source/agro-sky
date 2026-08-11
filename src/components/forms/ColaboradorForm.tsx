@@ -191,7 +191,7 @@ export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: Valor
             <img
               src={fotoPreviewUrl}
               alt="Foto del colaborador"
-              className="h-20 w-20 rounded-full border border-green-200 object-cover dark:border-green-800"
+              className="h-28 w-28 rounded-full border border-green-200 object-cover dark:border-green-800"
             />
           )}
           <div className="flex flex-col gap-1">
