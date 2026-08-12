@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-// Lo que carga el operador es lo que sumó ESE trabajo (no el total nuevo
-// del drone) -- ver registrar_vuelo_drone en la migración 0074, que suma
-// estos 3 valores a los totales acumulados del drone.
+// Lo que carga el operador es la LECTURA NUEVA (el total acumulado del
+// drone a esa fecha, como un odómetro) -- no lo que sumó ese trabajo. El
+// RPC registrar_vuelo_drone (migración 0075) calcula la diferencia
+// contra la lectura anterior y deja el drone con estos totales nuevos.
 export const registrarVueloDroneSchema = z.object({
   droneId: z.string().uuid(),
   fecha: z.string().min(1, "Fecha requerida"),

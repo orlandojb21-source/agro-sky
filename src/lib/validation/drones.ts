@@ -4,6 +4,11 @@ import { z } from "zod";
 // que quedan requeridos. Fecha de activación y los 2 números de serie no
 // siempre están a mano al momento de registrarlo (mismo criterio que
 // Informe Diario) -- quedan opcionales.
+//
+// Área Cubierta / Horas de Vuelo / Vuelos NO se editan acá -- son de
+// solo lectura en Datos del Drone (área separada, ver
+// validation/dronesVuelos.ts): solo cambian a través de un nuevo
+// Registro de Vuelo, corrección 2026-08-11.
 const droneBaseSchema = z.object({
   nombre: z.string().trim().min(1, "Nombre requerido"),
   modelo: z.string().trim().min(1, "Modelo requerido"),
@@ -11,9 +16,6 @@ const droneBaseSchema = z.object({
   numeroSerieAeronave: z.string().trim().optional().default(""),
   numeroSeriePlacaFc: z.string().trim().optional().default(""),
   numeroSerieFabrica: z.string().trim().optional().default(""),
-  areaCubierta: z.coerce.number().min(0, "El área cubierta no puede ser negativa").optional().default(0),
-  horasVuelo: z.coerce.number().min(0, "Las horas de vuelo no pueden ser negativas").optional().default(0),
-  vuelos: z.coerce.number().int("Los vuelos deben ser un número entero").min(0, "Los vuelos no pueden ser negativos").optional().default(0),
 });
 
 // Solo al crear se puede dejar cargado un operador inicial -- después, el

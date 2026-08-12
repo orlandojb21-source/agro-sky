@@ -26,9 +26,6 @@ export async function crearDroneAction(_prev: ActionState, formData: FormData): 
       numero_serie_aeronave: parsed.data.numeroSerieAeronave || null,
       numero_serie_placa_fc: parsed.data.numeroSeriePlacaFc || null,
       numero_serie_fabrica: parsed.data.numeroSerieFabrica || null,
-      area_cubierta: parsed.data.areaCubierta,
-      horas_vuelo: parsed.data.horasVuelo,
-      vuelos: parsed.data.vuelos,
       registrado_por: perfil.id,
     })
     .select("id")
@@ -36,12 +33,15 @@ export async function crearDroneAction(_prev: ActionState, formData: FormData): 
 
   if (error || !drone) return { error: "No se pudo guardar el drone. Intenta de nuevo.", values: raw };
 
+  // El RPC reasignar_operador_drone (migración 0075) cierra automáticamente
+  // cualquier asignación vigente que ese operador tuviera en otro drone --
+  // un operador es único por drone a la vez, desde el momento en que se
+  // le asigna, incluso al crear el drone nuevo.
   if (parsed.data.operadorInicial) {
-    await supabase.from("drones_operadores").insert({
-      drone_id: drone.id,
-      operador: parsed.data.operadorInicial,
-      fecha_desde: parsed.data.fechaActivacion || new Date().toISOString().slice(0, 10),
-      registrado_por: perfil.id,
+    await supabase.rpc("reasignar_operador_drone", {
+      p_drone_id: drone.id,
+      p_operador: parsed.data.operadorInicial,
+      p_fecha: parsed.data.fechaActivacion || new Date().toISOString().slice(0, 10),
     });
   }
 
@@ -68,9 +68,6 @@ export async function editarDroneAction(_prev: ActionState, formData: FormData):
       numero_serie_aeronave: parsed.data.numeroSerieAeronave || null,
       numero_serie_placa_fc: parsed.data.numeroSeriePlacaFc || null,
       numero_serie_fabrica: parsed.data.numeroSerieFabrica || null,
-      area_cubierta: parsed.data.areaCubierta,
-      horas_vuelo: parsed.data.horasVuelo,
-      vuelos: parsed.data.vuelos,
     })
     .eq("id", parsed.data.id);
 
@@ -89,14 +86,16 @@ export async function eliminarDroneAction(id: string) {
   revalidatePath("/bitacora");
 }
 
-// Cierra la asignación vigente (si hay una) y abre una nueva -- queda el
-// historial completo de quién tuvo el drone y desde/hasta cuándo, pedido
-// explícito del usuario (2026-08-11).
+// Pasa por el RPC reasignar_operador_drone (migración 0075): cierra la
+// asignación vigente de este drone Y cualquier asignación vigente que el
+// operador elegido tuviera en OTRO drone (un operador es único por drone
+// a la vez -- ej. si su drone entró a mantenimiento y se lo pasa a otro),
+// y abre la nueva. Todo en una sola transacción atómica.
 export async function reasignarOperadorDroneAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requireWrite("bitacora");
+  await requireWrite("bitacora");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reasignarOperadorDroneSchema.safeParse(raw);
@@ -105,26 +104,15 @@ export async function reasignarOperadorDroneAction(
   }
 
   const supabase = await createClient();
-
-  const { error: errorCierre } = await supabase
-    .from("drones_operadores")
-    .update({ fecha_hasta: parsed.data.fecha })
-    .eq("drone_id", parsed.data.droneId)
-    .is("fecha_hasta", null);
-  if (errorCierre) {
-    return { error: "No se pudo cerrar la asignación anterior. Intenta de nuevo.", values: raw };
-  }
-
-  const { error: errorNueva } = await supabase.from("drones_operadores").insert({
-    drone_id: parsed.data.droneId,
-    operador: parsed.data.operador,
-    fecha_desde: parsed.data.fecha,
-    registrado_por: perfil.id,
+  const { error } = await supabase.rpc("reasignar_operador_drone", {
+    p_drone_id: parsed.data.droneId,
+    p_operador: parsed.data.operador,
+    p_fecha: parsed.data.fecha,
   });
-  if (errorNueva) {
-    return { error: "No se pudo registrar la nueva asignación. Intenta de nuevo.", values: raw };
-  }
+
+  if (error) return { error: "No se pudo reasignar el operador. Intenta de nuevo.", values: raw };
 
   revalidatePath(`/bitacora/${parsed.data.droneId}`);
+  revalidatePath("/bitacora");
   return { error: null, success: true };
 }

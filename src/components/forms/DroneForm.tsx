@@ -14,9 +14,6 @@ type ValoresDrone = {
   numeroSerieAeronave: string | null;
   numeroSeriePlacaFc: string | null;
   numeroSerieFabrica: string | null;
-  areaCubierta: number;
-  horasVuelo: number;
-  vuelos: number;
 };
 
 export function DroneForm({
@@ -83,39 +80,6 @@ export function DroneForm({
         />
       </div>
 
-      <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
-        Registro de Vuelo
-      </span>
-      <p className="-mt-2 text-xs text-green-700/60 dark:text-green-300/60">
-        Totales acumulados -- se actualizan a mano, tomados del propio control del drone.
-      </p>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field
-          label="Área Cubierta (ha)"
-          name="areaCubierta"
-          type="number"
-          min={0}
-          step="0.01"
-          defaultValue={v?.areaCubierta ?? valoresIniciales?.areaCubierta ?? 0}
-        />
-        <Field
-          label="Horas de Vuelo"
-          name="horasVuelo"
-          type="number"
-          min={0}
-          step="0.01"
-          defaultValue={v?.horasVuelo ?? valoresIniciales?.horasVuelo ?? 0}
-        />
-        <Field
-          label="Vuelos"
-          name="vuelos"
-          type="number"
-          min={0}
-          step="1"
-          defaultValue={v?.vuelos ?? valoresIniciales?.vuelos ?? 0}
-        />
-      </div>
-
       {!esEdicion && (
         <>
           <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
@@ -134,8 +98,9 @@ export function DroneForm({
             ))}
           </SelectField>
           <p className="-mt-2 text-xs text-green-700/60 dark:text-green-300/60">
-            Se puede asignar o reasignar más adelante desde la ficha del drone -- queda un historial de cada
-            cambio.
+            Se puede asignar o reasignar más adelante desde la ficha del drone -- si ya está asignado a otro
+            drone, se le quita ahí automáticamente. El Registro de Vuelo (Área Cubierta, Horas de Vuelo,
+            Vuelos) es un área aparte -- se carga después desde &quot;+ Registro de Vuelo&quot;.
           </p>
         </>
       )}
