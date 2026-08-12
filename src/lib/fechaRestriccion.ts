@@ -16,22 +16,26 @@ function fechaISO(msDesdeAhora: number): string {
 }
 
 // Gerente General y Soporte IT pueden guardar cualquier fecha -- el resto
-// de los roles solo puede guardar/editar con fecha de HOY o AYER (hora de
-// Panama), pedido explícito del usuario (2026-08-13). Aplica a la fecha
-// PRINCIPAL de cada registro (cuándo pasó el hecho: Informe de Campo,
-// Asistencia, Gastos, Caja Menuda, Pagos, Préstamos, Control de Horario,
-// Ventas, Cotizaciones, Compras, Registro de Vuelo, Mantenimiento,
-// reasignar operador de un drone) -- NO a fechas de vencimiento/tope de
-// pago (son a futuro a propósito), a la fecha de activación de un drone
-// (dato histórico, no "cuándo se cargó esto"), ni a "fecha desde" de
-// quincena en Pagos (describe el periodo pagado, siempre en el pasado).
+// de los roles no puede guardar/editar con una fecha de hace más de 2 días
+// (hora de Panama). La restricción es SOLO hacia el pasado -- una fecha
+// futura (ej. un viático que se paga un día antes del viaje) siempre está
+// permitida, pedido explícito del usuario (2026-08-13, ajustado el mismo
+// día tras un reporte real de un viático de mañana bloqueado por error).
+// Aplica a la fecha PRINCIPAL de cada registro (cuándo pasó el hecho:
+// Informe de Campo, Asistencia, Gastos, Caja Menuda, Pagos, Préstamos,
+// Control de Horario, Ventas, Cotizaciones, Compras, Registro de Vuelo,
+// Mantenimiento, reasignar operador de un drone) -- NO a fechas de
+// vencimiento/tope de pago (son a futuro a propósito, sin límite), a la
+// fecha de activación de un drone (dato histórico, no "cuándo se cargó
+// esto"), ni a "fecha desde" de quincena en Pagos (describe el periodo
+// pagado, siempre en el pasado).
 export function fechaPermitida(fecha: string, rol: Rol | null | undefined): boolean {
   if (esSoporteOJefe(rol)) return true;
-  return fecha === fechaISO(0) || fecha === fechaISO(-UN_DIA_MS);
+  return fecha >= fechaISO(-UN_DIA_MS);
 }
 
 export const MENSAJE_FECHA_NO_PERMITIDA =
-  "Con tu rol solo podés guardar con fecha de hoy o de ayer. Si necesitás una fecha anterior, pedile a Gerente General o Soporte IT.";
+  "Con tu rol no podés guardar con una fecha de hace más de 2 días. Si necesitás una fecha más atrasada, pedile a Gerente General o Soporte IT.";
 
 export const MENSAJE_REGISTRO_FECHA_VIEJA =
   "Este registro tiene una fecha de hace más de 2 días -- con tu rol ya no se puede editar. Pedile a Gerente General o Soporte IT.";
