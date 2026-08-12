@@ -8,6 +8,7 @@ import {
   mantenimientoPreventivoSchema,
   mantenimientoCorrectivoSchema,
 } from "@/lib/validation/dronesMantenimiento";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA } from "@/lib/fechaRestriccion";
 import type { ActionState } from "./types";
 
 export async function crearMantenimientoPreventivoAction(
@@ -20,6 +21,10 @@ export async function crearMantenimientoPreventivoAction(
   const parsed = mantenimientoPreventivoSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();
@@ -68,7 +73,7 @@ export async function crearMantenimientoCorrectivoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let piezas: unknown;
@@ -89,6 +94,10 @@ export async function crearMantenimientoCorrectivoAction(
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();

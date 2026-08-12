@@ -5,13 +5,14 @@ import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { aprobarSchema, rechazarSchema, solicitudSchema } from "@/lib/validation/compras";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA } from "@/lib/fechaRestriccion";
 import type { ActionState } from "./types";
 
 export async function crearSolicitudAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("compras");
+  const perfil = await requireWrite("compras");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let items: unknown;
@@ -29,6 +30,10 @@ export async function crearSolicitudAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();

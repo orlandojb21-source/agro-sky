@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requirePerfil, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { controlHorarioSchema, controlHorarioEditSchema } from "@/lib/validation/controlHorario";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
+import { esSoporteOJefe } from "@/lib/roles";
 import type { ActionState } from "./types";
 
 function mensajeError(error: { code?: string }): string {
@@ -26,6 +28,10 @@ export async function crearControlHorarioAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("control_horario").insert({
     colaborador: parsed.data.colaborador,
@@ -45,7 +51,7 @@ export async function editarControlHorarioAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("planilla");
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = controlHorarioEditSchema.safeParse(raw);
@@ -54,6 +60,21 @@ export async function editarControlHorarioAction(
   }
 
   const supabase = await createClient();
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    const { data: registroActual } = await supabase
+      .from("control_horario")
+      .select("fecha")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (registroActual && !fechaPermitida(registroActual.fecha as string, perfil.rol)) {
+      return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
+    }
+    if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+      return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+    }
+  }
+
   const { error } = await supabase
     .from("control_horario")
     .update({

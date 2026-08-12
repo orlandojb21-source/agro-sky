@@ -6,6 +6,7 @@ import { requireWrite } from "@/lib/session";
 import { puedeReasignarOperadorDrone } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { droneSchema, droneEditSchema, reasignarOperadorDroneSchema } from "@/lib/validation/drones";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA } from "@/lib/fechaRestriccion";
 import type { ActionState } from "./types";
 
 export async function crearDroneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -112,6 +113,10 @@ export async function reasignarOperadorDroneAction(
   const parsed = reasignarOperadorDroneSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();

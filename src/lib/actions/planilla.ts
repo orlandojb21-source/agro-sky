@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { pagoSchema, pagoEditSchema, parseDetalleCalculo } from "@/lib/validation/planilla";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
+import { esSoporteOJefe } from "@/lib/roles";
 import type { ActionState } from "./types";
 
 export async function crearPagoAction(
@@ -17,6 +19,12 @@ export async function crearPagoAction(
   const parsed = pagoSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  // Solo "fecha" (cuándo se pagó) -- "fechaDesde" describe el periodo que
+  // se paga (quincena), casi siempre en el pasado, no se restringe.
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();
@@ -51,7 +59,7 @@ export async function editarPagoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("planilla");
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = pagoEditSchema.safeParse(raw);
@@ -60,6 +68,21 @@ export async function editarPagoAction(
   }
 
   const supabase = await createClient();
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    const { data: pagoActual } = await supabase
+      .from("planilla_pagos")
+      .select("fecha")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (pagoActual && !fechaPermitida(pagoActual.fecha as string, perfil.rol)) {
+      return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
+    }
+    if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+      return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+    }
+  }
+
   const { error } = await supabase
     .from("planilla_pagos")
     .update({

@@ -5,13 +5,14 @@ import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { cotizacionSchema } from "@/lib/validation/cotizaciones";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA } from "@/lib/fechaRestriccion";
 import type { ActionState } from "./types";
 
 export async function crearCotizacionAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("ventas");
+  const perfil = await requireWrite("ventas");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let items: unknown;
@@ -36,6 +37,10 @@ export async function crearCotizacionAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();

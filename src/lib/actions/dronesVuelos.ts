@@ -6,6 +6,7 @@ import { requireWrite } from "@/lib/session";
 import { esSoporteOJefe } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { registrarVueloDroneSchema, editarRegistroVueloSchema } from "@/lib/validation/dronesVuelos";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA } from "@/lib/fechaRestriccion";
 import type { ActionState } from "./types";
 
 // Pasa por el RPC registrar_vuelo_drone (migración 0075) en vez de un
@@ -19,12 +20,16 @@ export async function registrarVueloDroneAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = registrarVueloDroneSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();

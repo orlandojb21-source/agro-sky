@@ -14,6 +14,8 @@ import {
 } from "@/lib/validation/caja";
 import { DENOMINACIONES, calcularSaldoActual, detalleDesdeFormData } from "@/lib/caja";
 import { categoriaGastoValida } from "@/lib/categorias";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
+import { esSoporteOJefe } from "@/lib/roles";
 import type { ActionState } from "./types";
 
 export async function crearGastoAction(
@@ -26,6 +28,10 @@ export async function crearGastoAction(
   const parsed = gastoSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const monto = detalleDesdeFormData(raw, "monto");
@@ -67,7 +73,7 @@ export async function editarGastoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("gastos-operativos");
+  const perfil = await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = gastoEditSchema.safeParse(raw);
@@ -83,6 +89,20 @@ export async function editarGastoAction(
 
   if (!(await categoriaGastoValida(supabase, "caja_menuda", parsed.data.categoria))) {
     return { error: "Categoría no válida.", values: raw };
+  }
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    const { data: gastoActual } = await supabase
+      .from("caja_gastos")
+      .select("fecha")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (gastoActual && !fechaPermitida(gastoActual.fecha as string, perfil.rol)) {
+      return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
+    }
+    if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+      return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+    }
   }
 
   const { error } = await supabase
@@ -158,6 +178,10 @@ export async function crearReposicionAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("caja_reposiciones").insert({
     fecha: parsed.data.fecha,
@@ -177,7 +201,7 @@ export async function editarReposicionAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("gastos-operativos");
+  const perfil = await requireWrite("gastos-operativos");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reposicionEditSchema.safeParse(raw);
@@ -186,6 +210,21 @@ export async function editarReposicionAction(
   }
 
   const supabase = await createClient();
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    const { data: reposicionActual } = await supabase
+      .from("caja_reposiciones")
+      .select("fecha")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (reposicionActual && !fechaPermitida(reposicionActual.fecha as string, perfil.rol)) {
+      return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
+    }
+    if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+      return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+    }
+  }
+
   const { error } = await supabase
     .from("caja_reposiciones")
     .update({
@@ -222,6 +261,10 @@ export async function crearArqueoAction(
   const parsed = arqueoSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const detalle: Record<string, number> = {};

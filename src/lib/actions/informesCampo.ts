@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeCampoSchema, informeCampoEditSchema } from "@/lib/validation/informesCampo";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
+import { esSoporteOJefe } from "@/lib/roles";
 import { eliminarImagenInformeCampoAction } from "./informeCampoImagen";
 import type { ActionState } from "./types";
 
@@ -14,7 +16,7 @@ export async function crearInformeCampoAction(
 ): Promise<ActionState> {
   // Campo SÍ puede crear un Informe de Campo (a diferencia de editar/
   // eliminar, ver más abajo) -- pedido explícito del usuario, 2026-08-04.
-  await requireWrite("informes");
+  const perfil = await requireWrite("informes");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let ayudantes: unknown;
@@ -55,6 +57,10 @@ export async function crearInformeCampoAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();
@@ -151,6 +157,20 @@ export async function editarInformeCampoAction(
     .from("informe_campo_imagenes")
     .select("ruta")
     .eq("informe_id", parsed.data.id);
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    const { data: informeActual } = await supabase
+      .from("informes_campo")
+      .select("fecha")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (informeActual && !fechaPermitida(informeActual.fecha as string, perfil.rol)) {
+      return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
+    }
+    if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+      return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+    }
+  }
 
   const { error } = await supabase.rpc("editar_informe_campo", {
     p_informe_id: parsed.data.id,

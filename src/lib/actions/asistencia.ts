@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requirePerfil, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { asistenciaSchema, asistenciaEditSchema } from "@/lib/validation/asistencia";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
+import { esSoporteOJefe } from "@/lib/roles";
 import {
   calcularPagoOficina,
   calcularPagoProyecto,
@@ -24,6 +26,10 @@ export async function crearAsistenciaAction(
   const parsed = asistenciaSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
   }
 
   const supabase = await createClient();
@@ -47,7 +53,7 @@ export async function editarAsistenciaAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("planilla");
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = asistenciaEditSchema.safeParse(raw);
@@ -56,6 +62,21 @@ export async function editarAsistenciaAction(
   }
 
   const supabase = await createClient();
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    const { data: asistenciaActual } = await supabase
+      .from("planilla_asistencia")
+      .select("fecha")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (asistenciaActual && !fechaPermitida(asistenciaActual.fecha as string, perfil.rol)) {
+      return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
+    }
+    if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+      return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+    }
+  }
+
   const { error } = await supabase
     .from("planilla_asistencia")
     .update({

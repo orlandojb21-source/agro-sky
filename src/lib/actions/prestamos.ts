@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { prestamoSchema, prestamoEditSchema } from "@/lib/validation/prestamos";
 import { obtenerPrestamoActivo, type Prestamo } from "@/lib/prestamos";
 import { formatMoney } from "@/lib/format";
+import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
+import { esSoporteOJefe } from "@/lib/roles";
 import type { ActionState } from "./types";
 
 export type PrestamoActivo = Prestamo & { saldoPendiente: number };
@@ -35,6 +37,10 @@ export async function crearPrestamoAction(
     };
   }
 
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+  }
+
   const { error } = await supabase.from("prestamos").insert({
     colaborador: parsed.data.colaborador,
     fecha: parsed.data.fecha,
@@ -54,7 +60,7 @@ export async function editarPrestamoAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("planilla");
+  const perfil = await requireWrite("planilla");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = prestamoEditSchema.safeParse(raw);
@@ -63,6 +69,21 @@ export async function editarPrestamoAction(
   }
 
   const supabase = await createClient();
+
+  if (!esSoporteOJefe(perfil.rol)) {
+    const { data: prestamoActual } = await supabase
+      .from("prestamos")
+      .select("fecha")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (prestamoActual && !fechaPermitida(prestamoActual.fecha as string, perfil.rol)) {
+      return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
+    }
+    if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+      return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+    }
+  }
+
   const { error } = await supabase
     .from("prestamos")
     .update({
