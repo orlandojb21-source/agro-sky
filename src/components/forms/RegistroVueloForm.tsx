@@ -13,6 +13,7 @@ export type DroneOpcionVuelo = {
   areaCubierta: number;
   horasVuelo: number;
   vuelos: number;
+  operadorActual: string | null;
 };
 
 function formatDelta(d: number | null): string {
@@ -33,12 +34,23 @@ export function RegistroVueloForm({
 }) {
   const [state, formAction] = useActionState(registrarVueloDroneAction, { error: null });
 
+  const droneInicial = drones.find((d) => d.id === (droneIdInicial ?? drones[0]?.id));
   const [droneId, setDroneId] = useState(droneIdInicial ?? drones[0]?.id ?? "");
+  // Se autollena con el operador actual del drone elegido -- sigue
+  // totalmente editable después, por si voló otra persona (mismo
+  // principio de "sugerido pero editable" que ya usa el resto de la app).
+  const [operador, setOperador] = useState(droneInicial?.operadorActual ?? "");
   const [horasVuelo, setHorasVuelo] = useState("");
   const [areaCubierta, setAreaCubierta] = useState("");
   const [vuelos, setVuelos] = useState("");
 
   const droneElegido = drones.find((d) => d.id === droneId);
+
+  function elegirDrone(id: string) {
+    setDroneId(id);
+    const drone = drones.find((d) => d.id === id);
+    setOperador(drone?.operadorActual ?? "");
+  }
 
   function delta(nuevoTexto: string, actual: number | undefined): number | null {
     if (actual === undefined || nuevoTexto === "") return null;
@@ -65,20 +77,14 @@ export function RegistroVueloForm({
     >
       <FormError message={state.error} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <SelectField
-          label="Drone"
-          name="droneId"
-          value={droneId}
-          onChange={(e) => setDroneId(e.target.value)}
-          required
-        >
+        <SelectField label="Drone" name="droneId" value={droneId} onChange={(e) => elegirDrone(e.target.value)} required>
           {drones.map((d) => (
             <option key={d.id} value={d.id}>
               {d.nombre} — {d.modelo}
             </option>
           ))}
         </SelectField>
-        <SelectField label="Operador" name="operador" defaultValue="" required>
+        <SelectField label="Operador" name="operador" value={operador} onChange={(e) => setOperador(e.target.value)} required>
           <option value="">Selecciona...</option>
           {colaboradoresCampo.map((c) => (
             <option key={c} value={c}>

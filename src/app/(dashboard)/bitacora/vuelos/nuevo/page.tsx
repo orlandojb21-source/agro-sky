@@ -11,10 +11,15 @@ export default async function NuevoRegistroVueloPage({
   await requireWrite("bitacora");
 
   const supabase = await createClient();
-  const [{ data: dronesData }, { data: colaboradoresData }] = await Promise.all([
+  const [{ data: dronesData }, { data: asignacionesData }, { data: colaboradoresData }] = await Promise.all([
     supabase.from("drones").select("id, nombre, modelo, area_cubierta, horas_vuelo, vuelos").order("nombre"),
+    supabase.from("drones_operadores").select("drone_id, operador").is("fecha_hasta", null),
     supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
   ]);
+
+  const operadorActualPorDrone = new Map(
+    (asignacionesData ?? []).map((a) => [a.drone_id as string, a.operador as string]),
+  );
 
   const drones = (dronesData ?? []).map((d) => ({
     id: d.id as string,
@@ -23,6 +28,7 @@ export default async function NuevoRegistroVueloPage({
     areaCubierta: Number(d.area_cubierta),
     horasVuelo: Number(d.horas_vuelo),
     vuelos: d.vuelos as number,
+    operadorActual: operadorActualPorDrone.get(d.id as string) ?? null,
   }));
   const colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
 
