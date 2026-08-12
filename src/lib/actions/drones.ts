@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
+import { puedeReasignarOperadorDrone } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { droneSchema, droneEditSchema, reasignarOperadorDroneSchema } from "@/lib/validation/drones";
 import type { ActionState } from "./types";
@@ -36,8 +37,13 @@ export async function crearDroneAction(_prev: ActionState, formData: FormData): 
   // El RPC reasignar_operador_drone (migración 0075) cierra automáticamente
   // cualquier asignación vigente que ese operador tuviera en otro drone --
   // un operador es único por drone a la vez, desde el momento en que se
-  // le asigna, incluso al crear el drone nuevo.
-  if (parsed.data.operadorInicial) {
+  // le asigna, incluso al crear el drone nuevo. Asignar operador queda
+  // restringido a Administrador/Gerente General/Soporte IT (mismo criterio
+  // que reasignarOperadorDroneAction) -- si alguien sin ese permiso mandó
+  // igual un operadorInicial (no debería, el campo está oculto en el
+  // formulario para esos roles), se ignora en silencio en vez de bloquear
+  // la creación del drone por eso.
+  if (parsed.data.operadorInicial && puedeReasignarOperadorDrone(perfil.rol)) {
     await supabase.rpc("reasignar_operador_drone", {
       p_drone_id: drone.id,
       p_operador: parsed.data.operadorInicial,
@@ -95,7 +101,8 @@ export async function reasignarOperadorDroneAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
+  if (!puedeReasignarOperadorDrone(perfil.rol)) redirect("/unauthorized");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reasignarOperadorDroneSchema.safeParse(raw);

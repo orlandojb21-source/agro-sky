@@ -141,3 +141,11 @@ export function canWrite(rol: Rol | null | undefined, seccion: Seccion): boolean
 export function esSoporteOJefe(rol: Rol | null | undefined): boolean {
   return rol === "soporte" || rol === "jefe";
 }
+
+// Asignar/reasignar el operador de un drone queda restringido a
+// Administrador + Gerente General + Soporte IT (pedido explícito del
+// usuario, 2026-08-12) -- más angosto que la escritura general de
+// Bitácora, que también tienen Campo.
+export function puedeReasignarOperadorDrone(rol: Rol | null | undefined): boolean {
+  return rol === "administrador" || esSoporteOJefe(rol);
+}

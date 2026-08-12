@@ -28,6 +28,7 @@ export default async function EditarDronePage({ params }: { params: Promise<{ id
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">Editar drone</h1>
       <DroneForm
         colaboradoresCampo={colaboradoresCampo}
+        puedeAsignarOperador={false}
         valoresIniciales={{
           id: drone.id as string,
           nombre: drone.nombre as string,

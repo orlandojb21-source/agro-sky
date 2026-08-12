@@ -18,9 +18,14 @@ type ValoresDrone = {
 
 export function DroneForm({
   colaboradoresCampo,
+  puedeAsignarOperador,
   valoresIniciales,
 }: {
   colaboradoresCampo: string[];
+  // Asignar operador queda restringido a Administrador/Gerente General/
+  // Soporte IT (pedido explícito del usuario, 2026-08-12) -- para el
+  // resto, ni se muestra el campo al crear (aunque puedan crear el drone).
+  puedeAsignarOperador: boolean;
   valoresIniciales?: ValoresDrone;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -80,7 +85,7 @@ export function DroneForm({
         />
       </div>
 
-      {!esEdicion && (
+      {!esEdicion && puedeAsignarOperador && (
         <>
           <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
             Operador asignado
