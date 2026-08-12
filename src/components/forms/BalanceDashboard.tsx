@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   BarChart,
   Bar,
   Cell,
   LabelList,
+  LineChart,
+  Line,
+  Legend,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,10 +20,26 @@ import {
   exportarMovimientosPDF,
   type MovimientoExportable,
 } from "@/lib/exportar";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDateOnly } from "@/lib/format";
 import { CATEGORIA_GASTO_LABEL } from "@/lib/validation/gastos";
 
 const COLORES_CATEGORIA = ["#dc2626", "#ea580c", "#ca8a04", "#65a30d", "#0891b2", "#7c3aed"];
+
+const NOMBRES_MES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const NOMBRES_MES_LARGO = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 type Periodo = "semana" | "mes" | "año" | "vida" | "rango";
 
@@ -123,6 +142,96 @@ function GraficaDosBarras({ datos }: { datos: BarraDatos[] }) {
   );
 }
 
+type PuntoLineaAnual = { mes: string; mesLargo: string; ingresos: number; egresos: number; neto: number };
+
+function GraficaLineasAnual({ datos }: { datos: PuntoLineaAnual[] }) {
+  return (
+    <div className="h-72">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={datos}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="mes" />
+          <YAxis tickFormatter={(v: number) => formatMoney(v)} width={90} />
+          <Tooltip formatter={(value) => formatMoney(Number(value))} />
+          <Legend />
+          <Line type="monotone" dataKey="ingresos" name="Ingresos" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} />
+          <Line type="monotone" dataKey="egresos" name="Egresos" stroke="#dc2626" strokeWidth={2} dot={{ r: 3 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// Botón "Ver detalle / Ocultar detalle" reutilizable -- cada cuadro con
+// datos lo trae junto al título, y despliega debajo la lista de
+// movimientos que arman ese número (pedido del usuario, 2026-08-12).
+function BotonDesplegable({ abierto, onClick }: { abierto: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={abierto}
+      className="flex shrink-0 items-center gap-1 rounded-full border border-green-200 px-3 py-1.5 text-xs font-medium text-green-800 hover:bg-green-50 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
+    >
+      {abierto ? "Ocultar detalle" : "Ver detalle"}
+      <span className={`inline-block transition-transform ${abierto ? "-rotate-90" : "rotate-90"}`}>›</span>
+    </button>
+  );
+}
+
+type ColumnaDetalle<T> = {
+  header: string;
+  render: (fila: T) => ReactNode;
+  alinDerecha?: boolean;
+};
+
+// Tabla genérica para el contenido de cada desplegable -- misma pinta en
+// los 9 cuadros de Balance, solo cambian las columnas y las filas.
+function TablaDetalle<T>({
+  columnas,
+  filas,
+  clave,
+  vacio,
+}: {
+  columnas: ColumnaDetalle<T>[];
+  filas: T[];
+  clave: (fila: T, indice: number) => string;
+  vacio: string;
+}) {
+  if (filas.length === 0) {
+    return <p className="text-sm text-green-700/70 dark:text-green-300/70">{vacio}</p>;
+  }
+  return (
+    <div className="max-h-80 overflow-y-auto overflow-x-auto">
+      <table className="w-full min-w-[480px] text-left text-sm">
+        <thead className="sticky top-0 bg-white dark:bg-green-950">
+          <tr className="border-b border-green-200 text-xs uppercase tracking-wide text-green-700/70 dark:border-green-800 dark:text-green-300/70">
+            {columnas.map((c) => (
+              <th key={c.header} className={`py-2 pr-4 font-medium ${c.alinDerecha ? "text-right" : ""}`}>
+                {c.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map((fila, i) => (
+            <tr key={clave(fila, i)} className="border-b border-green-50 dark:border-green-950/40">
+              {columnas.map((c) => (
+                <td
+                  key={c.header}
+                  className={`py-2 pr-4 text-green-900 dark:text-green-100 ${c.alinDerecha ? "text-right" : ""}`}
+                >
+                  {c.render(fila)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function BalanceDashboard({
   movimientos,
   ventas,
@@ -146,6 +255,114 @@ export function BalanceDashboard({
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
+
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
+  function alternar(clave: string) {
+    setAbiertos((prev) => ({ ...prev, [clave]: !prev[clave] }));
+  }
+
+  // --- Vista mensual/anual de gastos + Ingresos vs Egresos por mes -----
+  // Selector propio (Año + Mes), independiente del filtro de período de
+  // arriba -- ese filtro no tiene forma de pedir "todo un año, mes a mes",
+  // que es justo lo que pide este bloque.
+  const añoActual = new Date().getFullYear();
+  const [añoVista, setAñoVista] = useState(añoActual);
+  const [mesVista, setMesVista] = useState(""); // "" = año completo (Ene-Dic), "01".."12" = un mes
+
+  const añosDisponibles = useMemo(() => {
+    const años = new Set<number>([añoActual]);
+    for (const m of movimientos) años.add(Number(m.fecha.slice(0, 4)));
+    for (const g of gastosCompras) años.add(Number(g.fecha.slice(0, 4)));
+    for (const p of pagosPlanilla) años.add(Number(p.fecha.slice(0, 4)));
+    for (const v of ventas) años.add(Number(v.fecha.slice(0, 4)));
+    return Array.from(años).sort((a, b) => b - a);
+  }, [movimientos, gastosCompras, pagosPlanilla, ventas, añoActual]);
+
+  // Filas del cuadro de gastos: cada categoría administrable de Compras >
+  // Gastos, más "Planilla" y "Caja Menuda" como dos filas fijas al final
+  // (no son categorías de esa lista, son los otros dos orígenes de
+  // egresos de la empresa) -- pedido del usuario 2026-08-12.
+  const filasGastosMensuales = useMemo(() => {
+    const nombresFila = [...categoriasCompras, "Planilla", "Caja Menuda"];
+    return nombresFila.map((nombre) => {
+      const montosPorMes = NOMBRES_MES.map((_, i) => {
+        const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
+        if (nombre === "Planilla") {
+          return pagosPlanilla.filter((p) => p.fecha.startsWith(prefijo)).reduce((s, p) => s + p.monto, 0);
+        }
+        if (nombre === "Caja Menuda") {
+          return movimientos
+            .filter((m) => m.tipo === "gasto" && m.fecha.startsWith(prefijo))
+            .reduce((s, m) => s + m.monto, 0);
+        }
+        return gastosCompras
+          .filter((g) => g.categoria === nombre && g.fecha.startsWith(prefijo))
+          .reduce((s, g) => s + g.monto, 0);
+      });
+      return {
+        nombre,
+        etiqueta: CATEGORIA_GASTO_LABEL[nombre] ?? nombre,
+        montosPorMes,
+        total: montosPorMes.reduce((s, m) => s + m, 0),
+      };
+    });
+  }, [categoriasCompras, gastosCompras, pagosPlanilla, movimientos, añoVista]);
+
+  const totalesPorMesGastos = NOMBRES_MES.map((_, i) =>
+    filasGastosMensuales.reduce((s, f) => s + f.montosPorMes[i], 0),
+  );
+  const totalGeneralVistaGastos = totalesPorMesGastos.reduce((s, m) => s + m, 0);
+  const hayDatosVistaGastos = totalGeneralVistaGastos > 0;
+  const indiceMesVista = mesVista === "" ? null : Number(mesVista) - 1;
+
+  type FilaDetalleGasto = { fecha: string; origen: string; categoria: string; monto: number };
+  const detalleVistaGastos: FilaDetalleGasto[] = useMemo(() => {
+    const prefijoFiltro = mesVista === "" ? `${añoVista}` : `${añoVista}-${mesVista}`;
+    const filas: FilaDetalleGasto[] = [];
+    for (const g of gastosCompras) {
+      if (g.fecha.startsWith(prefijoFiltro)) {
+        filas.push({
+          fecha: g.fecha,
+          origen: "Compras",
+          categoria: CATEGORIA_GASTO_LABEL[g.categoria] ?? g.categoria,
+          monto: g.monto,
+        });
+      }
+    }
+    for (const m of movimientos) {
+      if (m.tipo === "gasto" && m.fecha.startsWith(prefijoFiltro)) {
+        filas.push({ fecha: m.fecha, origen: "Caja Menuda", categoria: m.categoria ?? "Sin categoría", monto: m.monto });
+      }
+    }
+    for (const p of pagosPlanilla) {
+      if (p.fecha.startsWith(prefijoFiltro)) {
+        filas.push({ fecha: p.fecha, origen: "Planilla", categoria: p.colaborador, monto: p.monto });
+      }
+    }
+    return filas.sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  }, [gastosCompras, movimientos, pagosPlanilla, añoVista, mesVista]);
+
+  const datosLineaAnual: PuntoLineaAnual[] = useMemo(() => {
+    return NOMBRES_MES.map((nombreMes, i) => {
+      const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
+      const ingresos = ventas.filter((v) => v.fecha.startsWith(prefijo)).reduce((s, v) => s + v.ingreso, 0);
+      const egresosCaja = movimientos
+        .filter((m) => m.tipo === "gasto" && m.fecha.startsWith(prefijo))
+        .reduce((s, m) => s + m.monto, 0);
+      const egresosPlanilla = pagosPlanilla
+        .filter((p) => p.fecha.startsWith(prefijo))
+        .reduce((s, p) => s + p.monto, 0);
+      const egresosCompras = gastosCompras
+        .filter((g) => g.fecha.startsWith(prefijo))
+        .reduce((s, g) => s + g.monto, 0);
+      const egresos = egresosCaja + egresosPlanilla + egresosCompras;
+      return { mes: nombreMes, mesLargo: NOMBRES_MES_LARGO[i], ingresos, egresos, neto: ingresos - egresos };
+    });
+  }, [ventas, movimientos, pagosPlanilla, gastosCompras, añoVista]);
+
+  const hayDatosLineaAnual = datosLineaAnual.some((d) => d.ingresos > 0 || d.egresos > 0);
+
+  // --- Resto del dashboard (gobernado por el filtro de período de arriba) --
 
   const { fechaDesde, fechaHasta, listo } = useMemo(() => {
     const hoy = new Date();
@@ -230,6 +447,7 @@ export function BalanceDashboard({
   const totalGastosCompras = gastosComprasFiltrados.reduce((suma, g) => suma + g.monto, 0);
   const totalPrestado = prestamosFiltrados.reduce((suma, p) => suma + p.monto, 0);
   const totalAbonado = pagosFiltrados.reduce((suma, p) => suma + p.montoPrestamo, 0);
+  const abonosFiltrados = pagosFiltrados.filter((p) => p.montoPrestamo > 0);
 
   // Reponer la caja menuda no es un ingreso de la empresa -- es plata que
   // la empresa ya tenia (banco, ventas, capital del dueno) movida a otro
@@ -270,6 +488,9 @@ export function BalanceDashboard({
   const hayGastosCategorizados = categoriasConDatos.length > 0 || totalSinCategoria > 0;
   const montoCategoriaSeleccionada =
     totalesPorCategoria.find((c) => c.categoria === categoriaFiltro)?.monto ?? 0;
+  const detalleGastosPorCategoria = movimientosFiltrados.filter(
+    (m) => m.tipo === "gasto" && (categoriaFiltro === "" || m.categoria === categoriaFiltro),
+  );
 
   const hayDatosCaja = listo && movimientosFiltrados.length > 0;
   const hayDatosCompras = listo && gastosComprasFiltrados.length > 0;
@@ -282,6 +503,13 @@ export function BalanceDashboard({
       gastosComprasFiltrados.length > 0 ||
       hayDatosPrestamos);
   const nombreArchivoCaja = `agro-sky-balance-caja-menuda-${periodo}`;
+
+  const filasResumen: { concepto: string; monto: number; tipo: "ingreso" | "egreso" }[] = [
+    { concepto: "Ventas (ingreso, sin ITBMS)", monto: totalVentas, tipo: "ingreso" },
+    { concepto: "Gastos de Caja Menuda", monto: totalGastosCaja, tipo: "egreso" },
+    { concepto: "Planilla", monto: totalPlanilla, tipo: "egreso" },
+    { concepto: "Gastos de Compras", monto: totalGastosCompras, tipo: "egreso" },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -327,6 +555,183 @@ export function BalanceDashboard({
         </div>
       </div>
 
+      <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Vista mensual de gastos</h2>
+            {hayDatosVistaGastos && (
+              <BotonDesplegable
+                abierto={Boolean(abiertos.vistaGastos)}
+                onClick={() => alternar("vistaGastos")}
+              />
+            )}
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+              Año
+              <select
+                value={añoVista}
+                onChange={(e) => setAñoVista(Number(e.target.value))}
+                className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
+              >
+                {añosDisponibles.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+              Mes
+              <select
+                value={mesVista}
+                onChange={(e) => setMesVista(e.target.value)}
+                className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
+              >
+                <option value="">Año completo (Ene–Dic)</option>
+                {NOMBRES_MES_LARGO.map((nombre, i) => (
+                  <option key={nombre} value={String(i + 1).padStart(2, "0")}>
+                    {nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {!hayDatosVistaGastos ? (
+          <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
+            No hay gastos registrados en {añoVista}.
+          </p>
+        ) : indiceMesVista === null ? (
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-200 text-xs uppercase tracking-wide text-green-700/70 dark:border-green-800 dark:text-green-300/70">
+                  <th className="py-2 pr-4 font-medium">Categoría</th>
+                  {NOMBRES_MES.map((m) => (
+                    <th key={m} className="py-2 pr-3 text-right font-medium">
+                      {m}
+                    </th>
+                  ))}
+                  <th className="py-2 pl-3 text-right font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filasGastosMensuales.map((f) => (
+                  <tr key={f.nombre} className="border-b border-green-50 dark:border-green-950/40">
+                    <td className="py-2 pr-4 font-medium text-green-900 dark:text-green-50">{f.etiqueta}</td>
+                    {f.montosPorMes.map((monto, i) => (
+                      <td key={i} className="py-2 pr-3 text-right text-green-800 dark:text-green-200">
+                        {monto > 0 ? formatMoney(monto) : "—"}
+                      </td>
+                    ))}
+                    <td className="py-2 pl-3 text-right font-semibold text-red-700 dark:text-red-400">
+                      {formatMoney(f.total)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-green-200 dark:border-green-800">
+                  <td className="py-2 pr-4 font-semibold text-green-900 dark:text-green-50">Total</td>
+                  {totalesPorMesGastos.map((monto, i) => (
+                    <td key={i} className="py-2 pr-3 text-right font-semibold text-green-900 dark:text-green-50">
+                      {monto > 0 ? formatMoney(monto) : "—"}
+                    </td>
+                  ))}
+                  <td className="py-2 pl-3 text-right font-semibold text-red-800 dark:text-red-300">
+                    {formatMoney(totalGeneralVistaGastos)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <div className="mt-6 max-w-md">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-200 text-xs uppercase tracking-wide text-green-700/70 dark:border-green-800 dark:text-green-300/70">
+                  <th className="py-2 pr-4 font-medium">Categoría</th>
+                  <th className="py-2 pl-3 text-right font-medium">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filasGastosMensuales.map((f) => (
+                  <tr key={f.nombre} className="border-b border-green-50 dark:border-green-950/40">
+                    <td className="py-2 pr-4 text-green-900 dark:text-green-50">{f.etiqueta}</td>
+                    <td className="py-2 pl-3 text-right text-green-800 dark:text-green-200">
+                      {formatMoney(f.montosPorMes[indiceMesVista])}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-green-200 dark:border-green-800">
+                  <td className="py-2 pr-4 font-semibold text-green-900 dark:text-green-50">Total</td>
+                  <td className="py-2 pl-3 text-right font-semibold text-red-700 dark:text-red-400">
+                    {formatMoney(totalesPorMesGastos[indiceMesVista])}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {abiertos.vistaGastos && hayDatosVistaGastos && (
+          <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+            <TablaDetalle
+              columnas={[
+                { header: "Fecha", render: (f: FilaDetalleGasto) => formatDateOnly(f.fecha) },
+                { header: "Origen", render: (f: FilaDetalleGasto) => f.origen },
+                { header: "Categoría", render: (f: FilaDetalleGasto) => f.categoria },
+                { header: "Monto", render: (f: FilaDetalleGasto) => formatMoney(f.monto), alinDerecha: true },
+              ]}
+              filas={detalleVistaGastos}
+              clave={(f, i) => `${f.fecha}-${f.origen}-${i}`}
+              vacio="No hay gastos para este período."
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">
+            Ingresos y Egresos — {añoVista}
+          </h2>
+          {hayDatosLineaAnual && (
+            <BotonDesplegable abierto={Boolean(abiertos.lineaAnual)} onClick={() => alternar("lineaAnual")} />
+          )}
+        </div>
+
+        {!hayDatosLineaAnual ? (
+          <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
+            No hay ingresos ni egresos registrados en {añoVista}.
+          </p>
+        ) : (
+          <div className="mt-4">
+            <GraficaLineasAnual datos={datosLineaAnual} />
+          </div>
+        )}
+
+        {abiertos.lineaAnual && hayDatosLineaAnual && (
+          <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+            <TablaDetalle
+              columnas={[
+                { header: "Mes", render: (d: PuntoLineaAnual) => d.mesLargo },
+                { header: "Ingresos", render: (d: PuntoLineaAnual) => formatMoney(d.ingresos), alinDerecha: true },
+                { header: "Egresos", render: (d: PuntoLineaAnual) => formatMoney(d.egresos), alinDerecha: true },
+                { header: "Neto", render: (d: PuntoLineaAnual) => formatMoney(d.neto), alinDerecha: true },
+              ]}
+              filas={datosLineaAnual}
+              clave={(d) => d.mes}
+              vacio="No hay datos para este año."
+            />
+          </div>
+        )}
+      </div>
+
       {!listo ? (
         <p className="text-sm text-green-700/70 dark:text-green-300/70">
           Selecciona una fecha de inicio y una de fin.
@@ -338,9 +743,12 @@ export function BalanceDashboard({
       ) : (
         <>
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <h2 className="mb-4 text-lg font-semibold text-green-900 dark:text-green-50">
-              Resumen general — todo lo que entra y sale
-            </h2>
+            <div className="mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">
+                Resumen general — todo lo que entra y sale
+              </h2>
+              <BotonDesplegable abierto={Boolean(abiertos.resumen)} onClick={() => alternar("resumen")} />
+            </div>
 
             <div className="grid grid-cols-3 gap-3 sm:max-w-lg">
               <div>
@@ -393,13 +801,42 @@ export function BalanceDashboard({
                 ? ` ITBMS cobrado en ventas de este período (no incluido arriba, se le debe al gobierno): ${formatMoney(totalItbms)}.`
                 : ""}
             </p>
+
+            {abiertos.resumen && (
+              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+                <TablaDetalle
+                  columnas={[
+                    { header: "Concepto", render: (f: (typeof filasResumen)[number]) => f.concepto },
+                    {
+                      header: "Monto",
+                      render: (f: (typeof filasResumen)[number]) => (
+                        <span className={f.tipo === "ingreso" ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}>
+                          {f.tipo === "ingreso" ? "+" : "−"}
+                          {formatMoney(f.monto)}
+                        </span>
+                      ),
+                      alinDerecha: true,
+                    },
+                  ]}
+                  filas={filasResumen}
+                  clave={(f) => f.concepto}
+                  vacio="No hay movimientos para este período."
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">
-                Gastos por categoría
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">
+                  Gastos por categoría
+                </h2>
+                <BotonDesplegable
+                  abierto={Boolean(abiertos.gastosPorCategoria)}
+                  onClick={() => alternar("gastosPorCategoria")}
+                />
+              </div>
               <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
                 Categoría
                 <select
@@ -451,11 +888,30 @@ export function BalanceDashboard({
                 </p>
               </div>
             )}
+
+            {abiertos.gastosPorCategoria && (
+              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+                <TablaDetalle
+                  columnas={[
+                    { header: "Fecha", render: (m: MovimientoExportable) => formatDateOnly(m.fecha) },
+                    { header: "Categoría", render: (m: MovimientoExportable) => m.categoria ?? "Sin categoría" },
+                    { header: "Nombre", render: (m: MovimientoExportable) => m.nombre ?? "—" },
+                    { header: "Monto", render: (m: MovimientoExportable) => formatMoney(m.monto), alinDerecha: true },
+                  ]}
+                  filas={detalleGastosPorCategoria}
+                  clave={(m, i) => `${m.fecha}-${i}`}
+                  vacio="No hay gastos categorizados para este período."
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Caja Menuda</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Caja Menuda</h2>
+                <BotonDesplegable abierto={Boolean(abiertos.cajaMenuda)} onClick={() => alternar("cajaMenuda")} />
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => exportarMovimientosExcel(movimientosFiltrados, nombreArchivoCaja)}
@@ -511,10 +967,32 @@ export function BalanceDashboard({
                 </div>
               </>
             )}
+
+            {abiertos.cajaMenuda && hayDatosCaja && (
+              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+                <TablaDetalle
+                  columnas={[
+                    { header: "Fecha", render: (m: MovimientoExportable) => formatDateOnly(m.fecha) },
+                    { header: "Tipo", render: (m: MovimientoExportable) => (m.tipo === "gasto" ? "Gasto" : "Reposición") },
+                    { header: "Categoría", render: (m: MovimientoExportable) => m.categoria ?? "—" },
+                    { header: "Nombre / Nota", render: (m: MovimientoExportable) => m.nombre ?? m.nota ?? "—" },
+                    { header: "Monto", render: (m: MovimientoExportable) => formatMoney(m.monto), alinDerecha: true },
+                  ]}
+                  filas={movimientosFiltrados}
+                  clave={(m, i) => `${m.tipo}-${m.fecha}-${i}`}
+                  vacio="No hay movimientos de Caja Menuda para este período."
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Ventas</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Ventas</h2>
+              {ventasFiltradas.length > 0 && (
+                <BotonDesplegable abierto={Boolean(abiertos.ventas)} onClick={() => alternar("ventas")} />
+              )}
+            </div>
 
             {ventasFiltradas.length === 0 ? (
               <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
@@ -556,10 +1034,35 @@ export function BalanceDashboard({
                 </div>
               </div>
             )}
+
+            {abiertos.ventas && ventasFiltradas.length > 0 && (
+              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+                <TablaDetalle
+                  columnas={[
+                    { header: "Fecha", render: (v: VentaBalance) => formatDateOnly(v.fecha) },
+                    { header: "Ingreso", render: (v: VentaBalance) => formatMoney(v.ingreso), alinDerecha: true },
+                    { header: "ITBMS", render: (v: VentaBalance) => formatMoney(v.itbms), alinDerecha: true },
+                    {
+                      header: "Total facturado",
+                      render: (v: VentaBalance) => formatMoney(v.ingreso + v.itbms),
+                      alinDerecha: true,
+                    },
+                  ]}
+                  filas={ventasFiltradas}
+                  clave={(v, i) => `${v.fecha}-${i}`}
+                  vacio="No hay ventas para este período."
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Planilla</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Planilla</h2>
+              {pagosFiltrados.length > 0 && (
+                <BotonDesplegable abierto={Boolean(abiertos.planilla)} onClick={() => alternar("planilla")} />
+              )}
+            </div>
 
             {pagosFiltrados.length === 0 ? (
               <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
@@ -589,10 +1092,35 @@ export function BalanceDashboard({
                 </div>
               </>
             )}
+
+            {abiertos.planilla && pagosFiltrados.length > 0 && (
+              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+                <TablaDetalle
+                  columnas={[
+                    { header: "Fecha", render: (p: PagoPlanillaBalance) => formatDateOnly(p.fecha) },
+                    { header: "Colaborador", render: (p: PagoPlanillaBalance) => p.colaborador },
+                    { header: "Monto pagado", render: (p: PagoPlanillaBalance) => formatMoney(p.monto), alinDerecha: true },
+                    {
+                      header: "Abono préstamo",
+                      render: (p: PagoPlanillaBalance) => (p.montoPrestamo > 0 ? formatMoney(p.montoPrestamo) : "—"),
+                      alinDerecha: true,
+                    },
+                  ]}
+                  filas={pagosFiltrados}
+                  clave={(p, i) => `${p.fecha}-${p.colaborador}-${i}`}
+                  vacio="No hay pagos de planilla para este período."
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Compras — Gastos</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Compras — Gastos</h2>
+              {hayDatosCompras && (
+                <BotonDesplegable abierto={Boolean(abiertos.comprasGastos)} onClick={() => alternar("comprasGastos")} />
+              )}
+            </div>
             <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
               Gastos operativos fijos (alquiler, luz, agua, internet, teléfono, etc.), registrados en
               Compras &gt; Gastos.
@@ -626,10 +1154,32 @@ export function BalanceDashboard({
                 </div>
               </>
             )}
+
+            {abiertos.comprasGastos && hayDatosCompras && (
+              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+                <TablaDetalle
+                  columnas={[
+                    { header: "Fecha", render: (g: GastoCompraBalance) => formatDateOnly(g.fecha) },
+                    { header: "Categoría", render: (g: GastoCompraBalance) => CATEGORIA_GASTO_LABEL[g.categoria] ?? g.categoria },
+                    { header: "Proveedor", render: (g: GastoCompraBalance) => g.proveedorNombre ?? "—" },
+                    { header: "N° Factura", render: (g: GastoCompraBalance) => g.numeroFactura ?? "—" },
+                    { header: "Monto", render: (g: GastoCompraBalance) => formatMoney(g.monto), alinDerecha: true },
+                  ]}
+                  filas={gastosComprasFiltrados}
+                  clave={(g, i) => `${g.fecha}-${i}`}
+                  vacio="No hay gastos de Compras para este período."
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Préstamos</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Préstamos</h2>
+              {hayDatosPrestamos && (
+                <BotonDesplegable abierto={Boolean(abiertos.prestamos)} onClick={() => alternar("prestamos")} />
+              )}
+            </div>
             <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
               Préstamos de la empresa a colaboradores -- no cuentan como Ingreso ni Egreso arriba (es
               plata que la empresa ya tenía, no gasto nuevo); lo que sí reduce el gasto real de Planilla
@@ -657,6 +1207,40 @@ export function BalanceDashboard({
                   <p className="text-xl font-semibold text-green-900 dark:text-green-50">
                     {formatMoney(totalAbonado)}
                   </p>
+                </div>
+              </div>
+            )}
+
+            {abiertos.prestamos && hayDatosPrestamos && (
+              <div className="mt-4 flex flex-col gap-4 border-t border-green-100 pt-4 dark:border-green-900/40">
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                    Préstamos otorgados
+                  </p>
+                  <TablaDetalle
+                    columnas={[
+                      { header: "Fecha", render: (p: PrestamoBalance) => formatDateOnly(p.fecha) },
+                      { header: "Monto", render: (p: PrestamoBalance) => formatMoney(p.monto), alinDerecha: true },
+                    ]}
+                    filas={prestamosFiltrados}
+                    clave={(p, i) => `${p.fecha}-${i}`}
+                    vacio="No hay préstamos otorgados en este período."
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                    Abonos recibidos (descontados en Planilla)
+                  </p>
+                  <TablaDetalle
+                    columnas={[
+                      { header: "Fecha", render: (p: PagoPlanillaBalance) => formatDateOnly(p.fecha) },
+                      { header: "Colaborador", render: (p: PagoPlanillaBalance) => p.colaborador },
+                      { header: "Abono", render: (p: PagoPlanillaBalance) => formatMoney(p.montoPrestamo), alinDerecha: true },
+                    ]}
+                    filas={abonosFiltrados}
+                    clave={(p, i) => `${p.fecha}-${p.colaborador}-${i}`}
+                    vacio="No hay abonos en este período."
+                  />
                 </div>
               </div>
             )}
