@@ -6,11 +6,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { ImagenAmpliable } from "@/components/ui/ImagenAmpliable";
 import {
   eliminarMantenimientoPreventivoAction,
   eliminarMantenimientoCorrectivoAction,
 } from "@/lib/actions/dronesMantenimiento";
 import { formatDateOnly } from "@/lib/format";
+
+const BUCKET_IMAGENES_CORRECTIVO = "mantenimientos-correctivos-imagenes";
+const DURACION_URL_FIRMADA_SEG = 3600;
 
 type EstadoPreventivoFila = {
   id: string;
@@ -31,6 +35,7 @@ type CorrectivoFila = {
   droneNombre: string;
   motivo: string;
   piezas: string;
+  imagenUrls: string[];
 };
 
 function descripcionIntervalo(f: EstadoPreventivoFila): string {
@@ -47,20 +52,29 @@ export default async function MantenimientoPage() {
   const puedeEscribir = canWrite(perfil.rol, "bitacora");
 
   const supabase = await createClient();
-  const [{ data: estadoData }, { data: correctivosData }] = await Promise.all([
-    supabase
-      .from("drones_mantenimientos_preventivos_estado")
-      .select(
-        "id, drone_id, drone_nombre, tipo, fecha, intervalo_horas, intervalo_hectareas, intervalo_vuelos, intervalo_meses, vencido",
-      )
-      .order("drone_nombre")
-      .order("tipo"),
-    supabase
-      .from("drones_mantenimientos_correctivos")
-      .select("id, fecha, motivo, drones ( nombre ), drones_mantenimientos_correctivos_piezas ( descripcion, cantidad )")
-      .order("fecha", { ascending: false })
-      .order("creado_en", { ascending: false }),
-  ]);
+  // PostgREST no soporta anidar 2 relaciones "uno a muchos" hermanas
+  // (piezas E imágenes, ambas hijas de drones_mantenimientos_correctivos)
+  // en una sola consulta -- da error de SQL inválido ("aggregate
+  // functions are not allowed..."). Se consultan por separado y se
+  // combinan acá, mismo patrón que parcelas/productos en el detalle de
+  // Informe de Campo.
+  const [{ data: estadoData }, { data: correctivosData }, { data: piezasData }, { data: imagenesData }] =
+    await Promise.all([
+      supabase
+        .from("drones_mantenimientos_preventivos_estado")
+        .select(
+          "id, drone_id, drone_nombre, tipo, fecha, intervalo_horas, intervalo_hectareas, intervalo_vuelos, intervalo_meses, vencido",
+        )
+        .order("drone_nombre")
+        .order("tipo"),
+      supabase
+        .from("drones_mantenimientos_correctivos")
+        .select("id, fecha, motivo, drones ( nombre )")
+        .order("fecha", { ascending: false })
+        .order("creado_en", { ascending: false }),
+      supabase.from("drones_mantenimientos_correctivos_piezas").select("correctivo_id, descripcion, cantidad"),
+      supabase.from("drones_mantenimientos_correctivos_imagenes").select("correctivo_id, ruta"),
+    ]);
 
   const estado: EstadoPreventivoFila[] = (estadoData ?? []).map((f) => ({
     id: f.id as string,
@@ -76,16 +90,43 @@ export default async function MantenimientoPage() {
   }));
   const vencidos = estado.filter((f) => f.vencido);
 
+  const piezasPorCorrectivo = new Map<string, { descripcion: string; cantidad: number }[]>();
+  for (const p of piezasData ?? []) {
+    const lista = piezasPorCorrectivo.get(p.correctivo_id as string) ?? [];
+    lista.push({ descripcion: p.descripcion as string, cantidad: p.cantidad as number });
+    piezasPorCorrectivo.set(p.correctivo_id as string, lista);
+  }
+  const rutasPorCorrectivo = new Map<string, string[]>();
+  for (const i of imagenesData ?? []) {
+    const lista = rutasPorCorrectivo.get(i.correctivo_id as string) ?? [];
+    lista.push(i.ruta as string);
+    rutasPorCorrectivo.set(i.correctivo_id as string, lista);
+  }
+
+  // URLs firmadas para todas las imágenes de todos los correctivos de una
+  // sola vez (bucket privado, nunca un link público).
+  const todasLasRutas = (imagenesData ?? []).map((i) => i.ruta as string);
+  const urlsFirmadas = new Map<string, string>();
+  if (todasLasRutas.length > 0) {
+    const { data: firmadas } = await supabase.storage
+      .from(BUCKET_IMAGENES_CORRECTIVO)
+      .createSignedUrls(todasLasRutas, DURACION_URL_FIRMADA_SEG);
+    for (const f of firmadas ?? []) {
+      if (f.signedUrl) urlsFirmadas.set(f.path ?? "", f.signedUrl);
+    }
+  }
+
   const correctivos: CorrectivoFila[] = (correctivosData ?? []).map((c) => ({
     id: c.id as string,
     fecha: c.fecha as string,
     droneNombre: (c.drones as unknown as { nombre: string } | null)?.nombre ?? "—",
     motivo: c.motivo as string,
-    piezas: (
-      (c.drones_mantenimientos_correctivos_piezas as unknown as { descripcion: string; cantidad: number }[]) ?? []
-    )
+    piezas: (piezasPorCorrectivo.get(c.id as string) ?? [])
       .map((p) => `${p.descripcion} (x${p.cantidad})`)
       .join(", "),
+    imagenUrls: (rutasPorCorrectivo.get(c.id as string) ?? [])
+      .map((ruta) => urlsFirmadas.get(ruta))
+      .filter((url): url is string => Boolean(url)),
   }));
 
   const columnasPreventivo: Column<EstadoPreventivoFila>[] = [
@@ -126,6 +167,24 @@ export default async function MantenimientoPage() {
     { header: "Drone", render: (c) => c.droneNombre },
     { header: "Motivo", render: (c) => c.motivo },
     { header: "Piezas cambiadas", render: (c) => c.piezas || "—" },
+    {
+      header: "Imágenes",
+      render: (c) =>
+        c.imagenUrls.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {c.imagenUrls.map((url, i) => (
+              <ImagenAmpliable
+                key={url}
+                src={url}
+                alt={`Pieza cambiada ${i + 1} — ${c.motivo}`}
+                className="h-12 w-12 rounded-md border border-green-200 object-cover dark:border-green-800"
+              />
+            ))}
+          </div>
+        ) : (
+          "—"
+        ),
+    },
     ...(puedeEscribir
       ? [
           {

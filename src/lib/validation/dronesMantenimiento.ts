@@ -35,4 +35,7 @@ export const mantenimientoCorrectivoSchema = z.object({
   fecha: z.string().min(1, "Fecha requerida"),
   motivo: z.string().trim().min(1, "Motivo requerido"),
   piezas: z.array(piezaCorrectivoSchema).min(1, "Agregá al menos una pieza cambiada"),
+  // Rutas del bucket "mantenimientos-correctivos-imagenes" -- opcional,
+  // llega igual que "piezas" (JSON armado en el cliente).
+  imagenes: z.array(z.string()).optional().default([]),
 });

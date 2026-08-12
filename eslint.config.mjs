@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Artefactos locales de Playwright (ya en .gitignore) -- sin esto,
+    // eslint intenta lintiar el JS minificado del visor de trazas.
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

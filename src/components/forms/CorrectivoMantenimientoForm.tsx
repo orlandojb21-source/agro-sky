@@ -2,9 +2,14 @@
 
 import { useActionState, useState } from "react";
 import { crearMantenimientoCorrectivoAction } from "@/lib/actions/dronesMantenimiento";
+import { subirImagenMantenimientoCorrectivoAction } from "@/lib/actions/mantenimientoCorrectivoImagen";
+import { comprimirImagen } from "@/lib/comprimirImagen";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
+
+const CLASE_INPUT_IMAGEN =
+  "text-sm text-green-800 file:mr-3 file:rounded-lg file:border-0 file:bg-green-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-green-700 dark:text-green-200";
 
 export type DroneOpcionCorrectivo = { id: string; nombre: string; modelo: string };
 export type ProductoOpcionCorrectivo = {
@@ -16,6 +21,7 @@ export type ProductoOpcionCorrectivo = {
 };
 
 type PiezaDraft = { productoId: string; cantidad: string };
+type ImagenDraft = { ruta: string; previewUrl: string };
 
 function piezaVacia(): PiezaDraft {
   return { productoId: "", cantidad: "1" };
@@ -39,6 +45,9 @@ export function CorrectivoMantenimientoForm({
 
   const [droneId, setDroneId] = useState(droneIdInicial ?? drones[0]?.id ?? "");
   const [piezas, setPiezas] = useState<PiezaDraft[]>([piezaVacia()]);
+  const [imagenes, setImagenes] = useState<ImagenDraft[]>([]);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [errorImagen, setErrorImagen] = useState<string | null>(null);
 
   function agregarPieza() {
     setPiezas((prev) => [...prev, piezaVacia()]);
@@ -53,6 +62,29 @@ export function CorrectivoMantenimientoForm({
   const piezasParaEnviar = piezas
     .filter((p) => p.productoId)
     .map((p) => ({ productoId: p.productoId, cantidad: Number(p.cantidad) || 0 }));
+
+  async function elegirImagen(archivo: File | undefined) {
+    if (!archivo) return;
+    setErrorImagen(null);
+    setSubiendoImagen(true);
+    try {
+      const comprimida = await comprimirImagen(archivo);
+      const previewUrl = URL.createObjectURL(comprimida);
+      const fd = new FormData();
+      fd.append("imagen", comprimida, "imagen.jpg");
+      const { ruta } = await subirImagenMantenimientoCorrectivoAction(fd);
+      setImagenes((prev) => [...prev, { ruta, previewUrl }]);
+    } catch (err) {
+      setErrorImagen(err instanceof Error ? err.message : "No se pudo subir la imagen. Intenta de nuevo.");
+    } finally {
+      setSubiendoImagen(false);
+    }
+  }
+
+  function quitarImagen(i: number) {
+    setImagenes((prev) => prev.filter((_, idx) => idx !== i));
+    setErrorImagen(null);
+  }
 
   if (drones.length === 0) {
     return (
@@ -70,6 +102,7 @@ export function CorrectivoMantenimientoForm({
       <div className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <FormError message={state.error} />
         <input type="hidden" name="piezas" value={JSON.stringify(piezasParaEnviar)} />
+        <input type="hidden" name="imagenes" value={JSON.stringify(imagenes.map((img) => img.ruta))} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SelectField
@@ -178,6 +211,53 @@ export function CorrectivoMantenimientoForm({
             </button>
           </>
         )}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
+          Imágenes de la pieza (opcional)
+        </h2>
+        <p className="-mt-1 text-xs text-green-700/60 dark:text-green-300/60">
+          Se pueden adjuntar varias -- distintas piezas o ángulos -- para que el gerente vea el estado real y
+          justifique si hacía falta el cambio.
+        </p>
+        {imagenes.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {imagenes.map((img, i) => (
+              <div key={img.ruta} className="flex flex-col items-center gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.previewUrl}
+                  alt={`Imagen adjunta ${i + 1}`}
+                  className="h-40 w-auto max-w-[220px] rounded-lg border border-green-200 object-contain dark:border-green-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => quitarImagen(i)}
+                  className="text-xs text-red-600 hover:underline dark:text-red-400"
+                >
+                  Quitar
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <input
+            type="file"
+            accept="image/*"
+            disabled={subiendoImagen}
+            onChange={(e) => {
+              elegirImagen(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+            className={CLASE_INPUT_IMAGEN}
+          />
+          {subiendoImagen && (
+            <span className="text-xs text-green-700/70 dark:text-green-300/70">Subiendo imagen...</span>
+          )}
+          {errorImagen && <span className="text-xs text-red-600 dark:text-red-400">{errorImagen}</span>}
+        </div>
       </div>
 
       <div className="flex gap-3">

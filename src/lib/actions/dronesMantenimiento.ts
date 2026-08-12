@@ -72,10 +72,12 @@ export async function crearMantenimientoCorrectivoAction(
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   let piezas: unknown;
+  let imagenes: unknown;
   try {
     piezas = JSON.parse(raw.piezas || "[]");
+    imagenes = JSON.parse(raw.imagenes || "[]");
   } catch {
-    return { error: "No se pudieron leer las piezas cargadas. Intenta de nuevo.", values: raw };
+    return { error: "No se pudieron leer los datos del mantenimiento. Intenta de nuevo.", values: raw };
   }
 
   const parsed = mantenimientoCorrectivoSchema.safeParse({
@@ -83,6 +85,7 @@ export async function crearMantenimientoCorrectivoAction(
     fecha: raw.fecha,
     motivo: raw.motivo,
     piezas,
+    imagenes,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
@@ -94,6 +97,7 @@ export async function crearMantenimientoCorrectivoAction(
     p_fecha: parsed.data.fecha,
     p_motivo: parsed.data.motivo,
     p_piezas: parsed.data.piezas.map((p) => ({ productoId: p.productoId, cantidad: p.cantidad })),
+    p_imagenes: parsed.data.imagenes,
   });
 
   if (error) {
@@ -116,8 +120,26 @@ export async function crearMantenimientoCorrectivoAction(
 export async function eliminarMantenimientoCorrectivoAction(id: string) {
   await requireWrite("bitacora");
   const supabase = await createClient();
+
+  // Traer las imágenes ANTES de borrar -- eliminar_mantenimiento_correctivo
+  // borra la fila (y sus imágenes en cascada por FK), pero no toca los
+  // archivos reales de Storage, eso se hace acá aparte.
+  const { data: imagenes } = await supabase
+    .from("drones_mantenimientos_correctivos_imagenes")
+    .select("ruta")
+    .eq("correctivo_id", id);
+
   const { error } = await supabase.rpc("eliminar_mantenimiento_correctivo", { p_correctivo_id: id });
   if (error) throw new Error("No se pudo eliminar el mantenimiento.");
+
+  if (imagenes && imagenes.length > 0) {
+    // Best-effort: si falla, queda un archivo huérfano en Storage, pero
+    // no debe bloquear la eliminación ya confirmada en la base.
+    await supabase.storage
+      .from("mantenimientos-correctivos-imagenes")
+      .remove(imagenes.map((i) => i.ruta as string));
+  }
+
   revalidatePath("/bitacora/mantenimiento");
   revalidatePath("/inventario/nuevos");
   revalidatePath("/inventario/usados");
