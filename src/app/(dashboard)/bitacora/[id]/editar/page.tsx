@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { DroneForm } from "@/components/forms/DroneForm";
+import type { EstadoDrone } from "@/lib/validation/drones";
 
 export default async function EditarDronePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,7 +13,7 @@ export default async function EditarDronePage({ params }: { params: Promise<{ id
     supabase
       .from("drones")
       .select(
-        "id, nombre, modelo, fecha_activacion, numero_serie_aeronave, numero_serie_placa_fc, numero_serie_fabrica",
+        "id, nombre, modelo, fecha_activacion, numero_serie_aeronave, numero_serie_placa_fc, numero_serie_fabrica, estado, estado_detalle",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -37,6 +38,8 @@ export default async function EditarDronePage({ params }: { params: Promise<{ id
           numeroSerieAeronave: drone.numero_serie_aeronave as string | null,
           numeroSeriePlacaFc: drone.numero_serie_placa_fc as string | null,
           numeroSerieFabrica: drone.numero_serie_fabrica as string | null,
+          estado: drone.estado as EstadoDrone,
+          estadoDetalle: drone.estado_detalle as string | null,
         }}
       />
     </div>

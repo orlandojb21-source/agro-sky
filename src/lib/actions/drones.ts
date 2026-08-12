@@ -27,6 +27,8 @@ export async function crearDroneAction(_prev: ActionState, formData: FormData): 
       numero_serie_aeronave: parsed.data.numeroSerieAeronave || null,
       numero_serie_placa_fc: parsed.data.numeroSeriePlacaFc || null,
       numero_serie_fabrica: parsed.data.numeroSerieFabrica || null,
+      estado: parsed.data.estado,
+      estado_detalle: parsed.data.estadoDetalle || null,
       registrado_por: perfil.id,
     })
     .select("id")
@@ -74,6 +76,8 @@ export async function editarDroneAction(_prev: ActionState, formData: FormData):
       numero_serie_aeronave: parsed.data.numeroSerieAeronave || null,
       numero_serie_placa_fc: parsed.data.numeroSeriePlacaFc || null,
       numero_serie_fabrica: parsed.data.numeroSerieFabrica || null,
+      estado: parsed.data.estado,
+      estado_detalle: parsed.data.estadoDetalle || null,
     })
     .eq("id", parsed.data.id);
 

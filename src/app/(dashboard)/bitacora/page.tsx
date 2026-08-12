@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
+import { EstadoDroneBadge } from "@/components/ui/EstadoDroneBadge";
+import type { EstadoDrone } from "@/lib/validation/drones";
 
 type DroneFila = {
   id: string;
@@ -14,6 +16,8 @@ type DroneFila = {
   areaCubierta: number;
   horasVuelo: number;
   vuelos: number;
+  estado: EstadoDrone;
+  estadoDetalle: string | null;
 };
 
 export default async function BitacoraPage() {
@@ -24,7 +28,7 @@ export default async function BitacoraPage() {
   const [{ data: dronesData }, { data: asignacionesData }] = await Promise.all([
     supabase
       .from("drones")
-      .select("id, nombre, modelo, area_cubierta, horas_vuelo, vuelos")
+      .select("id, nombre, modelo, area_cubierta, horas_vuelo, vuelos, estado, estado_detalle")
       .order("nombre"),
     supabase.from("drones_operadores").select("drone_id, operador").is("fecha_hasta", null),
   ]);
@@ -41,11 +45,14 @@ export default async function BitacoraPage() {
     areaCubierta: Number(d.area_cubierta),
     horasVuelo: Number(d.horas_vuelo),
     vuelos: d.vuelos as number,
+    estado: d.estado as EstadoDrone,
+    estadoDetalle: d.estado_detalle as string | null,
   }));
 
   const columns: Column<DroneFila>[] = [
     { header: "Nombre", render: (d) => d.nombre },
     { header: "Modelo", render: (d) => d.modelo },
+    { header: "Estado", render: (d) => <EstadoDroneBadge estado={d.estado} detalle={d.estadoDetalle} /> },
     { header: "Operador asignado", render: (d) => d.operadorActual ?? "Sin asignar" },
     { header: "Área Cubierta", render: (d) => `${d.areaCubierta} ha` },
     { header: "Horas de Vuelo", render: (d) => d.horasVuelo },

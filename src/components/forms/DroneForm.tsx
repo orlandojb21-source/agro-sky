@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { crearDroneAction, editarDroneAction } from "@/lib/actions/drones";
+import { ESTADO_DRONE, ESTADO_DRONE_LABEL, type EstadoDrone } from "@/lib/validation/drones";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
@@ -14,6 +15,8 @@ type ValoresDrone = {
   numeroSerieAeronave: string | null;
   numeroSeriePlacaFc: string | null;
   numeroSerieFabrica: string | null;
+  estado: EstadoDrone;
+  estadoDetalle: string | null;
 };
 
 export function DroneForm({
@@ -34,6 +37,8 @@ export function DroneForm({
   });
 
   const v = state.values;
+  const estadoInicial = (v?.estado as EstadoDrone | undefined) ?? valoresIniciales?.estado ?? "disponible";
+  const [estadoSeleccionado, setEstadoSeleccionado] = useState<EstadoDrone>(estadoInicial);
 
   return (
     <form
@@ -83,6 +88,27 @@ export function DroneForm({
           defaultValue={v?.numeroSerieFabrica ?? valoresIniciales?.numeroSerieFabrica ?? undefined}
           placeholder="Opcional"
         />
+        <SelectField
+          label="Estado"
+          name="estado"
+          value={estadoSeleccionado}
+          onChange={(e) => setEstadoSeleccionado(e.target.value as EstadoDrone)}
+          required
+        >
+          {ESTADO_DRONE.map((estado) => (
+            <option key={estado} value={estado}>
+              {ESTADO_DRONE_LABEL[estado]}
+            </option>
+          ))}
+        </SelectField>
+        {estadoSeleccionado !== "disponible" && (
+          <Field
+            label="Detalle (opcional)"
+            name="estadoDetalle"
+            defaultValue={v?.estadoDetalle ?? valoresIniciales?.estadoDetalle ?? undefined}
+            placeholder="Ej: esperando hélice trasera"
+          />
+        )}
       </div>
 
       {!esEdicion && puedeAsignarOperador && (

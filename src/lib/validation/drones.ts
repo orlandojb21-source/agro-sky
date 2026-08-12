@@ -9,6 +9,17 @@ import { z } from "zod";
 // solo lectura en Datos del Drone (área separada, ver
 // validation/dronesVuelos.ts): solo cambian a través de un nuevo
 // Registro de Vuelo, corrección 2026-08-11.
+export const ESTADO_DRONE = ["disponible", "mantenimiento", "reparacion", "espera_piezas", "otro"] as const;
+export type EstadoDrone = (typeof ESTADO_DRONE)[number];
+
+export const ESTADO_DRONE_LABEL: Record<EstadoDrone, string> = {
+  disponible: "Disponible",
+  mantenimiento: "En mantenimiento",
+  reparacion: "En reparación",
+  espera_piezas: "Esperando piezas",
+  otro: "Otro (ver detalle)",
+};
+
 const droneBaseSchema = z.object({
   nombre: z.string().trim().min(1, "Nombre requerido"),
   modelo: z.string().trim().min(1, "Modelo requerido"),
@@ -16,6 +27,8 @@ const droneBaseSchema = z.object({
   numeroSerieAeronave: z.string().trim().optional().default(""),
   numeroSeriePlacaFc: z.string().trim().optional().default(""),
   numeroSerieFabrica: z.string().trim().optional().default(""),
+  estado: z.enum(ESTADO_DRONE).default("disponible"),
+  estadoDetalle: z.string().trim().optional().default(""),
 });
 
 // Solo al crear se puede dejar cargado un operador inicial -- después, el

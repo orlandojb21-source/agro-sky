@@ -5,9 +5,11 @@ import { canWrite, puedeReasignarOperadorDrone } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { EstadoDroneBadge } from "@/components/ui/EstadoDroneBadge";
 import { ReasignarOperadorForm } from "@/components/forms/ReasignarOperadorForm";
 import { eliminarDroneAction } from "@/lib/actions/drones";
 import { formatDateOnly } from "@/lib/format";
+import type { EstadoDrone } from "@/lib/validation/drones";
 
 export default async function DetalleDronePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,9 +38,12 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-green-900 dark:text-green-50">
-            {drone.nombre as string}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold text-green-900 dark:text-green-50">
+              {drone.nombre as string}
+            </h1>
+            <EstadoDroneBadge estado={drone.estado as EstadoDrone} detalle={drone.estado_detalle as string | null} />
+          </div>
           <p className="mt-1 text-sm text-green-700/70 dark:text-green-200/70">{drone.modelo as string}</p>
         </div>
         <div className="flex flex-wrap gap-2">
