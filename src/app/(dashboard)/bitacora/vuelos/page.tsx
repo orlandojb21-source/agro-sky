@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { requireSection } from "@/lib/session";
-import { canWrite } from "@/lib/roles";
+import { canWrite, esSoporteOJefe } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
+import { DeleteButton } from "@/components/ui/DeleteButton";
+import { eliminarRegistroVueloAction } from "@/lib/actions/dronesVuelos";
 import { formatDateOnly } from "@/lib/format";
 
 type RegistroFila = {
@@ -31,6 +34,10 @@ export default async function RegistroVueloPage({
   const { drone: droneIdFiltro } = await searchParams;
   const perfil = await requireSection("bitacora");
   const puedeEscribir = canWrite(perfil.rol, "bitacora");
+  // Editar/eliminar registros de vuelo queda restringido a Soporte IT y
+  // Gerente General -- más angosto que la escritura general de Bitácora
+  // (pedido explícito del usuario, 2026-08-11).
+  const puedeEditarEliminar = esSoporteOJefe(perfil.rol);
 
   const supabase = await createClient();
   let consulta = supabase
@@ -63,6 +70,27 @@ export default async function RegistroVueloPage({
     { header: "Área Cubierta", render: (r) => `${r.areaCubierta} ha (${formatDelta(r.areaDelta)})` },
     { header: "Horas de Vuelo", render: (r) => `${r.horasVuelo} (${formatDelta(r.horasDelta)})` },
     { header: "Vuelos", render: (r) => `${r.vuelos} (${formatDelta(r.vuelosDelta)})` },
+    ...(puedeEditarEliminar
+      ? [
+          {
+            header: "",
+            render: (r: RegistroFila) => (
+              <div className="flex gap-3">
+                <Link
+                  href={`/bitacora/vuelos/${r.id}/editar`}
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Editar
+                </Link>
+                <DeleteButton
+                  action={eliminarRegistroVueloAction.bind(null, r.id)}
+                  confirmMessage="¿Eliminar este registro de vuelo? Se recalculan las diferencias de los registros posteriores de ese drone. Esta acción no se puede deshacer."
+                />
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
