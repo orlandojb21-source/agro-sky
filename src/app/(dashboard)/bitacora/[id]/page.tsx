@@ -137,6 +137,31 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
         </div>
       </div>
 
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+        <p className="text-sm text-green-700/80 dark:text-green-200/80">Mantenimiento de este drone</p>
+        <div className="flex flex-wrap gap-3">
+          {puedeEscribir && (
+            <>
+              <Link
+                href={`/bitacora/mantenimiento/preventivo/nuevo?drone=${id}`}
+                className="text-sm text-green-700 hover:underline dark:text-green-300"
+              >
+                + Preventivo
+              </Link>
+              <Link
+                href={`/bitacora/mantenimiento/correctivo/nuevo?drone=${id}`}
+                className="text-sm text-green-700 hover:underline dark:text-green-300"
+              >
+                + Correctivo
+              </Link>
+            </>
+          )}
+          <Link href="/bitacora/mantenimiento" className="text-sm text-green-700 hover:underline dark:text-green-300">
+            Ver historial
+          </Link>
+        </div>
+      </div>
+
       {puedeEscribir && (
         <div className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">

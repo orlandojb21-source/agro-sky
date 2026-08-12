@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/bitacora", label: "Drones" },
   { href: "/bitacora/vuelos", label: "Registro de Vuelo" },
+  { href: "/bitacora/mantenimiento", label: "Mantenimiento" },
 ];
 
 export function BitacoraSubNav() {
@@ -14,13 +15,14 @@ export function BitacoraSubNav() {
   return (
     <div className="flex flex-wrap gap-2">
       {TABS.map((tab) => {
-        // "Registro de Vuelo" es su propio segmento (/bitacora/vuelos);
+        // "Registro de Vuelo" y "Mantenimiento" son sus propios segmentos;
         // "Drones" es todo lo demás bajo /bitacora (lista, nuevo, ficha,
         // editar) -- mismo criterio que GastosOperativosSubNav.
         const activo =
-          tab.href === "/bitacora/vuelos"
-            ? pathname.startsWith("/bitacora/vuelos")
-            : pathname === "/bitacora" || !pathname.startsWith("/bitacora/vuelos");
+          tab.href === "/bitacora"
+            ? pathname === "/bitacora" ||
+              (!pathname.startsWith("/bitacora/vuelos") && !pathname.startsWith("/bitacora/mantenimiento"))
+            : pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.href}
