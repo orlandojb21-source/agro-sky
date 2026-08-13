@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { crearCategoriaGastoAction } from "@/lib/actions/categoriasGasto";
-import type { ContextoCategoriaGasto } from "@/lib/categorias";
+import type { ContextoCategoriaGasto, TipoCategoriaCompra } from "@/lib/categorias";
 import { SelectField } from "@/components/ui/Field";
 
 // Selector de categoría de gasto (Caja Menuda o Compras) con un
@@ -12,6 +12,10 @@ import { SelectField } from "@/components/ui/Field";
 // selecciona de inmediato al agregarla (queda editable como todo lo
 // demás), pero solo se guarda en la base cuando se envía el formulario
 // completo del gasto.
+//
+// Solo Compras pide Fijo/Variable al agregar una categoría nueva (pedido
+// del usuario, 2026-08-13) -- alimenta el cuadro "Vista mensual de
+// gastos" de Balance, que agrupa los gastos de Compras en esos 2 grupos.
 export function CategoriaGastoField({
   contexto,
   categoriasIniciales,
@@ -38,6 +42,7 @@ export function CategoriaGastoField({
   const [valor, setValor] = useState(valorInicial ?? "");
   const [agregando, setAgregando] = useState(false);
   const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [tipoNuevaCategoria, setTipoNuevaCategoria] = useState<TipoCategoriaCompra | "">("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,14 +54,23 @@ export function CategoriaGastoField({
   async function guardarCategoria() {
     const nombre = nuevaCategoria.trim();
     if (!nombre) return;
+    if (contexto === "compras" && tipoNuevaCategoria === "") {
+      setError("Selecciona si la categoría es Fija o Variable.");
+      return;
+    }
     setGuardando(true);
     setError(null);
     try {
-      const creada = await crearCategoriaGastoAction(contexto, nombre);
+      const creada = await crearCategoriaGastoAction(
+        contexto,
+        nombre,
+        contexto === "compras" ? tipoNuevaCategoria || undefined : undefined,
+      );
       setCategorias((prev) => [...prev, creada]);
       cambiarValor(creada);
       setAgregando(false);
       setNuevaCategoria("");
+      setTipoNuevaCategoria("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo agregar la categoría.");
     } finally {
@@ -89,6 +103,17 @@ export function CategoriaGastoField({
             placeholder="Nombre de la categoría"
             className="rounded-lg border border-green-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
           />
+          {contexto === "compras" && (
+            <select
+              value={tipoNuevaCategoria}
+              onChange={(e) => setTipoNuevaCategoria(e.target.value as TipoCategoriaCompra | "")}
+              className="rounded-lg border border-green-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
+            >
+              <option value="">¿Fija o Variable?</option>
+              <option value="fijo">Fija</option>
+              <option value="variable">Variable</option>
+            </select>
+          )}
           <button
             type="button"
             onClick={guardarCategoria}
@@ -102,6 +127,7 @@ export function CategoriaGastoField({
             onClick={() => {
               setAgregando(false);
               setNuevaCategoria("");
+              setTipoNuevaCategoria("");
               setError(null);
             }}
             className="text-sm text-green-700/70 hover:underline dark:text-green-300/70"

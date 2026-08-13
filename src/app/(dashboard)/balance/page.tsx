@@ -9,7 +9,7 @@ import {
   type PrestamoBalance,
 } from "@/components/forms/BalanceDashboard";
 import type { MovimientoExportable } from "@/lib/exportar";
-import { obtenerCategoriasGasto } from "@/lib/categorias";
+import { obtenerCategoriasGasto, obtenerCategoriasCompraConTipo } from "@/lib/categorias";
 
 export default async function BalancePage() {
   await requireSection("balance");
@@ -48,7 +48,7 @@ export default async function BalancePage() {
       .order("fecha", { ascending: false }),
     supabase.from("prestamos").select("fecha, monto").order("fecha", { ascending: false }),
     obtenerCategoriasGasto(supabase, "caja_menuda"),
-    obtenerCategoriasGasto(supabase, "compras"),
+    obtenerCategoriasCompraConTipo(supabase),
   ]);
 
   const movimientos: MovimientoExportable[] = [

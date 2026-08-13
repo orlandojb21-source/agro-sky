@@ -249,7 +249,7 @@ export function BalanceDashboard({
   gastosCompras: GastoCompraBalance[];
   prestamos: PrestamoBalance[];
   categoriasCajaMenuda: string[];
-  categoriasCompras: string[];
+  categoriasCompras: { nombre: string; tipo: "fijo" | "variable" }[];
 }) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [desde, setDesde] = useState("");
@@ -278,39 +278,81 @@ export function BalanceDashboard({
     return Array.from(años).sort((a, b) => b - a);
   }, [movimientos, gastosCompras, pagosPlanilla, ventas, añoActual]);
 
-  // Filas del cuadro de gastos: cada categoría administrable de Compras >
-  // Gastos, más "Planilla" y "Caja Menuda" como dos filas fijas al final
-  // (no son categorías de esa lista, son los otros dos orígenes de
-  // egresos de la empresa) -- pedido del usuario 2026-08-12.
+  // Filas del cuadro de gastos, agrupadas en "Gastos Fijos" y "Gastos
+  // Variables" (pedido del usuario 2026-08-13). Fijos = solo categorías
+  // de Compras > Gastos marcadas como tal. Variables = el resto de
+  // Compras + "Planilla" + "Diésel"/"Gasolina" (de Caja Menuda) + "Caja
+  // Menuda" -- estas 4 últimas no son categorías de Compras, son otros
+  // orígenes de egresos de la empresa (pedido 2026-08-12, ampliado hoy).
+  // Diésel/Gasolina se restan del total de "Caja Menuda" para no contar
+  // el mismo gasto 2 veces.
   const filasGastosMensuales = useMemo(() => {
-    const nombresFila = [...categoriasCompras, "Planilla", "Caja Menuda"];
-    return nombresFila.map((nombre) => {
-      const montosPorMes = NOMBRES_MES.map((_, i) => {
-        const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
-        if (nombre === "Planilla") {
-          return pagosPlanilla.filter((p) => p.fecha.startsWith(prefijo)).reduce((s, p) => s + p.monto, 0);
-        }
-        if (nombre === "Caja Menuda") {
-          return movimientos
-            .filter((m) => m.tipo === "gasto" && m.fecha.startsWith(prefijo))
-            .reduce((s, m) => s + m.monto, 0);
-        }
-        return gastosCompras
-          .filter((g) => g.categoria === nombre && g.fecha.startsWith(prefijo))
-          .reduce((s, g) => s + g.monto, 0);
-      });
-      return {
-        nombre,
-        etiqueta: CATEGORIA_GASTO_LABEL[nombre] ?? nombre,
-        montosPorMes,
-        total: montosPorMes.reduce((s, m) => s + m, 0),
-      };
+    function armarFila(nombre: string, etiqueta: string, tipo: "fijo" | "variable", montosPorMes: number[]) {
+      return { nombre, etiqueta, tipo, montosPorMes, total: montosPorMes.reduce((s, m) => s + m, 0) };
+    }
+
+    const filasCompras = categoriasCompras.map((c) =>
+      armarFila(
+        c.nombre,
+        CATEGORIA_GASTO_LABEL[c.nombre] ?? c.nombre,
+        c.tipo,
+        NOMBRES_MES.map((_, i) => {
+          const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
+          return gastosCompras
+            .filter((g) => g.categoria === c.nombre && g.fecha.startsWith(prefijo))
+            .reduce((s, g) => s + g.monto, 0);
+        }),
+      ),
+    );
+
+    const montosPlanilla = NOMBRES_MES.map((_, i) => {
+      const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
+      return pagosPlanilla.filter((p) => p.fecha.startsWith(prefijo)).reduce((s, p) => s + p.monto, 0);
     });
+    const montosDiesel = NOMBRES_MES.map((_, i) => {
+      const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
+      return movimientos
+        .filter((m) => m.tipo === "gasto" && m.categoria === "Diésel" && m.fecha.startsWith(prefijo))
+        .reduce((s, m) => s + m.monto, 0);
+    });
+    const montosGasolina = NOMBRES_MES.map((_, i) => {
+      const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
+      return movimientos
+        .filter((m) => m.tipo === "gasto" && m.categoria === "Gasolina" && m.fecha.startsWith(prefijo))
+        .reduce((s, m) => s + m.monto, 0);
+    });
+    const montosCajaMenuda = NOMBRES_MES.map((_, i) => {
+      const prefijo = `${añoVista}-${String(i + 1).padStart(2, "0")}`;
+      return movimientos
+        .filter(
+          (m) =>
+            m.tipo === "gasto" &&
+            m.fecha.startsWith(prefijo) &&
+            m.categoria !== "Diésel" &&
+            m.categoria !== "Gasolina",
+        )
+        .reduce((s, m) => s + m.monto, 0);
+    });
+
+    const filasFijas = filasCompras.filter((f) => f.tipo === "fijo");
+    const filasVariables = [
+      ...filasCompras.filter((f) => f.tipo === "variable"),
+      armarFila("Planilla", "Planilla", "variable", montosPlanilla),
+      armarFila("Diésel", "Diésel", "variable", montosDiesel),
+      armarFila("Gasolina", "Gasolina", "variable", montosGasolina),
+      armarFila("Caja Menuda", "Caja Menuda", "variable", montosCajaMenuda),
+    ];
+    return { filasFijas, filasVariables };
   }, [categoriasCompras, gastosCompras, pagosPlanilla, movimientos, añoVista]);
 
-  const totalesPorMesGastos = NOMBRES_MES.map((_, i) =>
-    filasGastosMensuales.reduce((s, f) => s + f.montosPorMes[i], 0),
+  const { filasFijas, filasVariables } = filasGastosMensuales;
+  const totalesPorMesFijos = NOMBRES_MES.map((_, i) => filasFijas.reduce((s, f) => s + f.montosPorMes[i], 0));
+  const totalesPorMesVariables = NOMBRES_MES.map((_, i) =>
+    filasVariables.reduce((s, f) => s + f.montosPorMes[i], 0),
   );
+  const totalesPorMesGastos = NOMBRES_MES.map((_, i) => totalesPorMesFijos[i] + totalesPorMesVariables[i]);
+  const totalFijosGeneral = totalesPorMesFijos.reduce((s, m) => s + m, 0);
+  const totalVariablesGeneral = totalesPorMesVariables.reduce((s, m) => s + m, 0);
   const totalGeneralVistaGastos = totalesPorMesGastos.reduce((s, m) => s + m, 0);
   const hayDatosVistaGastos = totalGeneralVistaGastos > 0;
   const indiceMesVista = mesVista === "" ? null : Number(mesVista) - 1;
@@ -459,10 +501,10 @@ export function BalanceDashboard({
   const gananciaNeta = totalIngresos - totalEgresos;
 
   const totalesPorCategoriaCompras = categoriasCompras.map((c) => ({
-    categoria: c,
-    etiqueta: CATEGORIA_GASTO_LABEL[c] ?? c,
+    categoria: c.nombre,
+    etiqueta: CATEGORIA_GASTO_LABEL[c.nombre] ?? c.nombre,
     monto: gastosComprasFiltrados
-      .filter((g) => g.categoria === c)
+      .filter((g) => g.categoria === c.nombre)
       .reduce((suma, g) => suma + g.monto, 0),
   })).filter((c) => c.monto > 0);
 
@@ -618,7 +660,15 @@ export function BalanceDashboard({
                 </tr>
               </thead>
               <tbody>
-                {filasGastosMensuales.map((f) => (
+                <tr>
+                  <td
+                    colSpan={14}
+                    className="bg-green-50/80 py-1.5 pr-4 text-xs font-semibold uppercase tracking-wide text-green-800 dark:bg-green-950/30 dark:text-green-200"
+                  >
+                    Gastos Fijos
+                  </td>
+                </tr>
+                {filasFijas.map((f) => (
                   <tr key={f.nombre} className="border-b border-green-50 dark:border-green-950/40">
                     <td className="py-2 pr-4 font-medium text-green-900 dark:text-green-50">{f.etiqueta}</td>
                     {f.montosPorMes.map((monto, i) => (
@@ -631,6 +681,50 @@ export function BalanceDashboard({
                     </td>
                   </tr>
                 ))}
+                <tr className="border-b border-t border-green-200 dark:border-green-800">
+                  <td className="py-2 pr-4 font-semibold text-green-900 dark:text-green-50">Subtotal Fijos</td>
+                  {totalesPorMesFijos.map((monto, i) => (
+                    <td key={i} className="py-2 pr-3 text-right font-semibold text-green-900 dark:text-green-50">
+                      {monto > 0 ? formatMoney(monto) : "—"}
+                    </td>
+                  ))}
+                  <td className="py-2 pl-3 text-right font-semibold text-red-800 dark:text-red-300">
+                    {formatMoney(totalFijosGeneral)}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    colSpan={14}
+                    className="bg-green-50/80 py-1.5 pr-4 text-xs font-semibold uppercase tracking-wide text-green-800 dark:bg-green-950/30 dark:text-green-200"
+                  >
+                    Gastos Variables
+                  </td>
+                </tr>
+                {filasVariables.map((f) => (
+                  <tr key={f.nombre} className="border-b border-green-50 dark:border-green-950/40">
+                    <td className="py-2 pr-4 font-medium text-green-900 dark:text-green-50">{f.etiqueta}</td>
+                    {f.montosPorMes.map((monto, i) => (
+                      <td key={i} className="py-2 pr-3 text-right text-green-800 dark:text-green-200">
+                        {monto > 0 ? formatMoney(monto) : "—"}
+                      </td>
+                    ))}
+                    <td className="py-2 pl-3 text-right font-semibold text-red-700 dark:text-red-400">
+                      {formatMoney(f.total)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-b border-t border-green-200 dark:border-green-800">
+                  <td className="py-2 pr-4 font-semibold text-green-900 dark:text-green-50">Subtotal Variables</td>
+                  {totalesPorMesVariables.map((monto, i) => (
+                    <td key={i} className="py-2 pr-3 text-right font-semibold text-green-900 dark:text-green-50">
+                      {monto > 0 ? formatMoney(monto) : "—"}
+                    </td>
+                  ))}
+                  <td className="py-2 pl-3 text-right font-semibold text-red-800 dark:text-red-300">
+                    {formatMoney(totalVariablesGeneral)}
+                  </td>
+                </tr>
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-green-200 dark:border-green-800">
@@ -657,7 +751,15 @@ export function BalanceDashboard({
                 </tr>
               </thead>
               <tbody>
-                {filasGastosMensuales.map((f) => (
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="bg-green-50/80 py-1.5 pr-4 text-xs font-semibold uppercase tracking-wide text-green-800 dark:bg-green-950/30 dark:text-green-200"
+                  >
+                    Gastos Fijos
+                  </td>
+                </tr>
+                {filasFijas.map((f) => (
                   <tr key={f.nombre} className="border-b border-green-50 dark:border-green-950/40">
                     <td className="py-2 pr-4 text-green-900 dark:text-green-50">{f.etiqueta}</td>
                     <td className="py-2 pl-3 text-right text-green-800 dark:text-green-200">
@@ -665,11 +767,40 @@ export function BalanceDashboard({
                     </td>
                   </tr>
                 ))}
+                <tr className="border-b border-t border-green-200 dark:border-green-800">
+                  <td className="py-2 pr-4 font-semibold text-green-900 dark:text-green-50">Subtotal Fijos</td>
+                  <td className="py-2 pl-3 text-right font-semibold text-red-700 dark:text-red-400">
+                    {formatMoney(totalesPorMesFijos[indiceMesVista])}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="bg-green-50/80 py-1.5 pr-4 text-xs font-semibold uppercase tracking-wide text-green-800 dark:bg-green-950/30 dark:text-green-200"
+                  >
+                    Gastos Variables
+                  </td>
+                </tr>
+                {filasVariables.map((f) => (
+                  <tr key={f.nombre} className="border-b border-green-50 dark:border-green-950/40">
+                    <td className="py-2 pr-4 text-green-900 dark:text-green-50">{f.etiqueta}</td>
+                    <td className="py-2 pl-3 text-right text-green-800 dark:text-green-200">
+                      {formatMoney(f.montosPorMes[indiceMesVista])}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-b border-t border-green-200 dark:border-green-800">
+                  <td className="py-2 pr-4 font-semibold text-green-900 dark:text-green-50">Subtotal Variables</td>
+                  <td className="py-2 pl-3 text-right font-semibold text-red-700 dark:text-red-400">
+                    {formatMoney(totalesPorMesVariables[indiceMesVista])}
+                  </td>
+                </tr>
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-green-200 dark:border-green-800">
                   <td className="py-2 pr-4 font-semibold text-green-900 dark:text-green-50">Total</td>
-                  <td className="py-2 pl-3 text-right font-semibold text-red-700 dark:text-red-400">
+                  <td className="py-2 pl-3 text-right font-semibold text-red-800 dark:text-red-300">
                     {formatMoney(totalesPorMesGastos[indiceMesVista])}
                   </td>
                 </tr>
@@ -1122,7 +1253,7 @@ export function BalanceDashboard({
               )}
             </div>
             <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
-              Gastos operativos fijos (alquiler, luz, agua, internet, teléfono, etc.), registrados en
+              Gastos operativos (alquiler, luz, agua, internet, celulares, etc.), registrados en
               Compras &gt; Gastos.
             </p>
 
