@@ -48,7 +48,10 @@ test.describe("Informes — navegación y CRUD", () => {
     await page.getByRole("button", { name: "Guardar informe" }).click();
     await page.waitForURL(/\/informes\/proyecto\/[0-9a-f-]+$/, { timeout: 15000 });
 
-    await expect(page.getByText(nombreProyecto)).toBeVisible();
+    // getByRole (no getByText genérico) para no chocar con el
+    // "__next-route-announcer__" que Next.js agrega para lectores de
+    // pantalla y que repite el mismo texto del <h1> tras cada navegación.
+    await expect(page.getByRole("heading", { name: nombreProyecto })).toBeVisible();
     const idInforme = page.url().split("/").pop()!;
 
     await page.goto("/informes/proyecto");

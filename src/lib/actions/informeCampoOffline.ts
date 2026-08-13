@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeCampoSchema } from "@/lib/validation/informesCampo";
+import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
 
 const BUCKET_FIRMAS = "informes-campo-firmas";
 
@@ -25,6 +26,9 @@ export async function sincronizarInformeCampoPendienteAction(
   const firmaCliente = formData.get("firmaCliente");
   if (!(firmaAgro instanceof Blob) || !(firmaCliente instanceof Blob)) {
     return { ok: false, error: "Faltan las firmas del informe." };
+  }
+  if (firmaAgro.size > TAMANO_MAXIMO_ARCHIVO_BYTES || firmaCliente.size > TAMANO_MAXIMO_ARCHIVO_BYTES) {
+    return { ok: false, error: "Una de las firmas es demasiado grande (máximo 5 MB)." };
   }
 
   let ayudantes: unknown;
