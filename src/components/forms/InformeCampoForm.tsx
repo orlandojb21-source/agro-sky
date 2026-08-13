@@ -118,6 +118,16 @@ export function InformeCampoForm({
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
 
+  const [tipoProyecto, setTipoProyecto] = useState(
+    v?.tipoProyecto ?? valoresIniciales?.tipoProyecto ?? "ingenio_santa_rosa",
+  );
+  // Solo Proyecto Particular, y solo al crear (nunca al editar) puede
+  // quedar "abierto" -- ver validation/informesCampo.ts. "Cerrado" es el
+  // default, mismo comportamiento de siempre (un informe = un día,
+  // firmas obligatorias).
+  const [estado, setEstado] = useState(v?.estado ?? "cerrado");
+  const requiereFirmasAhora = estado !== "abierto";
+
   const [operador, setOperador] = useState(v?.operador ?? valoresIniciales?.operador ?? "");
 
   const [ayudantes, setAyudantes] = useState<string[]>(() => {
@@ -486,12 +496,29 @@ export function InformeCampoForm({
         <SelectField
           label="Tipo de proyecto"
           name="tipoProyecto"
-          defaultValue={v?.tipoProyecto ?? valoresIniciales?.tipoProyecto ?? "ingenio_santa_rosa"}
+          value={tipoProyecto}
+          onChange={(e) => {
+            setTipoProyecto(e.target.value);
+            if (e.target.value !== "particular") setEstado("cerrado");
+          }}
           required
         >
           <option value="ingenio_santa_rosa">Ingenio Santa Rosa</option>
           <option value="particular">Trabajo Particular</option>
         </SelectField>
+        {!esEdicion && tipoProyecto === "particular" && (
+          <SelectField
+            label="¿Cómo vas a manejar este informe?"
+            name="estado"
+            value={estado}
+            onChange={(e) => setEstado(e.target.value)}
+            required
+          >
+            <option value="cerrado">Un solo día — firmar y guardar ahora</option>
+            <option value="abierto">Varios días — dejar Abierto, firmar al terminar</option>
+          </SelectField>
+        )}
+        {(esEdicion || tipoProyecto !== "particular") && <input type="hidden" name="estado" value="cerrado" />}
         <Field
           label="Fecha de trabajo"
           name="fecha"
@@ -738,40 +765,48 @@ export function InformeCampoForm({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
-        <div className="flex flex-col gap-3">
-          <Field
-            label="Nombre — Encargado Agro Sky Corp"
-            name="nombreFirmaAgro"
-            defaultValue={v?.nombreFirmaAgro ?? valoresIniciales?.nombreFirmaAgro ?? undefined}
-            required
-          />
-          <FirmaCanvas
-            label="Firma — Encargado Agro Sky Corp"
-            name="firmaAgroRuta"
-            rutaInicial={v?.firmaAgroRuta ?? valoresIniciales?.firmaAgroRuta}
-            urlInicial={valoresIniciales?.firmaAgroUrl}
-            onGuardar={subirFirmaAgro}
-            onRutaCambia={setFirmaAgroRuta}
-          />
+      {estado === "abierto" ? (
+        <div className="rounded-xl border border-green-100 bg-green-50/60 p-6 text-sm text-green-800 shadow-sm dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-200">
+          Este informe queda <strong>Abierto</strong> -- no hacen falta firmas todavía. Vas a poder
+          agregar más días de trabajo desde la pantalla del informe, y las firmas se piden recién
+          cuando alguien lo cierre.
         </div>
-        <div className="flex flex-col gap-3">
-          <Field
-            label="Nombre — Encargado por parte del cliente"
-            name="nombreFirmaCliente"
-            defaultValue={v?.nombreFirmaCliente ?? valoresIniciales?.nombreFirmaCliente ?? undefined}
-            required
-          />
-          <FirmaCanvas
-            label="Firma — Encargado por parte del cliente"
-            name="firmaClienteRuta"
-            rutaInicial={v?.firmaClienteRuta ?? valoresIniciales?.firmaClienteRuta}
-            urlInicial={valoresIniciales?.firmaClienteUrl}
-            onGuardar={subirFirmaCliente}
-            onRutaCambia={setFirmaClienteRuta}
-          />
+      ) : (
+        <div className="grid grid-cols-1 gap-6 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
+          <div className="flex flex-col gap-3">
+            <Field
+              label="Nombre — Encargado Agro Sky Corp"
+              name="nombreFirmaAgro"
+              defaultValue={v?.nombreFirmaAgro ?? valoresIniciales?.nombreFirmaAgro ?? undefined}
+              required
+            />
+            <FirmaCanvas
+              label="Firma — Encargado Agro Sky Corp"
+              name="firmaAgroRuta"
+              rutaInicial={v?.firmaAgroRuta ?? valoresIniciales?.firmaAgroRuta}
+              urlInicial={valoresIniciales?.firmaAgroUrl}
+              onGuardar={subirFirmaAgro}
+              onRutaCambia={setFirmaAgroRuta}
+            />
+          </div>
+          <div className="flex flex-col gap-3">
+            <Field
+              label="Nombre — Encargado por parte del cliente"
+              name="nombreFirmaCliente"
+              defaultValue={v?.nombreFirmaCliente ?? valoresIniciales?.nombreFirmaCliente ?? undefined}
+              required
+            />
+            <FirmaCanvas
+              label="Firma — Encargado por parte del cliente"
+              name="firmaClienteRuta"
+              rutaInicial={v?.firmaClienteRuta ?? valoresIniciales?.firmaClienteRuta}
+              urlInicial={valoresIniciales?.firmaClienteUrl}
+              onGuardar={subirFirmaCliente}
+              onRutaCambia={setFirmaClienteRuta}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
@@ -831,12 +866,14 @@ export function InformeCampoForm({
         )}
         {errorLocal && <p className="text-xs text-red-600 dark:text-red-400">{errorLocal}</p>}
         <div className="flex gap-3">
-          <SubmitButton disabled={faltaAlgunaFirma || guardandoLocal}>
+          <SubmitButton disabled={(requiereFirmasAhora && faltaAlgunaFirma) || guardandoLocal}>
             {guardandoLocal
               ? "Guardando en este celular..."
               : esEdicion
                 ? "Guardar cambios"
-                : "Guardar informe"}
+                : estado === "abierto"
+                  ? "Guardar informe (Abierto)"
+                  : "Guardar informe"}
           </SubmitButton>
           <LinkButton
             href={esEdicion ? `/informes/campo/${valoresIniciales!.id}` : "/informes/campo"}
@@ -845,7 +882,7 @@ export function InformeCampoForm({
             Cancelar
           </LinkButton>
         </div>
-        {faltaAlgunaFirma && (
+        {requiereFirmasAhora && faltaAlgunaFirma && (
           <p className="text-xs text-green-700/70 dark:text-green-300/70">
             Faltan firmas por guardar — dibuja y guarda ambas firmas antes de guardar el informe.
           </p>

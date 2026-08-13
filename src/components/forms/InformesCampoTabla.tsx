@@ -13,7 +13,19 @@ export type InformeCampoFila = {
   finca: string;
   operador: string;
   hectareas: number;
+  // Solo un Proyecto Particular puede ser "abierto" -- ver migración
+  // 0085. Un Ingenio Santa Rosa siempre es "cerrado".
+  estado: "abierto" | "cerrado";
 };
+
+function BadgeEstado({ estado }: { estado: "abierto" | "cerrado" }) {
+  if (estado !== "abierto") return null;
+  return (
+    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+      Abierto
+    </span>
+  );
+}
 
 type Filtros = {
   texto: string;
@@ -136,7 +148,10 @@ export function InformesCampoTabla({
                       {formatDateOnly(i.fecha)}
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
-                      {i.cliente}
+                      <div className="flex items-center gap-2">
+                        {i.cliente}
+                        <BadgeEstado estado={i.estado} />
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.finca}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.operador}</td>
@@ -183,7 +198,10 @@ export function InformesCampoTabla({
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
                     {formatDateOnly(i.fecha)}
                   </p>
-                  <p className="font-medium text-green-900 dark:text-green-50">{i.cliente}</p>
+                  <p className="flex items-center gap-2 font-medium text-green-900 dark:text-green-50">
+                    {i.cliente}
+                    <BadgeEstado estado={i.estado} />
+                  </p>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">{i.finca}</p>
                 </div>
                 <p className="shrink-0 text-sm font-medium text-green-700 dark:text-green-400">

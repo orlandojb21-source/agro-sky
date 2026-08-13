@@ -35,6 +35,11 @@ export default async function EditarInformeCampoPage({
   ]);
 
   if (!informe) notFound();
+  // Un informe "Abierto" no se edita por este formulario -- se le
+  // agregan días o se cierra (ver migración 0085). Mismo candado que
+  // editarInformeCampoAction, para no mostrar un formulario que de
+  // todas formas va a fallar al guardar.
+  if (informe.estado === "abierto") redirect(`/informes/campo/${id}`);
 
   let colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
   // Si el operador o algún ayudante ya guardado se eliminó de la lista

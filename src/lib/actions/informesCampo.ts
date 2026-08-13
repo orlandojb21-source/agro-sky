@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { informeCampoSchema, informeCampoEditSchema } from "@/lib/validation/informesCampo";
+import {
+  informeCampoSchema,
+  informeCampoEditSchema,
+  informeCampoDiaSchema,
+  cerrarInformeCampoSchema,
+} from "@/lib/validation/informesCampo";
 import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
 import { esSoporteOJefe } from "@/lib/roles";
 import { eliminarImagenInformeCampoAction } from "./informeCampoImagen";
@@ -15,7 +20,7 @@ export async function crearInformeCampoAction(
   formData: FormData,
 ): Promise<ActionState> {
   // Campo SÍ puede crear un Informe de Campo (a diferencia de editar/
-  // eliminar, ver más abajo) -- pedido explícito del usuario, 2026-08-04.
+  // eliminar/cerrar, ver más abajo) -- pedido explícito del usuario, 2026-08-04.
   const perfil = await requireWrite("informes");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
@@ -44,6 +49,7 @@ export async function crearInformeCampoAction(
     dosisPorHectarea: raw.dosisPorHectarea,
     tipoProyecto: raw.tipoProyecto,
     jornada: raw.jornada,
+    estado: raw.estado,
     operador: raw.operador,
     ayudantes,
     firmaAgroRuta: raw.firmaAgroRuta,
@@ -85,6 +91,7 @@ export async function crearInformeCampoAction(
     p_parcelas: parsed.data.parcelas,
     p_productos: parsed.data.productos,
     p_jornada: parsed.data.jornada,
+    p_estado: parsed.data.estado,
   });
 
   if (error) {
@@ -158,13 +165,26 @@ export async function editarInformeCampoAction(
     .select("ruta")
     .eq("informe_id", parsed.data.id);
 
+  // Un informe "Abierto" (Proyecto Particular con días sueltos, ver
+  // migración 0085) no se edita por este formulario -- se le agregan
+  // días o se cierra, ambos flujos aparte. Editarlo acá lo trataría como
+  // si fuera un informe de un solo día y perdería el sentido de "seguir
+  // agregando días" -- se bloquea para cualquier rol, no solo Campo.
+  const { data: informeEstado } = await supabase
+    .from("informes_campo")
+    .select("fecha, estado")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (informeEstado?.estado === "abierto") {
+    return {
+      error:
+        "Este informe está Abierto -- agrégale un día o ciérralo, no se puede editar así mientras está abierto.",
+      values: raw,
+    };
+  }
+
   if (!esSoporteOJefe(perfil.rol)) {
-    const { data: informeActual } = await supabase
-      .from("informes_campo")
-      .select("fecha")
-      .eq("id", parsed.data.id)
-      .maybeSingle();
-    if (informeActual && !fechaPermitida(informeActual.fecha as string, perfil.rol)) {
+    if (informeEstado && !fechaPermitida(informeEstado.fecha as string, perfil.rol)) {
       return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
     }
     if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
@@ -242,4 +262,95 @@ export async function eliminarInformeCampoAction(id: string) {
   );
 
   revalidatePath("/informes/campo");
+}
+
+// Agrega un día de trabajo a un informe Particular "abierto" (ver
+// migración 0085) -- rol abierto a Campo, mismo criterio que crear el
+// informe (Campo sí carga trabajo, no gestiona el informe en sí).
+export async function agregarDiaInformeCampoAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const perfil = await requireWrite("informes");
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+
+  let ayudantes: unknown;
+  let parcelas: unknown;
+  try {
+    ayudantes = JSON.parse(raw.ayudantes || "[]");
+    parcelas = JSON.parse(raw.parcelas || "[]");
+  } catch {
+    return { error: "No se pudieron leer los datos del día. Intenta de nuevo.", values: raw };
+  }
+
+  const parsed = informeCampoDiaSchema.safeParse({
+    informeId: raw.informeId,
+    fecha: raw.fecha,
+    horaInicio: raw.horaInicio,
+    horaFin: raw.horaFin,
+    jornada: raw.jornada,
+    operador: raw.operador,
+    ayudantes,
+    parcelas,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
+    return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("agregar_dia_informe_campo", {
+    p_informe_id: parsed.data.informeId,
+    p_fecha: parsed.data.fecha,
+    p_hora_inicio: parsed.data.horaInicio,
+    p_hora_fin: parsed.data.horaFin,
+    p_jornada: parsed.data.jornada,
+    p_operador: parsed.data.operador,
+    p_ayudantes: parsed.data.ayudantes,
+    p_parcelas: parsed.data.parcelas,
+  });
+
+  if (error) {
+    return { error: error.message || "No se pudo agregar el día. Intenta de nuevo.", values: raw };
+  }
+
+  revalidatePath(`/informes/campo/${parsed.data.informeId}`);
+  redirect(`/informes/campo/${parsed.data.informeId}`);
+}
+
+// Cierra un informe Particular "abierto": pide las 2 firmas y ya no deja
+// agregar más días. Mismo candado que editar/eliminar (Campo no cierra).
+export async function cerrarInformeCampoAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const perfil = await requireWrite("informes");
+  if (perfil.rol === "campo") redirect("/unauthorized");
+  const raw = Object.fromEntries(formData) as Record<string, string>;
+
+  const parsed = cerrarInformeCampoSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cerrar_informe_campo", {
+    p_informe_id: parsed.data.id,
+    p_firma_agro_ruta: parsed.data.firmaAgroRuta,
+    p_nombre_firma_agro: parsed.data.nombreFirmaAgro,
+    p_firma_cliente_ruta: parsed.data.firmaClienteRuta,
+    p_nombre_firma_cliente: parsed.data.nombreFirmaCliente,
+  });
+
+  if (error) {
+    return { error: error.message || "No se pudo cerrar el informe. Intenta de nuevo.", values: raw };
+  }
+
+  revalidatePath("/informes/campo");
+  revalidatePath(`/informes/campo/${parsed.data.id}`);
+  redirect(`/informes/campo/${parsed.data.id}`);
 }
