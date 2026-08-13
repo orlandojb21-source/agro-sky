@@ -19,6 +19,15 @@
 > uno de 3 niveles (ninguno/lectura/escritura), con 2 roles nuevos de
 > solo lectura parcial o total. Verificado en 2 capas (servidor + UI) y
 > desplegado en producción.
+>
+> **Actualización 2026-08-13:** revisión completa de todo lo construido
+> desde la actualización anterior (Bitácora/drones, Mantenimiento,
+> Balance, restricción de fechas, permisos de Campo) — ver 1.10. 3
+> hallazgos reales, los 3 corregidos y verificados: límite de tamaño
+> faltante en una subida de archivo, una vista de Postgres que se
+> saltaba RLS, y una función `security definer` sin chequeo de
+> autorización. De paso, `npm audit fix` (sin `--force`) resolvió 2
+> avisos nuevos (`dompurify`, `nanoid`) sin cambios incompatibles.
 
 ## Cómo leer esto
 
@@ -312,6 +321,96 @@ modelo + bloqueo de servidor) y `c6b2f86` (Fase C: UI).
 
 ---
 
+### ✅ 1.10 Revisión completa de todo lo construido desde el 2026-08-04 — Corregido 2026-08-13
+
+Auditoría exhaustiva (3 agentes en paralelo + revisión manual del
+núcleo de autenticación) de todo lo que se agregó después de la
+actualización anterior: Bitácora (drones/vuelos/mantenimiento), Balance,
+la restricción de fecha por rol, y el ajuste de permisos de Campo.
+Alcance: las 29 Server Actions de `src/lib/actions/`, las 22 migraciones
+más nuevas (`0061` a `0082`), y una nueva pasada completa por
+inyección/XSS/subida de archivos en todo `src/`.
+
+**Sin puertas traseras** — las 29 Server Actions mutadoras siguen sin
+excepción el patrón `requireWrite`/`requireSection` (más el chequeo de
+rol angosto cuando aplica, ej. `puedeGestionarDrones`) antes de tocar la
+base de datos. `middleware`/`proxy.ts`, `session.ts`, `perfil.ts` y
+`admin.ts` (aislamiento de la `service_role` key) se revisaron a mano,
+sin regresión frente a lo documentado en 1.1-1.4.
+
+Se encontraron y corrigieron **3 hallazgos reales**:
+
+1. 🟠 **`informeCampoOffline.ts` sin límite de tamaño de archivo** — la
+   acción de sincronización de Informes de Campo llenados sin señal
+   (`sincronizarInformeCampoPendienteAction`) subía las 2 firmas a
+   Storage validando solo `instanceof Blob`, sin el límite de 5MB
+   (`TAMANO_MAXIMO_ARCHIVO_BYTES`) que sí tienen las otras 6 acciones de
+   subida de archivo — mismo vector que el hallazgo 1.3 original, que se
+   quedó fuera de esta acción por ser una ruta de código separada
+   (sincronización en segundo plano, no un `<form>` normal). Corregido
+   agregando el mismo chequeo.
+
+2. 🔴 **Vista `drones_mantenimientos_preventivos_estado` se saltaba RLS**
+   (migración `0077`) — se creó sin `security_invoker = true`. Por
+   defecto en Postgres, una vista corre con los permisos de su *dueño*
+   (quien la creó), no con los de quien la consulta — como el dueño
+   también es dueño de `drones` y `drones_mantenimientos_preventivos`,
+   la vista se saltaba la política RLS `auth_tiene_perfil()` de esas 2
+   tablas. Cualquier sesión autenticada (JWT válido de Supabase Auth
+   para este proyecto), **incluso una sin fila en `perfiles`**, podía
+   leer todas las filas de la vista llamando la API de Supabase directo
+   (sin pasar por las páginas de la app, que sí bloquean a un usuario
+   sin perfil). Corregido con `alter view ... set (security_invoker =
+   true)` (migración `0083`) — verificado en vivo contra producción
+   creando una cuenta de prueba autenticada sin perfil: antes del fix
+   traía todas las filas, después trae 0.
+
+3. 🟠 **`recalcular_cadena_vuelo_drone` sin chequeo de autorización**
+   (migración `0076`) — a diferencia de sus 3 funciones hermanas del
+   mismo archivo (`registrar_vuelo_drone`, `editar_registro_vuelo_drone`,
+   `eliminar_registro_vuelo_drone`), esta no verificaba
+   `auth_tiene_perfil()` antes de mutar `drones_vuelos`/`drones` —
+   cualquier sesión autenticada podía invocarla directo con un
+   `drone_id` arbitrario. Impacto acotado (solo recalcula de forma
+   determinista a partir de datos ya existentes, no permite inyectar
+   valores), pero rompía el patrón de autorización sin excepción del
+   resto del esquema. Corregido agregando el mismo chequeo que sus
+   funciones hermanas (migración `0083`) — verificado en vivo: la misma
+   cuenta de prueba sin perfil ahora recibe `"No autorizado"` en vez de
+   ejecutar la función.
+
+**Hallazgo menor, sin corrección de código** (migración `0068`,
+documentado en el propio comentario de esa migración): `caja_gastos` y
+`gastos` perdieron su restricción `check` de categoría al pasar a una
+lista administrable (`categorias_gasto`) — la validación ahora vive solo
+en el servidor (`categoriaGastoValida()`, verificado que se llama antes
+de cada insert/update). Es un riesgo de integridad de datos, no de
+acceso — no requiere acción mientras esa validación siga presente en
+cada Server Action que la usa.
+
+**De paso**, `npm audit` reportó 2 avisos nuevos desde el 2026-08-02
+(`dompurify`, vía `jspdf`; `nanoid`, vía `postcss`/Tailwind) — `npm
+audit fix` (sin `--force`) los resolvió sin ningún cambio incompatible
+(solo tocó `package-lock.json`, ninguna versión declarada en
+`package.json` cambió). Quedan los mismos 2 riesgos residuales ya
+documentados y aceptados en 1.1 (`postcss`/`sharp` empaquetados dentro
+de `next`, `uuid` vía `exceljs`) — sin cambios en su estado.
+
+**Referencia ISO 27002:** 8.28 (Codificación segura), 8.29 (Pruebas de
+seguridad en el desarrollo), 8.8 (Gestión de vulnerabilidades técnicas).
+
+**Verificado:** `tsc`/`lint`/`build` limpios; los 2 fixes de base de
+datos verificados en vivo contra producción con una cuenta de prueba
+autenticada sin perfil (antes/después de cada fix); las 12 pruebas
+Playwright pasando (una de ellas, `CP-INFORMES-02`, se ajustó porque el
+`npm audit fix` subió Next.js de `16.2.12` a `16.3.0` dentro del mismo
+rango declarado, lo que cambió el timing del anunciador de rutas para
+lectores de pantalla y dejó un selector de la prueba demasiado genérico
+— no relacionado con ningún hallazgo de seguridad, solo una prueba que
+había que hacer más específica).
+
+---
+
 ### 🟡 1.5 Política de contraseñas mínima (8 caracteres, sin verificación de filtraciones)
 
 `usuarioCreateSchema`/`usuarioPasswordSchema` exigen 8 caracteres, sin
@@ -476,6 +575,9 @@ proporción:
 | 1.2 | `search_path` en funciones `security definer` | 🟠 Medio | ✅ Corregido 2026-08-02 |
 | 1.4 | Cabeceras de seguridad (incl. CSP con nonce) | 🟠 Medio | ✅ Corregido 2026-08-02 |
 | 1.9 | Rediseño de roles: 3 niveles (lectura/escritura) por sección | — (control de acceso) | ✅ Implementado 2026-08-04 |
+| 1.10 | Vista `drones_mantenimientos_preventivos_estado` se saltaba RLS | 🔴 Alto | ✅ Corregido 2026-08-13 |
+| 1.10 | `recalcular_cadena_vuelo_drone` sin chequeo de autorización | 🟠 Medio | ✅ Corregido 2026-08-13 |
+| 1.10 | `informeCampoOffline.ts` sin límite de tamaño de archivo | 🟠 Medio | ✅ Corregido 2026-08-13 |
 | Continuidad | Confirmar plan/respaldos de Supabase | 🔴 Alto (negocio) | ⏳ Pendiente — solo revisar el dashboard, no es código |
 | 1.5 / 1.6 | Ajustes de contraseña y rate-limit (Supabase dashboard) | 🟡 Bajo | ⏳ Pendiente — son interruptores, no es código |
 
