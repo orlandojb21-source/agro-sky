@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { iniciarSesionAction } from "@/lib/actions/auth";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Logo } from "@/components/ui/Logo";
 
@@ -28,14 +29,10 @@ export function LoginForm() {
     setError(null);
     setPending(true);
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const resultado = await iniciarSesionAction(email, password);
 
-    if (signInError) {
-      setError("Correo o contraseña incorrectos.");
+    if ("error" in resultado) {
+      setError(resultado.error);
       setPending(false);
       return;
     }

@@ -105,4 +105,11 @@ export async function limpiarDatosQA(): Promise<void> {
   await adminDb.from("planilla_pagos").delete().ilike("colaborador", `${PREFIJO_QA}%`);
   await adminDb.from("planilla_asistencia").delete().ilike("colaborador", `${PREFIJO_QA}%`);
   await adminDb.from("colaboradores").delete().ilike("nombre", `${PREFIJO_QA}%`);
+
+  // CP-AUTH-02 (auth.spec.ts) falla siempre el login a propósito, con el
+  // mismo correo fijo, para probar el mensaje de error -- desde la
+  // migración 0086 (bloqueo tras 5 intentos fallidos), sin este barrido
+  // esos intentos se irían acumulando entre corridas de la suite hasta
+  // bloquear ese correo y romper el test.
+  await adminDb.from("login_intentos").delete().ilike("email", "%@agrosky-test.local");
 }

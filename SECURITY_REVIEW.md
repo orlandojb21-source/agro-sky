@@ -28,6 +28,11 @@
 > saltaba RLS, y una función `security definer` sin chequeo de
 > autorización. De paso, `npm audit fix` (sin `--force`) resolvió 2
 > avisos nuevos (`dompurify`, `nanoid`) sin cambios incompatibles.
+>
+> **Actualización 2026-08-13 (2):** se implementó el bloqueo de cuenta
+> tras 5 intentos fallidos de login seguidos (ver 1.6, ya no es solo una
+> recomendación) — requirió mover el login de ir directo del navegador a
+> Supabase, a pasar por un Server Action propio.
 
 ## Cómo leer esto
 
@@ -429,16 +434,34 @@ longitud importa más que forzar símbolos), pero vale la pena:
 
 ---
 
-### 🟡 1.6 Sin límite de intentos de inicio de sesión a nivel de la app
+### ✅ 1.6 Sin límite de intentos de inicio de sesión a nivel de la app — Corregido 2026-08-13
 
-No hay bloqueo de cuenta ni CAPTCHA después de varios intentos fallidos
-en `login/page.tsx`. Supabase Auth aplica *su propio* límite de tasa a
-nivel de plataforma (esto no es una vulnerabilidad activa), pero vale la
-pena confirmar en el dashboard de Supabase (**Authentication →
-Rate Limits**) que esos valores por defecto sean adecuados para el uso
-real de la app.
+No había bloqueo de cuenta después de varios intentos fallidos en
+`login/page.tsx` — Supabase Auth solo aplica su propio límite de tasa a
+nivel de plataforma (por IP/tiempo), no un contador de intentos
+fallidos por cuenta.
 
 **Referencia ISO 27002:** 8.5 (Autenticación segura).
+
+**Corrección aplicada:** el login pasó de llamar `signInWithPassword`
+directo desde el navegador a pasar por un Server Action nuevo
+(`src/lib/actions/auth.ts`, `iniciarSesionAction`), que primero revisa
+una tabla nueva `login_intentos` (migración
+`0086_bloqueo_login_intentos_fallidos.sql`) — si la cuenta está
+bloqueada, rechaza el intento sin siquiera llamar a Supabase. Al 5to
+intento fallido seguido, la cuenta queda bloqueada 15 minutos; un login
+exitoso limpia el contador por completo. `login_intentos` tiene RLS
+activo sin ninguna política — solo se lee/escribe con la
+`service_role` key desde este Server Action (segundo uso de esa key en
+todo el proyecto, aparte de `usuarios.ts`, justificado porque este
+chequeo corre *antes* de que exista una sesión). Verificado con una
+prueba desechable contra producción: 5 intentos fallidos seguidos
+bloquean la cuenta incluso si el 6to intento usa la contraseña
+correcta; forzando el vencimiento del bloqueo en la base, el login
+vuelve a funcionar y el contador se limpia; una cuenta distinta nunca
+se ve afectada por los intentos fallidos de otra. Las 12 pruebas
+Playwright existentes (que dependen del login para casi todo) siguen
+pasando sin cambios.
 
 ---
 
@@ -469,9 +492,12 @@ de autenticación real.
   (una política amplia para jefe/soporte + una más angosta con `exists
   (...)` para el resto) en vez de intentar meter toda la regla en una
   sola política — así es más fácil de auditar y menos propenso a errores.
-- **La `service_role` key (que se salta RLS) solo se usa en un lugar**:
-  `lib/actions/usuarios.ts`, siempre detrás de `requireSection("usuarios")`
-  primero — y `lib/supabase/admin.ts` está protegido con el paquete
+- **La `service_role` key (que se salta RLS) solo se usa en 2 lugares,
+  ambos justificados**: `lib/actions/usuarios.ts` (detrás de
+  `requireSection("usuarios")`) y, desde el 2026-08-13,
+  `lib/actions/auth.ts` (el chequeo de bloqueo de login, que por
+  necesidad corre *antes* de que exista una sesión — ver 1.6). En
+  ambos casos `lib/supabase/admin.ts` está protegido con el paquete
   `server-only`, que hace fallar el *build* si algún día alguien la
   importa sin querer desde código que corre en el navegador.
 - **Validación con `zod` en cada Server Action**, sin excepciones —
@@ -578,9 +604,10 @@ proporción:
 | 1.10 | Vista `drones_mantenimientos_preventivos_estado` se saltaba RLS | 🔴 Alto | ✅ Corregido 2026-08-13 |
 | 1.10 | `recalcular_cadena_vuelo_drone` sin chequeo de autorización | 🟠 Medio | ✅ Corregido 2026-08-13 |
 | 1.10 | `informeCampoOffline.ts` sin límite de tamaño de archivo | 🟠 Medio | ✅ Corregido 2026-08-13 |
+| 1.6 | Bloqueo de cuenta tras 5 intentos fallidos de login | 🟡 Bajo | ✅ Corregido 2026-08-13 |
 | Continuidad | Confirmar plan/respaldos de Supabase | 🔴 Alto (negocio) | ⏳ Pendiente — solo revisar el dashboard, no es código |
-| 1.5 / 1.6 | Ajustes de contraseña y rate-limit (Supabase dashboard) | 🟡 Bajo | ⏳ Pendiente — son interruptores, no es código |
+| 1.5 | Leaked password protection (Supabase dashboard) | 🟡 Bajo | ⏳ Pendiente — es un interruptor, no es código |
 
-Lo único que queda de todo este informe son los 3 puntos marcados
+Lo único que queda de todo este informe son los 2 puntos marcados
 ⏳ arriba — ninguno requiere cambios de código, se hacen desde el
 dashboard de Supabase cuando el usuario los revise.
