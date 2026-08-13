@@ -15,7 +15,7 @@ export default async function AsistenciaPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("planilla_asistencia")
-    .select("id, colaborador, fecha, rol_dia, tipo_trabajo, jornada, descripcion")
+    .select("id, colaborador, fecha, rol_dia, tipo_trabajo, jornada, tipo_proyecto, descripcion")
     .order("fecha", { ascending: false });
 
   const asistencia: AsistenciaFila[] = (data ?? []).map((a) => ({
@@ -23,8 +23,9 @@ export default async function AsistenciaPage() {
     colaborador: a.colaborador as string,
     fecha: a.fecha as string,
     rolDia: a.rol_dia as "operador" | "ayudante",
-    tipoTrabajo: a.tipo_trabajo as "proyecto" | "oficina",
+    tipoTrabajo: a.tipo_trabajo as "proyecto" | "oficina" | "sin_trabajo",
     jornada: a.jornada as "completo" | "medio" | "proyecto",
+    tipoProyecto: a.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
     descripcion: a.descripcion as string,
   }));
 

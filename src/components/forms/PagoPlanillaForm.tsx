@@ -31,7 +31,7 @@ export type ColaboradorOpcion = {
 type DetalleDiaEditable = {
   fecha: string;
   rolDia: "operador" | "ayudante";
-  tipoTrabajo: "oficina" | "proyecto";
+  tipoTrabajo: "oficina" | "proyecto" | "sin_trabajo";
   jornada: "completo" | "medio" | null;
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   hectareas: number | null;
@@ -39,6 +39,9 @@ type DetalleDiaEditable = {
   // a distinguir cuando hay más de un informe (más de un proyecto) el
   // mismo día para la misma persona.
   clienteInforme: string | null;
+  // Solo aplica a "sin_trabajo" -- el motivo (lluvia, falla mecánica,
+  // etc.) guardado en Asistencia. Null en Oficina/Proyecto normal.
+  motivo: string | null;
   // El cálculo llega como número, pero se guarda como texto para poder
   // editarlo a mano en el input -- "por cualquier cosa" (pedido del
   // usuario), sin dejar de sumar al total.
@@ -47,13 +50,18 @@ type DetalleDiaEditable = {
 
 // Cada fila del detalle corresponde a UN Informe de Campo (no a un día) --
 // si una persona trabajó en 2 proyectos el mismo día, hay 2 filas. Cubre
-// también los casos sin datos suficientes para calcular (sin Informe de
-// Campo asociado, o un informe todavía sin clasificar Ingenio/Particular).
+// también los casos sin datos suficientes para calcular (un informe
+// todavía sin clasificar Ingenio/Particular) y "sin_trabajo" (día de
+// Proyecto sin Informe porque no se pudo trabajar, ver migración 0081).
 function descripcionDetalle(d: DetalleDiaEditable): string {
   if (d.tipoTrabajo === "oficina") {
     return `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`;
   }
   const jornadaTexto = d.jornada === "medio" ? " (medio día)" : "";
+  if (d.tipoTrabajo === "sin_trabajo") {
+    const tipo = d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular";
+    return `Proyecto — no se pudo trabajar${jornadaTexto} · ${tipo}${d.motivo ? ` — ${d.motivo}` : ""}`;
+  }
   if (d.hectareas === null) {
     return "Proyecto — sin Informe de Campo ese día (monto a definir a mano)";
   }
@@ -401,6 +409,7 @@ export function PagoPlanillaForm({
             tipoProyecto: d.tipoProyecto,
             hectareas: d.hectareas,
             clienteInforme: d.clienteInforme,
+            motivo: d.motivo,
             monto: Number(d.monto) || 0,
           })),
         )}
@@ -493,7 +502,11 @@ export function PagoPlanillaForm({
                       {formatMoney(detalleAsistencia.reduce((s, d) => s + (Number(d.monto) || 0), 0))}
                     </strong>{" "}
                     ({resumenAsistencia.diasOficina} día(s) Oficina, {resumenAsistencia.diasProyecto} día(s)
-                    Proyecto con {resumenAsistencia.hectareasProyecto} hectáreas)
+                    Proyecto con {resumenAsistencia.hectareasProyecto} hectáreas
+                    {resumenAsistencia.diasSinTrabajo > 0
+                      ? `, ${resumenAsistencia.diasSinTrabajo} día(s) de Proyecto sin trabajo`
+                      : ""}
+                    )
                   </>
                 )}
               </p>

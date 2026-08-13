@@ -67,14 +67,18 @@ function prestamoNoDejaPagoNegativo(data: {
   return neto >= -0.005; // tolerancia de redondeo
 }
 
-// La jornada queda ligada al tipo de trabajo (pedido del usuario): Proyecto
-// siempre usa jornada "proyecto" (no se elige día completo/medio día);
-// Oficina siempre usa "completo" o "medio". Se valida también aquí (no solo
+// La jornada queda ligada al tipo de trabajo (pedido del usuario): el
+// histórico "proyecto" siempre usa jornada "proyecto" (placeholder de
+// antes de que existiera el concepto de medio día, no se elige); Oficina
+// y "sin_trabajo" (Proyecto sin Informe, ver migración 0081) sí usan
+// jornada real, "completo" o "medio". Se valida también aquí (no solo
 // ocultando opciones en el formulario) para que un envío manipulado no
 // pueda guardar una combinación inconsistente.
 export function jornadaCoincideConTipoTrabajo(data: { tipoTrabajo?: string; jornada?: string }): boolean {
   if (data.tipoTrabajo === "proyecto") return data.jornada === "proyecto";
-  if (data.tipoTrabajo === "oficina") return data.jornada === "completo" || data.jornada === "medio";
+  if (data.tipoTrabajo === "oficina" || data.tipoTrabajo === "sin_trabajo") {
+    return data.jornada === "completo" || data.jornada === "medio";
+  }
   return true;
 }
 
@@ -107,11 +111,14 @@ export const pagoSchema = pagoBase
 const detalleCalculoItemSchema = z.object({
   fecha: z.string().min(1),
   rolDia: z.enum(["operador", "ayudante"]),
-  tipoTrabajo: z.enum(["oficina", "proyecto"]),
+  tipoTrabajo: z.enum(["oficina", "proyecto", "sin_trabajo"]),
   jornada: z.enum(["completo", "medio"]).nullable(),
   tipoProyecto: z.enum(["ingenio_santa_rosa", "particular"]).nullable(),
   hectareas: z.number().nullable(),
   clienteInforme: z.string().nullable(),
+  // Solo aplica a "sin_trabajo" -- el motivo (lluvia, falla mecánica,
+  // etc.) que se guardó en Asistencia. Null en Oficina/Proyecto normal.
+  motivo: z.string().nullable(),
   monto: z.number(),
 });
 const detalleCalculoArraySchema = z.array(detalleCalculoItemSchema);

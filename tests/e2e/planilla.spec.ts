@@ -63,15 +63,16 @@ test.describe("Planilla — Asistencia + Informe de Campo + Pago", () => {
     const context = await browser.newContext({ storageState: path.join(DIR_AUTH, "jefe.json") });
     const page = await context.newPage();
 
-    // Desde el cambio de 2026-08-10, Asistencia solo registra Oficina --
-    // un día de Proyecto lo confirma el propio Informe de Campo (ver
-    // CP-PLANILLA-02/03). Por eso el formulario de creación ya no ofrece
-    // el <select name="tipoTrabajo"> (queda fijo en "oficina").
+    // Desde el cambio de 2026-08-10, Asistencia solo registra Oficina y
+    // "Proyecto — no se pudo trabajar" (ver migración 0081) -- un día de
+    // Proyecto con trabajo normal lo confirma el propio Informe de Campo
+    // (ver CP-PLANILLA-02/03). El <select name="tipoTrabajo"> arranca en
+    // "oficina" por defecto.
     await page.goto("/planilla/nuevo");
     await page.locator('select[name="colaborador"]').selectOption(COLABORADOR);
     await page.locator('input[name="fecha"]').fill(FECHA_OFICINA);
     await page.locator('select[name="rolDia"]').selectOption("operador");
-    await expect(page.getByText("Oficina", { exact: true })).toBeVisible();
+    await expect(page.locator('select[name="tipoTrabajo"]')).toHaveValue("oficina");
     await page.locator('select[name="jornada"]').selectOption("completo");
     await page.locator('input[name="descripcion"]').fill(`${PREFIJO_QA} — suite de pruebas`);
     await page.getByRole("button", { name: /Guardar/ }).click();

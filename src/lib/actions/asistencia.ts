@@ -39,6 +39,7 @@ export async function crearAsistenciaAction(
     rol_dia: parsed.data.rolDia,
     tipo_trabajo: parsed.data.tipoTrabajo,
     jornada: parsed.data.jornada,
+    tipo_proyecto: parsed.data.tipoTrabajo === "sin_trabajo" ? parsed.data.tipoProyecto : null,
     descripcion: parsed.data.descripcion,
     registrado_por: perfil.id,
   });
@@ -85,6 +86,7 @@ export async function editarAsistenciaAction(
       rol_dia: parsed.data.rolDia,
       tipo_trabajo: parsed.data.tipoTrabajo,
       jornada: parsed.data.jornada,
+      tipo_proyecto: parsed.data.tipoTrabajo === "sin_trabajo" ? parsed.data.tipoProyecto : null,
       descripcion: parsed.data.descripcion,
     })
     .eq("id", parsed.data.id);
@@ -106,17 +108,20 @@ export async function eliminarAsistenciaAction(id: string) {
 // Una fila por cada Informe de Campo que coincide con un día de Asistencia
 // (no una fila por día) -- si una persona trabajó en 2 proyectos el mismo
 // día, aparecen 2 filas separadas, cada una con su propio cálculo. Un día
-// de Oficina siempre es 1 sola fila. Un día de Proyecto sin ningún
-// Informe de Campo asociado aparece con monto 0 para que el jefe lo note
-// y lo complete a mano.
+// de Oficina siempre es 1 sola fila, igual que un día "sin_trabajo" (ver
+// más abajo). Un día de Proyecto sin ningún Informe de Campo asociado
+// aparece con monto 0 para que el jefe lo note y lo complete a mano.
 export type DetalleDiaAsistencia = {
   fecha: string;
   rolDia: RolDia;
-  tipoTrabajo: "oficina" | "proyecto";
+  tipoTrabajo: "oficina" | "proyecto" | "sin_trabajo";
   jornada: Jornada | null;
   tipoProyecto: TipoProyecto | null;
   hectareas: number | null;
   clienteInforme: string | null;
+  // Solo aplica a "sin_trabajo" -- el motivo (lluvia, falla mecánica,
+  // etc.) guardado en Asistencia. Null en Oficina/Proyecto normal.
+  motivo: string | null;
   monto: number;
 };
 
@@ -125,6 +130,10 @@ export type ResumenAsistencia = {
   totalSugerido: number;
   diasOficina: number;
   diasProyecto: number;
+  // Días de Proyecto sin Informe (no se pudo trabajar) -- aparte de
+  // diasProyecto (que solo cuenta Informes de Campo reales), para que el
+  // resumen distinga claramente cuánto de lo sugerido viene de cada uno.
+  diasSinTrabajo: number;
   hectareasProyecto: number;
   detalle: DetalleDiaAsistencia[];
 };
@@ -143,15 +152,19 @@ type InformeCampoFila = {
 // tarifas de lib/calculoIncentivos.ts -- el resultado PRE-LLENA el campo
 // de monto, pero sigue siendo editable a mano (nunca se guarda solo).
 //
-// Desde 2026-08-10: Asistencia solo registra Oficina -- el Informe de
-// Campo es la única fuente para Proyecto (Ingenio Santa Rosa/Particular),
-// ya no hace falta cruzar con una fila de planilla_asistencia tipo
-// "proyecto" (que ya no se puede crear desde el formulario, ver
-// AsistenciaForm.tsx). Cada Informe de Campo tiene su propia contabilidad
-// de hectáreas -- si una persona aparece en más de un informe el mismo
-// día, NUNCA se suman las hectáreas entre esos informes, cada uno se
-// calcula por separado con su propio tipo de proyecto, jornada y
-// hectáreas, y los montos resultantes se suman al final.
+// Desde 2026-08-10: Asistencia solo registra Oficina y "sin_trabajo" -- el
+// Informe de Campo es la única fuente para un día de Proyecto con trabajo
+// normal (Ingenio Santa Rosa/Particular). "sin_trabajo" (2026-08-13) es la
+// excepción: un día en que el equipo fue a trabajar pero no se pudo regar
+// (lluvia, falla mecánica, etc.), así que no existe ningún Informe de
+// Campo de ese día -- se calcula igual que un Informe con 0 hectáreas
+// (calcularPagoProyecto ya paga el salario base sin excedente), pero sale
+// de planilla_asistencia en vez de informes_campo. Cada Informe de Campo
+// tiene su propia contabilidad de hectáreas -- si una persona aparece en
+// más de un informe el mismo día, NUNCA se suman las hectáreas entre esos
+// informes, cada uno se calcula por separado con su propio tipo de
+// proyecto, jornada y hectáreas, y los montos resultantes se suman al
+// final.
 export async function obtenerResumenAsistenciaAction(
   colaborador: string,
   fechaDesde: string,
@@ -160,11 +173,11 @@ export async function obtenerResumenAsistenciaAction(
   await requirePerfil();
   const supabase = await createClient();
 
-  const { data: diasOficina, error } = await supabase
+  const { data: diasAsistencia, error } = await supabase
     .from("planilla_asistencia")
-    .select("fecha, rol_dia, jornada")
+    .select("fecha, rol_dia, tipo_trabajo, jornada, tipo_proyecto, descripcion")
     .eq("colaborador", colaborador)
-    .eq("tipo_trabajo", "oficina")
+    .in("tipo_trabajo", ["oficina", "sin_trabajo"])
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
 
@@ -192,11 +205,35 @@ export async function obtenerResumenAsistenciaAction(
 
   let totalSugerido = 0;
   let diasOficinaCount = 0;
+  let diasSinTrabajoCount = 0;
   let diasProyecto = 0;
   let hectareasProyecto = 0;
   const detalle: DetalleDiaAsistencia[] = [];
 
-  for (const dia of diasOficina ?? []) {
+  for (const dia of diasAsistencia ?? []) {
+    if (dia.tipo_trabajo === "sin_trabajo") {
+      diasSinTrabajoCount += 1;
+      const monto = calcularPagoProyecto(
+        dia.rol_dia as RolDia,
+        dia.tipo_proyecto as TipoProyecto,
+        0,
+        dia.jornada as Jornada,
+      );
+      totalSugerido += monto;
+      detalle.push({
+        fecha: dia.fecha,
+        rolDia: dia.rol_dia as RolDia,
+        tipoTrabajo: "sin_trabajo",
+        jornada: dia.jornada as Jornada,
+        tipoProyecto: dia.tipo_proyecto as TipoProyecto,
+        hectareas: null,
+        clienteInforme: null,
+        motivo: dia.descripcion as string,
+        monto,
+      });
+      continue;
+    }
+
     diasOficinaCount += 1;
     const monto = calcularPagoOficina(dia.rol_dia as RolDia, dia.jornada as Jornada);
     totalSugerido += monto;
@@ -208,6 +245,7 @@ export async function obtenerResumenAsistenciaAction(
       tipoProyecto: null,
       hectareas: null,
       clienteInforme: null,
+      motivo: null,
       monto,
     });
   }
@@ -238,6 +276,7 @@ export async function obtenerResumenAsistenciaAction(
         tipoProyecto: null,
         hectareas: hectareasInforme,
         clienteInforme: informe.cliente,
+        motivo: null,
         monto: 0,
       });
       continue;
@@ -253,6 +292,7 @@ export async function obtenerResumenAsistenciaAction(
       tipoProyecto: informe.tipo_proyecto,
       hectareas: hectareasInforme,
       clienteInforme: informe.cliente,
+      motivo: null,
       monto,
     });
   }
@@ -260,10 +300,11 @@ export async function obtenerResumenAsistenciaAction(
   detalle.sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   return {
-    totalDias: diasOficinaCount + informesConRol.length,
+    totalDias: diasOficinaCount + diasSinTrabajoCount + informesConRol.length,
     totalSugerido: Math.round(totalSugerido * 100) / 100,
     diasOficina: diasOficinaCount,
     diasProyecto,
+    diasSinTrabajo: diasSinTrabajoCount,
     hectareasProyecto,
     detalle,
   };

@@ -11,8 +11,9 @@ export type AsistenciaFila = {
   colaborador: string;
   fecha: string;
   rolDia: "operador" | "ayudante";
-  tipoTrabajo: "proyecto" | "oficina";
+  tipoTrabajo: "proyecto" | "oficina" | "sin_trabajo";
   jornada: "completo" | "medio" | "proyecto";
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   descripcion: string;
 };
 
@@ -20,22 +21,32 @@ const ETIQUETA_ROL: Record<"operador" | "ayudante", string> = {
   operador: "Operador",
   ayudante: "Ayudante",
 };
-const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "oficina", string> = {
+const ETIQUETA_TIPO_TRABAJO: Record<"proyecto" | "oficina" | "sin_trabajo", string> = {
   proyecto: "Proyecto",
   oficina: "Oficina",
+  sin_trabajo: "Proyecto (sin trabajo)",
 };
 const ETIQUETA_JORNADA: Record<"completo" | "medio" | "proyecto", string> = {
   completo: "Día completo",
   medio: "Medio día",
   proyecto: "Proyecto",
 };
+const ETIQUETA_TIPO_PROYECTO: Record<"ingenio_santa_rosa" | "particular", string> = {
+  ingenio_santa_rosa: "Ingenio Santa Rosa",
+  particular: "Trabajo Particular",
+};
 
 function detalleAsistencia(a: AsistenciaFila): string {
-  // Para Proyecto, la jornada siempre vale "proyecto" -- mostrarla junto al
-  // tipo de trabajo sería redundante ("Proyecto · Proyecto"). El Rol vive en
-  // su propia columna/línea, no se repite aquí. El tipo de proyecto
-  // (Ingenio Santa Rosa/Particular) ya no vive en Asistencia, se marca en
-  // cada Informe de Campo.
+  // Para el histórico "proyecto", la jornada siempre vale "proyecto" --
+  // mostrarla junto al tipo de trabajo sería redundante ("Proyecto ·
+  // Proyecto"). El Rol vive en su propia columna/línea, no se repite
+  // aquí. El tipo de proyecto (Ingenio Santa Rosa/Particular) de un día
+  // de Proyecto con trabajo normal no vive en Asistencia, se marca en
+  // cada Informe de Campo -- "sin_trabajo" sí lo trae, se muestra aparte.
+  if (a.tipoTrabajo === "sin_trabajo") {
+    const tipo = a.tipoProyecto ? ETIQUETA_TIPO_PROYECTO[a.tipoProyecto] : "sin clasificar";
+    return `${ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo]} — ${tipo} · ${ETIQUETA_JORNADA[a.jornada]}`;
+  }
   if (a.jornada === "proyecto") return ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo];
   return `${ETIQUETA_TIPO_TRABAJO[a.tipoTrabajo]} · ${ETIQUETA_JORNADA[a.jornada]}`;
 }
@@ -167,6 +178,7 @@ export function AsistenciaTabla({
               <option value="">Todos</option>
               <option value="proyecto">Proyecto</option>
               <option value="oficina">Oficina</option>
+              <option value="sin_trabajo">Proyecto (sin trabajo)</option>
             </select>
           </label>
           <label className={etiquetaFiltroMovil}>
@@ -265,6 +277,7 @@ export function AsistenciaTabla({
                     <option value="">Todos</option>
                     <option value="proyecto">Proyecto</option>
                     <option value="oficina">Oficina</option>
+                    <option value="sin_trabajo">Proyecto (sin trabajo)</option>
                   </select>
                 </th>
                 <th className="px-3 py-2">

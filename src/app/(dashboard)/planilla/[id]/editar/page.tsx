@@ -15,7 +15,7 @@ export default async function EditarAsistenciaPage({
   const [{ data: asistencia }, { data: colaboradoresData }] = await Promise.all([
     supabase
       .from("planilla_asistencia")
-      .select("id, colaborador, fecha, rol_dia, tipo_trabajo, jornada, descripcion")
+      .select("id, colaborador, fecha, rol_dia, tipo_trabajo, jornada, tipo_proyecto, descripcion")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
@@ -45,8 +45,9 @@ export default async function EditarAsistenciaPage({
           colaborador: asistencia.colaborador,
           fecha: asistencia.fecha,
           rolDia: asistencia.rol_dia as "operador" | "ayudante",
-          tipoTrabajo: asistencia.tipo_trabajo as "proyecto" | "oficina",
+          tipoTrabajo: asistencia.tipo_trabajo as "proyecto" | "oficina" | "sin_trabajo",
           jornada: asistencia.jornada as "completo" | "medio" | "proyecto",
+          tipoProyecto: asistencia.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
           descripcion: asistencia.descripcion,
         }}
       />

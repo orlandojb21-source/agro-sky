@@ -766,17 +766,25 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
 export type DetalleTalonarioCampo = {
   fecha: string;
   rolDia: "operador" | "ayudante";
-  tipoTrabajo: "oficina" | "proyecto";
+  tipoTrabajo: "oficina" | "proyecto" | "sin_trabajo";
   jornada: "completo" | "medio" | null;
   tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   hectareas: number | null;
   clienteInforme: string | null;
+  // Solo aplica a "sin_trabajo" -- el motivo (lluvia, falla mecánica,
+  // etc.) guardado en Asistencia. Null en Oficina/Proyecto normal.
+  motivo: string | null;
   monto: number;
 };
 
 function descripcionDetalleCampo(d: DetalleTalonarioCampo): string {
   if (d.tipoTrabajo === "oficina") {
     return `Oficina — ${d.jornada === "completo" ? "Día completo" : "Medio día"}`;
+  }
+  if (d.tipoTrabajo === "sin_trabajo") {
+    const tipo = d.tipoProyecto === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular";
+    const jornadaTexto = d.jornada === "medio" ? " (medio día)" : "";
+    return `Proyecto — no se pudo trabajar${jornadaTexto} · ${tipo}${d.motivo ? ` — ${d.motivo}` : ""}`;
   }
   if (d.hectareas === null) {
     return "Proyecto — sin Informe de Campo ese día";

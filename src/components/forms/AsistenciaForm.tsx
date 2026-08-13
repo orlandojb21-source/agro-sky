@@ -13,8 +13,9 @@ type ValoresAsistencia = {
   colaborador: string;
   fecha: string;
   rolDia: "operador" | "ayudante";
-  tipoTrabajo: "proyecto" | "oficina";
+  tipoTrabajo: "proyecto" | "oficina" | "sin_trabajo";
   jornada: "completo" | "medio" | "proyecto";
+  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   descripcion: string;
 };
 
@@ -39,27 +40,34 @@ export function AsistenciaForm({
   const v = state.values;
 
   const colaboradorInicial = v?.colaborador ?? valoresIniciales?.colaborador ?? colaboradores[0]?.nombre ?? "";
-  // Asistencia solo registra Oficina de ahora en adelante -- Proyecto
-  // (Ingenio Santa Rosa/Particular) lo confirma el propio Informe de
-  // Campo (pedido del usuario, 2026-08-10). Un registro histórico que ya
-  // era "proyecto" se sigue pudiendo editar tal cual (no se pierde ni se
-  // fuerza a migrar), pero ya no se puede crear uno nuevo así.
+  // Un registro histórico de tipo "proyecto" (de antes de que el Informe de
+  // Campo pasara a ser la fuente de un día de Proyecto con trabajo normal,
+  // ver migración 0044 en adelante) se sigue pudiendo editar tal cual --
+  // no se pierde ni se fuerza a migrar -- pero ya no se puede CREAR uno
+  // nuevo así. Distinto de "sin_trabajo" (día de Proyecto sin Informe
+  // porque no se pudo trabajar, ej. lluvia -- ver migración 0081), que sí
+  // se puede crear y editar libremente.
   const esProyectoHistorico = esEdicion && valoresIniciales?.tipoTrabajo === "proyecto";
   const tipoTrabajoInicial = esProyectoHistorico
     ? (v?.tipoTrabajo ?? valoresIniciales?.tipoTrabajo ?? "proyecto")
-    : "oficina";
+    : (v?.tipoTrabajo ?? valoresIniciales?.tipoTrabajo ?? "oficina");
   const jornadaInicial = v?.jornada ?? valoresIniciales?.jornada ?? "completo";
-  // Si la jornada guardada es "proyecto" pero el tipo de trabajo cambia a
-  // Oficina, la jornada de Oficina que se sugiere no debe arrancar en
-  // "proyecto" (esa jornada no aplica a Oficina).
-  const jornadaOficinaInicial = jornadaInicial === "proyecto" ? "completo" : jornadaInicial;
+  // Si la jornada guardada es "proyecto" (placeholder histórico) pero el
+  // tipo de trabajo cambia a Oficina o a "sin_trabajo", la jornada
+  // sugerida no debe arrancar en "proyecto" -- ese valor no aplica a
+  // ninguno de los dos.
+  const jornadaRealInicial = jornadaInicial === "proyecto" ? "completo" : jornadaInicial;
 
   const [tipoTrabajoSeleccionado, setTipoTrabajoSeleccionado] = useState(tipoTrabajoInicial);
+  const [tipoProyectoTexto, setTipoProyectoTexto] = useState(
+    v?.tipoProyecto ?? valoresIniciales?.tipoProyecto ?? "",
+  );
 
   if (state !== prevState) {
     setPrevState(state);
     setRemountKey((k) => k + 1);
     setTipoTrabajoSeleccionado(tipoTrabajoInicial);
+    setTipoProyectoTexto(v?.tipoProyecto ?? valoresIniciales?.tipoProyecto ?? "");
   }
 
   return (
@@ -106,61 +114,69 @@ export function AsistenciaForm({
         <option value="ayudante">Ayudante</option>
       </SelectField>
 
-      <div className="grid grid-cols-2 gap-4">
-        {esProyectoHistorico ? (
-          <SelectField
-            label="Tipo de trabajo"
-            name="tipoTrabajo"
-            defaultValue={tipoTrabajoInicial}
-            onChange={(e) => setTipoTrabajoSeleccionado(e.target.value)}
-            required
-          >
-            <option value="proyecto">Proyecto</option>
-            <option value="oficina">Oficina</option>
-          </SelectField>
-        ) : (
-          <div className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
-            Tipo de trabajo
-            <input type="hidden" name="tipoTrabajo" value="oficina" />
-            <p className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 text-green-700/80 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300/80">
-              Oficina
-            </p>
-          </div>
-        )}
-        {tipoTrabajoSeleccionado === "proyecto" ? (
-          <div className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
-            Jornada
-            <input type="hidden" name="jornada" value="proyecto" />
-            <p className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 text-green-700/80 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300/80">
-              Proyecto
-            </p>
-          </div>
-        ) : (
-          <SelectField label="Jornada" name="jornada" defaultValue={jornadaOficinaInicial} required>
+      <SelectField
+        label="Tipo de trabajo"
+        name="tipoTrabajo"
+        defaultValue={tipoTrabajoInicial}
+        onChange={(e) => setTipoTrabajoSeleccionado(e.target.value)}
+        required
+      >
+        {esProyectoHistorico && <option value="proyecto">Proyecto (histórico)</option>}
+        <option value="oficina">Oficina</option>
+        <option value="sin_trabajo">Proyecto — no se pudo trabajar</option>
+      </SelectField>
+
+      {tipoTrabajoSeleccionado === "proyecto" ? (
+        <>
+          <input type="hidden" name="jornada" value="proyecto" />
+          <p className="text-xs text-green-700/60 dark:text-green-300/60">
+            Registro histórico de Proyecto -- el tipo de proyecto y las hectáreas de este día vivían en
+            el Informe de Campo de esa fecha, no aquí.
+          </p>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <SelectField label="Jornada" name="jornada" defaultValue={jornadaRealInicial} required>
             <option value="completo">Día completo</option>
             <option value="medio">Medio día</option>
           </SelectField>
-        )}
-      </div>
-      {tipoTrabajoSeleccionado === "proyecto" ? (
-        <p className="text-xs text-green-700/60 dark:text-green-300/60">
-          El tipo de proyecto (Ingenio Santa Rosa / Trabajo Particular) ya no se marca aquí — se marca en cada
-          Informe de Campo, junto con sus hectáreas.
-        </p>
-      ) : (
-        !esProyectoHistorico && (
-          <p className="text-xs text-green-700/60 dark:text-green-300/60">
-            Asistencia solo registra días de Oficina — un día de Proyecto (Ingenio Santa Rosa / Trabajo
-            Particular) lo confirma el propio Informe de Campo, no hace falta registrarlo aquí también.
-          </p>
-        )
+          {tipoTrabajoSeleccionado === "sin_trabajo" && (
+            <SelectField
+              label="Tipo de proyecto"
+              name="tipoProyecto"
+              value={tipoProyectoTexto}
+              onChange={(e) => setTipoProyectoTexto(e.target.value)}
+              required
+            >
+              <option value="">Selecciona...</option>
+              <option value="ingenio_santa_rosa">Ingenio Santa Rosa</option>
+              <option value="particular">Trabajo Particular</option>
+            </SelectField>
+          )}
+        </div>
       )}
 
+      {tipoTrabajoSeleccionado === "sin_trabajo" ? (
+        <p className="text-xs text-green-700/60 dark:text-green-300/60">
+          Usa esta opción solo cuando el equipo fue a trabajar pero no se pudo regar (lluvia, falla
+          mecánica, etc.) -- igual cuenta el salario base del día en el pago sugerido. Para un día de
+          Proyecto en el que sí se pudo trabajar, no registres nada aquí, lo confirma el propio Informe
+          de Campo.
+        </p>
+      ) : tipoTrabajoSeleccionado === "oficina" ? (
+        <p className="text-xs text-green-700/60 dark:text-green-300/60">
+          Un día de Proyecto con trabajo normal lo confirma el propio Informe de Campo, no hace falta
+          registrarlo aquí también.
+        </p>
+      ) : null}
+
       <Field
-        label="Descripción"
+        label={tipoTrabajoSeleccionado === "sin_trabajo" ? "Motivo" : "Descripción"}
         name="descripcion"
         defaultValue={v?.descripcion ?? valoresIniciales?.descripcion ?? undefined}
-        placeholder="Ej: Riego finca La Loma..."
+        placeholder={
+          tipoTrabajoSeleccionado === "sin_trabajo" ? "Ej: Lluvia todo el día" : "Ej: Riego finca La Loma..."
+        }
         required
       />
 
