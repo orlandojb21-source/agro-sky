@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
-import { esSoporteOJefe } from "@/lib/roles";
+import { puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { registrarVueloDroneSchema, editarRegistroVueloSchema } from "@/lib/validation/dronesVuelos";
 import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA } from "@/lib/fechaRestriccion";
@@ -50,10 +50,11 @@ export async function registrarVueloDroneAction(
   redirect("/bitacora/vuelos");
 }
 
-// Editar/eliminar registros de vuelo queda restringido a Soporte IT y
-// Gerente General (jefe) -- pedido explícito del usuario 2026-08-11, más
-// angosto que la escritura general de Bitácora (que también tienen
-// Administrador y Campo). Mismo patrón que la excepción de Campo en
+// Editar/eliminar registros de vuelo queda restringido a Administrador,
+// Gerente General (jefe) y Soporte IT -- pedido explícito del usuario
+// 2026-08-11, ampliado a Administrador el 2026-08-13 -- más angosto que
+// la escritura general de Bitácora (que también tiene Campo, que solo
+// puede CREAR registros). Mismo patrón que la excepción de Campo en
 // Informe de Campo (informesCampo.ts): la restricción vive en el Server
 // Action, no en el RPC (que solo exige auth_tiene_perfil()).
 export async function editarRegistroVueloAction(
@@ -61,7 +62,7 @@ export async function editarRegistroVueloAction(
   formData: FormData,
 ): Promise<ActionState> {
   const perfil = await requireWrite("bitacora");
-  if (!esSoporteOJefe(perfil.rol)) redirect("/unauthorized");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = editarRegistroVueloSchema.safeParse(raw);
@@ -88,7 +89,7 @@ export async function editarRegistroVueloAction(
 
 export async function eliminarRegistroVueloAction(id: string) {
   const perfil = await requireWrite("bitacora");
-  if (!esSoporteOJefe(perfil.rol)) redirect("/unauthorized");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("eliminar_registro_vuelo_drone", { p_registro_id: id });

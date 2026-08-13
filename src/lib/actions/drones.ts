@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
-import { puedeReasignarOperadorDrone } from "@/lib/roles";
+import { puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { droneSchema, droneEditSchema, reasignarOperadorDroneSchema } from "@/lib/validation/drones";
 import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA } from "@/lib/fechaRestriccion";
@@ -11,6 +11,7 @@ import type { ActionState } from "./types";
 
 export async function crearDroneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const perfil = await requireWrite("bitacora");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = droneSchema.safeParse(raw);
@@ -46,7 +47,7 @@ export async function crearDroneAction(_prev: ActionState, formData: FormData): 
   // igual un operadorInicial (no debería, el campo está oculto en el
   // formulario para esos roles), se ignora en silencio en vez de bloquear
   // la creación del drone por eso.
-  if (parsed.data.operadorInicial && puedeReasignarOperadorDrone(perfil.rol)) {
+  if (parsed.data.operadorInicial && puedeGestionarDrones(perfil.rol)) {
     await supabase.rpc("reasignar_operador_drone", {
       p_drone_id: drone.id,
       p_operador: parsed.data.operadorInicial,
@@ -59,7 +60,8 @@ export async function crearDroneAction(_prev: ActionState, formData: FormData): 
 }
 
 export async function editarDroneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = droneEditSchema.safeParse(raw);
@@ -90,7 +92,8 @@ export async function editarDroneAction(_prev: ActionState, formData: FormData):
 }
 
 export async function eliminarDroneAction(id: string) {
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
   const supabase = await createClient();
   const { error } = await supabase.from("drones").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el drone.");
@@ -107,7 +110,7 @@ export async function reasignarOperadorDroneAction(
   formData: FormData,
 ): Promise<ActionState> {
   const perfil = await requireWrite("bitacora");
-  if (!puedeReasignarOperadorDrone(perfil.rol)) redirect("/unauthorized");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = reasignarOperadorDroneSchema.safeParse(raw);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
-import { canWrite, esSoporteOJefe } from "@/lib/roles";
+import { canWrite, puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
@@ -34,10 +34,10 @@ export default async function RegistroVueloPage({
   const { drone: droneIdFiltro } = await searchParams;
   const perfil = await requireSection("bitacora");
   const puedeEscribir = canWrite(perfil.rol, "bitacora");
-  // Editar/eliminar registros de vuelo queda restringido a Soporte IT y
-  // Gerente General -- más angosto que la escritura general de Bitácora
-  // (pedido explícito del usuario, 2026-08-11).
-  const puedeEditarEliminar = esSoporteOJefe(perfil.rol);
+  // Editar/eliminar registros de vuelo queda restringido a Administrador,
+  // Gerente General y Soporte IT -- más angosto que la escritura general
+  // de Bitácora (que también tiene Campo, pero solo para crear).
+  const puedeEditarEliminar = puedeGestionarDrones(perfil.rol);
 
   const supabase = await createClient();
   let consulta = supabase

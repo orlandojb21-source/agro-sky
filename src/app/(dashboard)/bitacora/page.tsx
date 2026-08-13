@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
-import { canWrite } from "@/lib/roles";
+import { puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
@@ -22,7 +22,11 @@ type DroneFila = {
 
 export default async function BitacoraPage() {
   const perfil = await requireSection("bitacora");
-  const puedeEscribir = canWrite(perfil.rol, "bitacora");
+  // Agregar un drone nuevo (el activo en sí, no los registros que se
+  // cargan contra él) queda restringido a Administrador/Gerente
+  // General/Soporte IT -- Campo tiene escritura en Bitácora pero solo
+  // para crear Registros de Vuelo y Mantenimientos.
+  const puedeAgregarDrone = puedeGestionarDrones(perfil.rol);
 
   const supabase = await createClient();
   const [{ data: dronesData }, { data: asignacionesData }] = await Promise.all([
@@ -72,7 +76,7 @@ export default async function BitacoraPage() {
       <PageHeader
         title="Bitácora"
         description="Registro de los drones de la flota."
-        action={puedeEscribir ? <LinkButton href="/bitacora/nuevo">+ Nuevo drone</LinkButton> : undefined}
+        action={puedeAgregarDrone ? <LinkButton href="/bitacora/nuevo">+ Nuevo drone</LinkButton> : undefined}
       />
       <DataTable rows={drones} columns={columns} emptyMessage="Todavía no hay drones registrados." />
     </div>

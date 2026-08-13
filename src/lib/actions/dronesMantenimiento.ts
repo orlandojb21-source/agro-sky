@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
+import { puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import {
   mantenimientoPreventivoSchema,
@@ -61,8 +62,13 @@ export async function crearMantenimientoPreventivoAction(
   redirect("/bitacora/mantenimiento");
 }
 
+// Eliminar un mantenimiento (preventivo o correctivo) queda restringido a
+// Administrador, Gerente General y Soporte IT -- Campo puede CREAR
+// mantenimientos pero no borrar lo ya cargado (pedido explícito del
+// usuario, 2026-08-13, mismo criterio que Registro de Vuelo).
 export async function eliminarMantenimientoPreventivoAction(id: string) {
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
   const supabase = await createClient();
   const { error } = await supabase.from("drones_mantenimientos_preventivos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el mantenimiento.");
@@ -127,7 +133,8 @@ export async function crearMantenimientoCorrectivoAction(
 }
 
 export async function eliminarMantenimientoCorrectivoAction(id: string) {
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
   const supabase = await createClient();
 
   // Traer las imágenes ANTES de borrar -- eliminar_mantenimiento_correctivo

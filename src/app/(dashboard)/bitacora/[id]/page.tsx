@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
-import { canWrite, puedeReasignarOperadorDrone } from "@/lib/roles";
+import { canWrite, puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { DeleteButton } from "@/components/ui/DeleteButton";
@@ -15,7 +15,12 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
   const { id } = await params;
   const perfil = await requireSection("bitacora");
   const puedeEscribir = canWrite(perfil.rol, "bitacora");
-  const puedeReasignar = puedeReasignarOperadorDrone(perfil.rol);
+  // Gestionar el drone en sí (editar sus datos, eliminarlo, reasignar
+  // operador) queda restringido a Administrador/Gerente General/Soporte
+  // IT -- Campo solo puede crear Registros de Vuelo y Mantenimientos
+  // (los links de "+Preventivo"/"+Correctivo" abajo siguen en
+  // puedeEscribir).
+  const puedeGestionar = puedeGestionarDrones(perfil.rol);
 
   const supabase = await createClient();
   const [{ data: drone }, { data: asignacionesData }, { data: colaboradoresData }] = await Promise.all([
@@ -47,7 +52,7 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
           <p className="mt-1 text-sm text-green-700/70 dark:text-green-200/70">{drone.modelo as string}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {puedeEscribir && (
+          {puedeGestionar && (
             <LinkButton href={`/bitacora/${id}/editar`} variant="secondary">
               Editar
             </LinkButton>
@@ -168,7 +173,7 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      {puedeReasignar && (
+      {puedeGestionar && (
         <div className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
             Reasignar operador
@@ -221,7 +226,7 @@ export default async function DetalleDronePage({ params }: { params: Promise<{ i
         )}
       </div>
 
-      {puedeEscribir && (
+      {puedeGestionar && (
         <div>
           <DeleteButton
             action={eliminarDroneAction.bind(null, id)}

@@ -1,13 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
-import { esSoporteOJefe } from "@/lib/roles";
+import { puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { EditarRegistroVueloForm } from "@/components/forms/EditarRegistroVueloForm";
 
 export default async function EditarRegistroVueloPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const perfil = await requireWrite("bitacora");
-  if (!esSoporteOJefe(perfil.rol)) redirect("/unauthorized");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
 
   const supabase = await createClient();
   const [{ data: registro }, { data: colaboradoresData }] = await Promise.all([

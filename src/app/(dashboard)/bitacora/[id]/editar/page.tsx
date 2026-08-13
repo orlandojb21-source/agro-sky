@@ -1,12 +1,14 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
+import { puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { DroneForm } from "@/components/forms/DroneForm";
 import type { EstadoDrone } from "@/lib/validation/drones";
 
 export default async function EditarDronePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireWrite("bitacora");
+  const perfil = await requireWrite("bitacora");
+  if (!puedeGestionarDrones(perfil.rol)) redirect("/unauthorized");
 
   const supabase = await createClient();
   const [{ data: drone }, { data: colaboradoresData }] = await Promise.all([

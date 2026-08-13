@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSection } from "@/lib/session";
-import { canWrite } from "@/lib/roles";
+import { canWrite, puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
@@ -50,6 +50,10 @@ function descripcionIntervalo(f: EstadoPreventivoFila): string {
 export default async function MantenimientoPage() {
   const perfil = await requireSection("bitacora");
   const puedeEscribir = canWrite(perfil.rol, "bitacora");
+  // Eliminar un mantenimiento ya cargado queda restringido a
+  // Administrador/Gerente General/Soporte IT -- Campo puede crear
+  // (botones "+ Mantenimiento..." abajo, en puedeEscribir) pero no borrar.
+  const puedeEliminar = puedeGestionarDrones(perfil.rol);
 
   const supabase = await createClient();
   // PostgREST no soporta anidar 2 relaciones "uno a muchos" hermanas
@@ -147,7 +151,7 @@ export default async function MantenimientoPage() {
           </span>
         ),
     },
-    ...(puedeEscribir
+    ...(puedeEliminar
       ? [
           {
             header: "",
@@ -185,7 +189,7 @@ export default async function MantenimientoPage() {
           "—"
         ),
     },
-    ...(puedeEscribir
+    ...(puedeEliminar
       ? [
           {
             header: "",

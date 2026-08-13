@@ -142,10 +142,14 @@ export function esSoporteOJefe(rol: Rol | null | undefined): boolean {
   return rol === "soporte" || rol === "jefe";
 }
 
-// Asignar/reasignar el operador de un drone queda restringido a
-// Administrador + Gerente General + Soporte IT (pedido explícito del
-// usuario, 2026-08-12) -- más angosto que la escritura general de
-// Bitácora, que también tienen Campo.
-export function puedeReasignarOperadorDrone(rol: Rol | null | undefined): boolean {
+// Gestionar el DRON como activo (crear/editar/eliminar drones, asignar o
+// reasignar operador, editar/eliminar un Registro de Vuelo ya creado,
+// eliminar un Mantenimiento) queda restringido a Administrador + Gerente
+// General + Soporte IT (pedido explícito del usuario, 2026-08-12 y
+// ampliado 2026-08-13) -- más angosto que la escritura general de
+// Bitácora, que también tiene Campo. Campo sí puede CREAR Registros de
+// Vuelo y Mantenimientos (preventivo/correctivo) -- solo no puede tocar
+// el drone en sí ni editar/eliminar lo ya cargado.
+export function puedeGestionarDrones(rol: Rol | null | undefined): boolean {
   return rol === "administrador" || esSoporteOJefe(rol);
 }
