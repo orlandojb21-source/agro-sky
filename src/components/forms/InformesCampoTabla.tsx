@@ -19,10 +19,16 @@ export type InformeCampoFila = {
 };
 
 function BadgeEstado({ estado }: { estado: "abierto" | "cerrado" }) {
-  if (estado !== "abierto") return null;
+  if (estado === "abierto") {
+    return (
+      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+        Abierto
+      </span>
+    );
+  }
   return (
-    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-      Abierto
+    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">
+      Cerrado
     </span>
   );
 }
@@ -95,6 +101,7 @@ export function InformesCampoTabla({
                 <th className="px-3 py-2 font-medium">Finca</th>
                 <th className="px-3 py-2 font-medium">Operador</th>
                 <th className="px-3 py-2 font-medium">Hectáreas</th>
+                <th className="px-3 py-2 font-medium">Estado</th>
                 <th className="px-3 py-2"></th>
               </tr>
               <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
@@ -130,7 +137,7 @@ export function InformesCampoTabla({
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {informes.length === 0
@@ -147,15 +154,13 @@ export function InformesCampoTabla({
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {formatDateOnly(i.fecha)}
                     </td>
-                    <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
-                      <div className="flex items-center gap-2">
-                        {i.cliente}
-                        <BadgeEstado estado={i.estado} />
-                      </div>
-                    </td>
+                    <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">{i.cliente}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.finca}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.operador}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.hectareas}</td>
+                    <td className="px-3 py-3">
+                      <BadgeEstado estado={i.estado} />
+                    </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
                         <Link
