@@ -1,51 +1,17 @@
-import Link from "next/link";
 import { requireSection } from "@/lib/session";
 import { canWrite, puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
-import { DataTable, type Column } from "@/components/ui/DataTable";
-import { DeleteButton } from "@/components/ui/DeleteButton";
-import { ImagenAmpliable } from "@/components/ui/ImagenAmpliable";
 import {
-  eliminarMantenimientoPreventivoAction,
-  eliminarMantenimientoCorrectivoAction,
-} from "@/lib/actions/dronesMantenimiento";
-import { formatDateOnly } from "@/lib/format";
+  TablaPreventivo,
+  TablaCorrectivo,
+  type EstadoPreventivoFila,
+  type CorrectivoFila,
+} from "@/components/forms/MantenimientoTablas";
 
 const BUCKET_IMAGENES_CORRECTIVO = "mantenimientos-correctivos-imagenes";
 const DURACION_URL_FIRMADA_SEG = 3600;
-
-type EstadoPreventivoFila = {
-  id: string;
-  droneId: string;
-  droneNombre: string;
-  tipo: string;
-  fecha: string;
-  intervaloHoras: number | null;
-  intervaloHectareas: number | null;
-  intervaloVuelos: number | null;
-  intervaloMeses: number | null;
-  vencido: boolean;
-};
-
-type CorrectivoFila = {
-  id: string;
-  fecha: string;
-  droneNombre: string;
-  motivo: string;
-  piezas: string;
-  imagenUrls: string[];
-};
-
-function descripcionIntervalo(f: EstadoPreventivoFila): string {
-  const partes: string[] = [];
-  if (f.intervaloHoras) partes.push(`cada ${f.intervaloHoras} hrs`);
-  if (f.intervaloHectareas) partes.push(`cada ${f.intervaloHectareas} ha`);
-  if (f.intervaloVuelos) partes.push(`cada ${f.intervaloVuelos} vuelos`);
-  if (f.intervaloMeses) partes.push(`cada ${f.intervaloMeses} meses`);
-  return partes.join(" · ");
-}
 
 export default async function MantenimientoPage() {
   const perfil = await requireSection("bitacora");
@@ -133,77 +99,6 @@ export default async function MantenimientoPage() {
       .filter((url): url is string => Boolean(url)),
   }));
 
-  const columnasPreventivo: Column<EstadoPreventivoFila>[] = [
-    { header: "Drone", render: (f) => <Link href={`/bitacora/${f.droneId}`} className="hover:underline">{f.droneNombre}</Link> },
-    { header: "Tipo", render: (f) => f.tipo },
-    { header: "Último", render: (f) => formatDateOnly(f.fecha) },
-    { header: "Intervalo", render: (f) => descripcionIntervalo(f) },
-    {
-      header: "Estado",
-      render: (f) =>
-        f.vencido ? (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/40 dark:text-red-300">
-            Vencido
-          </span>
-        ) : (
-          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">
-            Al día
-          </span>
-        ),
-    },
-    ...(puedeEliminar
-      ? [
-          {
-            header: "",
-            render: (f: EstadoPreventivoFila) => (
-              <DeleteButton
-                action={eliminarMantenimientoPreventivoAction.bind(null, f.id)}
-                confirmMessage="¿Eliminar este mantenimiento preventivo? Esta acción no se puede deshacer."
-              />
-            ),
-          },
-        ]
-      : []),
-  ];
-
-  const columnasCorrectivo: Column<CorrectivoFila>[] = [
-    { header: "Fecha", render: (c) => formatDateOnly(c.fecha) },
-    { header: "Drone", render: (c) => c.droneNombre },
-    { header: "Motivo", render: (c) => c.motivo },
-    { header: "Piezas cambiadas", render: (c) => c.piezas || "—" },
-    {
-      header: "Imágenes",
-      render: (c) =>
-        c.imagenUrls.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {c.imagenUrls.map((url, i) => (
-              <ImagenAmpliable
-                key={url}
-                src={url}
-                alt={`Pieza cambiada ${i + 1} — ${c.motivo}`}
-                className="h-12 w-12 rounded-md border border-green-200 object-cover dark:border-green-800"
-              />
-            ))}
-          </div>
-        ) : (
-          "—"
-        ),
-    },
-    ...(puedeEliminar
-      ? [
-          {
-            header: "",
-            render: (c: CorrectivoFila) => (
-              <DeleteButton
-                action={eliminarMantenimientoCorrectivoAction.bind(null, c.id)}
-                confirmMessage="¿Eliminar este mantenimiento correctivo? Las piezas cambiadas vuelven a sumarse al stock de Inventario. Esta acción no se puede deshacer."
-              />
-            ),
-          },
-        ]
-      : []),
-  ];
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -240,22 +135,14 @@ export default async function MantenimientoPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
           Preventivo — estado por dron y tipo
         </h2>
-        <DataTable
-          rows={estado}
-          columns={columnasPreventivo}
-          emptyMessage="Todavía no hay mantenimientos preventivos registrados."
-        />
+        <TablaPreventivo estado={estado} puedeEliminar={puedeEliminar} />
       </div>
 
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
           Correctivo — historial
         </h2>
-        <DataTable
-          rows={correctivos}
-          columns={columnasCorrectivo}
-          emptyMessage="Todavía no hay mantenimientos correctivos registrados."
-        />
+        <TablaCorrectivo correctivos={correctivos} puedeEliminar={puedeEliminar} />
       </div>
     </div>
   );

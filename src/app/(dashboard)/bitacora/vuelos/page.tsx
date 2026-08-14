@@ -1,30 +1,9 @@
-import Link from "next/link";
 import { requireSection } from "@/lib/session";
 import { canWrite, puedeGestionarDrones } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
-import { DataTable, type Column } from "@/components/ui/DataTable";
-import { DeleteButton } from "@/components/ui/DeleteButton";
-import { eliminarRegistroVueloAction } from "@/lib/actions/dronesVuelos";
-import { formatDateOnly } from "@/lib/format";
-
-type RegistroFila = {
-  id: string;
-  fecha: string;
-  droneNombre: string;
-  operador: string;
-  areaCubierta: number;
-  areaDelta: number;
-  horasVuelo: number;
-  horasDelta: number;
-  vuelos: number;
-  vuelosDelta: number;
-};
-
-function formatDelta(d: number): string {
-  return d >= 0 ? `+${d}` : String(d);
-}
+import { VuelosTabla, type RegistroFila } from "@/components/forms/VuelosTabla";
 
 export default async function RegistroVueloPage({
   searchParams,
@@ -63,36 +42,6 @@ export default async function RegistroVueloPage({
     vuelosDelta: r.vuelos_delta as number,
   }));
 
-  const columns: Column<RegistroFila>[] = [
-    { header: "Fecha", render: (r) => formatDateOnly(r.fecha) },
-    { header: "Drone", render: (r) => r.droneNombre },
-    { header: "Operador", render: (r) => r.operador },
-    { header: "Área Cubierta", render: (r) => `${r.areaCubierta} ha (${formatDelta(r.areaDelta)})` },
-    { header: "Horas de Vuelo", render: (r) => `${r.horasVuelo} (${formatDelta(r.horasDelta)})` },
-    { header: "Vuelos", render: (r) => `${r.vuelos} (${formatDelta(r.vuelosDelta)})` },
-    ...(puedeEditarEliminar
-      ? [
-          {
-            header: "",
-            render: (r: RegistroFila) => (
-              <div className="flex gap-3">
-                <Link
-                  href={`/bitacora/vuelos/${r.id}/editar`}
-                  className="text-sm text-green-700 hover:underline dark:text-green-300"
-                >
-                  Editar
-                </Link>
-                <DeleteButton
-                  action={eliminarRegistroVueloAction.bind(null, r.id)}
-                  confirmMessage="¿Eliminar este registro de vuelo? Se recalculan las diferencias de los registros posteriores de ese drone. Esta acción no se puede deshacer."
-                />
-              </div>
-            ),
-          },
-        ]
-      : []),
-  ];
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -102,7 +51,7 @@ export default async function RegistroVueloPage({
           puedeEscribir ? <LinkButton href="/bitacora/vuelos/nuevo">+ Registro de Vuelo</LinkButton> : undefined
         }
       />
-      <DataTable rows={registros} columns={columns} emptyMessage="Todavía no hay registros de vuelo." />
+      <VuelosTabla registros={registros} puedeEditarEliminar={puedeEditarEliminar} />
     </div>
   );
 }
