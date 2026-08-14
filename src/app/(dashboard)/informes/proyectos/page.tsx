@@ -14,15 +14,35 @@ type FilaProyecto = {
   clientes: { nombre: string } | null;
 };
 
+type FilaInformeCampo = {
+  proyecto_id: string;
+  informe_campo_parcelas: { hectareas: number }[] | null;
+};
+
 export default async function ProyectosPage() {
   const perfil = await requireSection("informes");
   const puedeEscribir = canWrite(perfil.rol, "informes") && perfil.rol !== "campo";
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("proyectos")
-    .select("id, codigo, nombre, tipo_proyecto, estado, clientes ( nombre )")
-    .order("creado_en", { ascending: false });
+  const [{ data }, { data: informesData }] = await Promise.all([
+    supabase
+      .from("proyectos")
+      .select("id, codigo, nombre, tipo_proyecto, estado, clientes ( nombre )")
+      .order("creado_en", { ascending: false }),
+    // Suma de hectáreas por Proyecto -- se calcula acá (no en la base)
+    // sumando las parcelas de todos los Informes de Campo que apuntan a
+    // cada proyecto_id, mismo patrón ya usado para el total por informe.
+    supabase.from("informes_campo").select("proyecto_id, informe_campo_parcelas ( hectareas )"),
+  ]);
+
+  const hectareasPorProyecto = new Map<string, number>();
+  for (const informe of (informesData ?? []) as unknown as FilaInformeCampo[]) {
+    const subtotal = (informe.informe_campo_parcelas ?? []).reduce((s, p) => s + Number(p.hectareas), 0);
+    hectareasPorProyecto.set(
+      informe.proyecto_id,
+      (hectareasPorProyecto.get(informe.proyecto_id) ?? 0) + subtotal,
+    );
+  }
 
   const proyectos: ProyectoCatalogoFila[] = ((data ?? []) as unknown as FilaProyecto[]).map((p) => ({
     id: p.id,
@@ -31,6 +51,7 @@ export default async function ProyectosPage() {
     clienteNombre: p.clientes?.nombre ?? "—",
     tipoProyecto: p.tipo_proyecto,
     estado: p.estado,
+    hectareas: hectareasPorProyecto.get(p.id) ?? 0,
   }));
 
   return (

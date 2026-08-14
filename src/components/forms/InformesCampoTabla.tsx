@@ -12,6 +12,7 @@ export type InformeCampoFila = {
   fecha: string;
   finca: string;
   operador: string;
+  proyectoCodigo: string | null;
   hectareas: number;
 };
 
@@ -79,6 +80,7 @@ export function InformesCampoTabla({
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
+                <th className="px-3 py-2 font-medium">Proyecto</th>
                 <th className="px-3 py-2 font-medium">Cliente</th>
                 <th className="px-3 py-2 font-medium">Finca</th>
                 <th className="px-3 py-2 font-medium">Operador</th>
@@ -102,6 +104,7 @@ export function InformesCampoTabla({
                     />
                   </div>
                 </th>
+                <th className="px-3 py-2"></th>
                 <th className="px-3 py-2" colSpan={3}>
                   <input
                     type="text"
@@ -112,13 +115,14 @@ export function InformesCampoTabla({
                   />
                 </th>
                 <th className="px-3 py-2"></th>
+                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {informes.length === 0
@@ -134,6 +138,9 @@ export function InformesCampoTabla({
                   >
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {formatDateOnly(i.fecha)}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {i.proyectoCodigo ?? "—"}
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">{i.cliente}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.finca}</td>
@@ -180,6 +187,7 @@ export function InformesCampoTabla({
                 <div>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
                     {formatDateOnly(i.fecha)}
+                    {i.proyectoCodigo && ` · ${i.proyectoCodigo}`}
                   </p>
                   <p className="font-medium text-green-900 dark:text-green-50">{i.cliente}</p>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">{i.finca}</p>

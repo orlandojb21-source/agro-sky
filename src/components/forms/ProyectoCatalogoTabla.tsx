@@ -12,6 +12,9 @@ export type ProyectoCatalogoFila = {
   clienteNombre: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular";
   estado: "abierto" | "cerrado";
+  // Suma de las hectáreas de todas las parcelas de todos los Informes de
+  // Campo ligados a este Proyecto (ver informes/proyectos/page.tsx).
+  hectareas: number;
 };
 
 function etiquetaTipo(tipo: "ingenio_santa_rosa" | "particular") {
@@ -70,13 +73,14 @@ export function ProyectoCatalogoTabla({
                 <th className="px-3 py-2 font-medium">Cliente</th>
                 <th className="px-3 py-2 font-medium">Tipo</th>
                 <th className="px-3 py-2 font-medium">Estado</th>
+                <th className="px-3 py-2 font-medium">Hectáreas</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70">
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70">
                     {proyectos.length === 0 ? "Todavía no hay proyectos registrados." : "Ningún proyecto coincide con la búsqueda."}
                   </td>
                 </tr>
@@ -93,6 +97,7 @@ export function ProyectoCatalogoTabla({
                     <td className="px-3 py-3">
                       <BadgeEstado estado={p.estado} />
                     </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{p.hectareas}</td>
                     <td className="px-3 py-3">
                       {puedeEscribir && (
                         <div className="flex gap-3">
@@ -133,7 +138,7 @@ export function ProyectoCatalogoTabla({
                 <BadgeEstado estado={p.estado} />
               </div>
               <p className="mt-1 text-sm text-green-800/80 dark:text-green-200/80">
-                {p.clienteNombre} · {etiquetaTipo(p.tipoProyecto)}
+                {p.clienteNombre} · {etiquetaTipo(p.tipoProyecto)} · {p.hectareas} ha
               </p>
               {puedeEscribir && (
                 <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
