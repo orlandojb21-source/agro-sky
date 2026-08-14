@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useActionState } from "react";
 import {
   crearInformeProyectoAction,
   editarInformeProyectoAction,
   buscarViaticosCajaMenudaAction,
+  obtenerDatosProyectoAction,
 } from "@/lib/actions/proyectos";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
@@ -15,6 +16,19 @@ import { CATEGORIAS_GASTO_OPERATIVO } from "@/lib/proyectoGastos";
 
 const CLASE_INPUT =
   "w-full rounded-lg border border-green-200 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+
+// Campo de solo lectura: valores que se calculan solos (Cliente, Hectáreas,
+// Total) a partir del Proyecto elegido -- nunca se escriben a mano.
+function CampoLectura({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
+      {label}
+      <p className="rounded-lg border border-green-100 bg-green-50/60 px-3 py-2 text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200">
+        {valor}
+      </p>
+    </div>
+  );
+}
 
 type FilaDraft = { drone: string; hectareas: string; precio: string };
 
@@ -34,9 +48,12 @@ function bloqueGastoVacio(): BloqueGastoDraft {
   };
 }
 
+export type ProyectoOpcion = { id: string; codigo: string; nombre: string; clienteNombre: string };
+
 export type ValoresInforme = {
   id: string;
-  proyecto: string;
+  proyectoId: string;
+  cliente: string;
   ubicacion: string | null;
   hectareas: number | null;
   precio: number | null;
@@ -72,11 +89,13 @@ export function ProyectoInformeForm({
   fechaHoy,
   fechaHastaSugerida,
   colaboradoresCampo = [],
+  proyectos,
   valoresIniciales,
 }: {
   fechaHoy: string;
   fechaHastaSugerida: string;
   colaboradoresCampo?: string[];
+  proyectos: ProyectoOpcion[];
   valoresIniciales?: ValoresInforme;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -87,7 +106,11 @@ export function ProyectoInformeForm({
 
   const v = state.values;
 
-  const [proyecto, setProyecto] = useState(v?.proyecto ?? valoresIniciales?.proyecto ?? "");
+  const [proyectoId, setProyectoId] = useState(v?.proyectoId ?? valoresIniciales?.proyectoId ?? "");
+  const [cliente, setCliente] = useState(valoresIniciales?.cliente ?? "");
+  const [hectareas, setHectareas] = useState<number | null>(valoresIniciales?.hectareas ?? null);
+  const [precio, setPrecio] = useState(String(v?.precio ?? valoresIniciales?.precio ?? ""));
+  const [cargandoProyecto, setCargandoProyecto] = useState(false);
   const [fechaDesde, setFechaDesde] = useState(v?.fechaDesde ?? valoresIniciales?.fechaDesde ?? fechaHoy);
   const [fechaHasta, setFechaHasta] = useState(
     v?.fechaHasta ?? valoresIniciales?.fechaHasta ?? fechaHastaSugerida,
@@ -98,10 +121,44 @@ export function ProyectoInformeForm({
   if (state !== prevState) {
     setPrevState(state);
     setRemountKey((k) => k + 1);
-    setProyecto(state.values?.proyecto ?? "");
+    setProyectoId(state.values?.proyectoId ?? "");
+    setPrecio(String(state.values?.precio ?? ""));
     setFechaDesde(state.values?.fechaDesde ?? fechaHoy);
     setFechaHasta(state.values?.fechaHasta ?? fechaHastaSugerida);
   }
+
+  // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente y las
+  // Hectáreas (suma de parcelas de los Informes de Campo de ese Proyecto) --
+  // el servidor vuelve a calcular estos mismos valores al guardar, esto es
+  // solo la vista previa.
+  useEffect(() => {
+    if (!proyectoId) {
+      setCliente("");
+      setHectareas(null);
+      return;
+    }
+    let cancelado = false;
+    setCargandoProyecto(true);
+    obtenerDatosProyectoAction(proyectoId)
+      .then((datos) => {
+        if (cancelado) return;
+        setCliente(datos.cliente);
+        setHectareas(datos.hectareas);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setCliente("—");
+        setHectareas(null);
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoProyecto(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [proyectoId]);
+
+  const total = (hectareas ?? 0) * (Number(precio) || 0);
 
   const [filas, setFilas] = useState<FilaDraft[]>(() => {
     if (v?.filas) {
@@ -237,17 +294,17 @@ export function ProyectoInformeForm({
   // la página) -- así funciona sin importar si el movimiento de Caja Menuda
   // se registró antes o después de abrir este formulario. Categoría
   // "Viáticos", fecha dentro de la semana, el Concepto CONTENIDO en el
-  // nombre del proyecto (no exacto -- pedido explícito del usuario, ya que
-  // el nombre del proyecto suele traer texto extra, ej. Concepto "Ingenio
-  // Santa Rosa" encaja dentro de un Proyecto "Ingenio Santa Rosa (Semana 8
-  // Granulado)"), y (si se dio) el "Nombre" del movimiento (a quién se le
+  // nombre del Cliente del Proyecto elegido (no exacto -- pedido explícito
+  // del usuario, ya que el Concepto suele traer texto extra, ej. "Ingenio
+  // Santa Rosa" encaja dentro de un Concepto "Ingenio Santa Rosa - comida
+  // cuadrilla"), y (si se dio) el "Nombre" del movimiento (a quién se le
   // entregó el dinero) debe ser alguien del Equipo de Campo. El resultado
   // sigue siendo editable a mano después.
   async function traerDeCajaMenuda(bloqueIndex: number) {
     setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: true }));
     try {
       const equipo = equipoDelBloque(bloqueIndex);
-      const { total, cantidad } = await buscarViaticosCajaMenudaAction(proyecto, fechaDesde, fechaHasta, equipo);
+      const { total, cantidad } = await buscarViaticosCajaMenudaAction(cliente, fechaDesde, fechaHasta, equipo);
       llenarCategoria(bloqueIndex, "viaticos", total);
       setMensajeViaticos((prev) => ({
         ...prev,
@@ -292,15 +349,26 @@ export function ProyectoInformeForm({
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
         <div className="sm:col-span-2">
-          <Field
+          <SelectField
             label="Proyecto"
-            name="proyecto"
-            value={proyecto}
-            onChange={(e) => setProyecto(e.target.value)}
-            placeholder="Ej. Ingenio Santa Rosa (Semana 8 Granulado)"
+            name="proyectoId"
+            value={proyectoId}
+            onChange={(e) => setProyectoId(e.target.value)}
             required
-          />
+          >
+            <option value="">Selecciona...</option>
+            {proyectos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.codigo} — {p.nombre} ({p.clienteNombre})
+              </option>
+            ))}
+          </SelectField>
         </div>
+        <CampoLectura label="Cliente" valor={cargandoProyecto ? "Cargando..." : cliente || "—"} />
+        <CampoLectura
+          label="Hectáreas"
+          valor={cargandoProyecto ? "Cargando..." : hectareas !== null ? String(hectareas) : "—"}
+        />
         <div className="sm:col-span-2">
           <Field
             label="Ubicación"
@@ -310,29 +378,15 @@ export function ProyectoInformeForm({
           />
         </div>
         <Field
-          label="Hectáreas"
-          name="hectareas"
-          type="number"
-          step="0.01"
-          min="0"
-          defaultValue={v?.hectareas ?? valoresIniciales?.hectareas ?? undefined}
-        />
-        <Field
           label="Precio"
           name="precio"
           type="number"
           step="0.01"
           min="0"
-          defaultValue={v?.precio ?? valoresIniciales?.precio ?? undefined}
+          value={precio}
+          onChange={(e) => setPrecio(e.target.value)}
         />
-        <Field
-          label="Total"
-          name="total"
-          type="number"
-          step="0.01"
-          min="0"
-          defaultValue={v?.total ?? valoresIniciales?.total ?? undefined}
-        />
+        <CampoLectura label="Total" valor={formatMoney(total)} />
         <div className="grid grid-cols-2 gap-3 sm:col-span-2">
           <Field
             label="Fecha desde"
@@ -564,7 +618,7 @@ export function ProyectoInformeForm({
                             <button
                               type="button"
                               onClick={() => traerDeCajaMenuda(bi)}
-                              disabled={buscandoViaticos[bi] || !proyecto.trim()}
+                              disabled={buscandoViaticos[bi] || !cliente.trim()}
                               className="whitespace-nowrap text-sm text-green-700 hover:underline disabled:opacity-40 dark:text-green-300"
                             >
                               {buscandoViaticos[bi] ? "Buscando..." : "Traer de Caja Menuda"}

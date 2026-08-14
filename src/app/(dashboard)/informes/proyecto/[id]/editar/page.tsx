@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
+import { ProyectoInformeForm, type ProyectoOpcion } from "@/components/forms/ProyectoInformeForm";
 
 type ItemGastoFila = { categoria: string; cantidad: number; precio: number };
 type BloqueGastoFila = {
@@ -9,6 +9,12 @@ type BloqueGastoFila = {
   operador: string | null;
   ayudantes: string[] | null;
   proyecto_gastos_operativos_items: ItemGastoFila[] | null;
+};
+type FilaProyecto = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  clientes: { nombre: string } | null;
 };
 
 export default async function EditarInformeProyectoPage({
@@ -20,11 +26,11 @@ export default async function EditarInformeProyectoPage({
   await requireWrite("informes");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: colaboradoresData }] =
+  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: colaboradoresData }, { data: proyectosData }] =
     await Promise.all([
       supabase
         .from("proyecto_informes")
-        .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
+        .select("id, proyecto_id, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
         .eq("id", id)
         .maybeSingle(),
       supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
@@ -34,11 +40,19 @@ export default async function EditarInformeProyectoPage({
         .eq("informe_id", id)
         .order("id"),
       supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
+      supabase.from("proyectos").select("id, codigo, nombre, clientes ( nombre )").order("codigo"),
     ]);
 
   if (!informe) notFound();
 
   const colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
+  const proyectos: ProyectoOpcion[] = ((proyectosData ?? []) as unknown as FilaProyecto[]).map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    clienteNombre: p.clientes?.nombre ?? "—",
+  }));
+  const proyectoActual = proyectos.find((p) => p.id === informe.proyecto_id);
 
   return (
     <div>
@@ -49,9 +63,11 @@ export default async function EditarInformeProyectoPage({
         fechaHoy={informe.fecha_desde as string}
         fechaHastaSugerida={informe.fecha_hasta as string}
         colaboradoresCampo={colaboradoresCampo}
+        proyectos={proyectos}
         valoresIniciales={{
           id: informe.id as string,
-          proyecto: informe.proyecto as string,
+          proyectoId: informe.proyecto_id as string,
+          cliente: proyectoActual?.clienteNombre ?? "—",
           ubicacion: informe.ubicacion as string | null,
           hectareas: informe.hectareas === null ? null : Number(informe.hectareas),
           precio: informe.precio === null ? null : Number(informe.precio),

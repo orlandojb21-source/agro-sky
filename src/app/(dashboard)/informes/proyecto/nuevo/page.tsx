@@ -1,6 +1,13 @@
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { ProyectoInformeForm } from "@/components/forms/ProyectoInformeForm";
+import { ProyectoInformeForm, type ProyectoOpcion } from "@/components/forms/ProyectoInformeForm";
+
+type FilaProyecto = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  clientes: { nombre: string } | null;
+};
 
 export default async function NuevoInformeProyectoPage() {
   await requireWrite("informes");
@@ -11,13 +18,18 @@ export default async function NuevoInformeProyectoPage() {
   const fechaHastaSugerida = hasta.toISOString().slice(0, 10);
 
   const supabase = await createClient();
-  const { data: colaboradoresData } = await supabase
-    .from("colaboradores")
-    .select("nombre")
-    .eq("tipo", "campo")
-    .order("nombre");
+  const [{ data: colaboradoresData }, { data: proyectosData }] = await Promise.all([
+    supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
+    supabase.from("proyectos").select("id, codigo, nombre, clientes ( nombre )").order("codigo"),
+  ]);
 
   const colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
+  const proyectos: ProyectoOpcion[] = ((proyectosData ?? []) as unknown as FilaProyecto[]).map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    clienteNombre: p.clientes?.nombre ?? "—",
+  }));
 
   return (
     <div>
@@ -28,6 +40,7 @@ export default async function NuevoInformeProyectoPage() {
         fechaHoy={fechaHoy}
         fechaHastaSugerida={fechaHastaSugerida}
         colaboradoresCampo={colaboradoresCampo}
+        proyectos={proyectos}
       />
     </div>
   );

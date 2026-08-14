@@ -37,14 +37,13 @@ export const bloqueGastoOperativoSchema = z.object({
 // el schema de creación como en el de edición (extend() no funciona sobre
 // el resultado de un .refine(), hay que extenderla antes).
 const informeProyectoBaseSchema = z.object({
-  // Los 6 campos del encabezado (proyecto, ubicacion, hectareas, precio,
-  // total, fecha) se llenan siempre a mano -- no se recalculan a partir de
-  // las filas del cuadro, aunque en la practica terminen coincidiendo.
-  proyecto: z.string().trim().min(1, "Nombre del proyecto requerido"),
+  // El Proyecto se elige del catálogo -- Cliente, texto de encabezado y
+  // Hectáreas se derivan siempre en el servidor a partir de proyectoId
+  // (ver crear_informe_proyecto/editar_informe_proyecto), nunca de lo que
+  // mande el navegador.
+  proyectoId: z.string().uuid("Selecciona un proyecto"),
   ubicacion: z.string().trim().optional().default(""),
-  hectareas: numeroOpcionalNoNegativo("Las hectáreas no pueden ser negativas"),
   precio: numeroOpcionalNoNegativo("El precio no puede ser negativo"),
-  total: numeroOpcionalNoNegativo("El total no puede ser negativo"),
   fechaDesde: z.string().min(1, "Fecha desde requerida"),
   fechaHasta: z.string().min(1, "Fecha hasta requerida"),
   filas: z.array(filaProyectoSchema).default([]),

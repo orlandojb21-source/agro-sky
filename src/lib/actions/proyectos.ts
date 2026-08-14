@@ -24,11 +24,9 @@ export async function crearInformeProyectoAction(
   }
 
   const parsed = informeProyectoSchema.safeParse({
-    proyecto: raw.proyecto,
+    proyectoId: raw.proyectoId,
     ubicacion: raw.ubicacion,
-    hectareas: raw.hectareas,
     precio: raw.precio,
-    total: raw.total,
     fechaDesde: raw.fechaDesde,
     fechaHasta: raw.fechaHasta,
     filas,
@@ -41,11 +39,9 @@ export async function crearInformeProyectoAction(
 
   const supabase = await createClient();
   const { data: informeId, error } = await supabase.rpc("crear_informe_proyecto", {
-    p_proyecto: parsed.data.proyecto,
+    p_proyecto_id: parsed.data.proyectoId,
     p_ubicacion: parsed.data.ubicacion || null,
-    p_hectareas: parsed.data.hectareas,
     p_precio: parsed.data.precio,
-    p_total: parsed.data.total,
     p_fecha_desde: parsed.data.fechaDesde,
     p_fecha_hasta: parsed.data.fechaHasta,
     p_filas: parsed.data.filas.map((f) => ({
@@ -94,11 +90,9 @@ export async function editarInformeProyectoAction(
 
   const parsed = informeProyectoEditSchema.safeParse({
     id: raw.id,
-    proyecto: raw.proyecto,
+    proyectoId: raw.proyectoId,
     ubicacion: raw.ubicacion,
-    hectareas: raw.hectareas,
     precio: raw.precio,
-    total: raw.total,
     fechaDesde: raw.fechaDesde,
     fechaHasta: raw.fechaHasta,
     filas,
@@ -112,11 +106,9 @@ export async function editarInformeProyectoAction(
   const supabase = await createClient();
   const { error } = await supabase.rpc("editar_informe_proyecto", {
     p_informe_id: parsed.data.id,
-    p_proyecto: parsed.data.proyecto,
+    p_proyecto_id: parsed.data.proyectoId,
     p_ubicacion: parsed.data.ubicacion || null,
-    p_hectareas: parsed.data.hectareas,
     p_precio: parsed.data.precio,
-    p_total: parsed.data.total,
     p_fecha_desde: parsed.data.fechaDesde,
     p_fecha_hasta: parsed.data.fechaHasta,
     p_filas: parsed.data.filas.map((f) => ({
@@ -154,6 +146,36 @@ export async function eliminarInformeProyectoAction(id: string) {
   const { error } = await supabase.rpc("eliminar_informe_proyecto", { p_informe_id: id });
   if (error) throw new Error(error.message || "No se pudo eliminar el informe.");
   revalidatePath("/informes/proyecto");
+}
+
+export type DatosProyecto = { cliente: string; hectareas: number };
+
+// Vista previa en el formulario al elegir un Proyecto -- el servidor
+// vuelve a calcular estos mismos valores al guardar (nunca se confía en lo
+// que muestre esta vista previa), así que acá solo importa que coincida.
+export async function obtenerDatosProyectoAction(proyectoId: string): Promise<DatosProyecto> {
+  await requirePerfil();
+  const supabase = await createClient();
+
+  const { data: proyecto, error: errorProyecto } = await supabase
+    .from("proyectos")
+    .select("clientes ( nombre )")
+    .eq("id", proyectoId)
+    .maybeSingle();
+
+  if (errorProyecto || !proyecto) throw new Error("No se pudo cargar el proyecto.");
+
+  const { data: informesData } = await supabase
+    .from("informes_campo")
+    .select("informe_campo_parcelas ( hectareas )")
+    .eq("proyecto_id", proyectoId);
+
+  const hectareas = ((informesData ?? []) as unknown as { informe_campo_parcelas: { hectareas: number }[] | null }[])
+    .reduce((s, informe) => s + (informe.informe_campo_parcelas ?? []).reduce((s2, p) => s2 + Number(p.hectareas), 0), 0);
+
+  const clienteNombre = (proyecto as unknown as { clientes: { nombre: string } | null }).clientes?.nombre ?? "—";
+
+  return { cliente: clienteNombre, hectareas: Math.round(hectareas * 100) / 100 };
 }
 
 export type ResultadoBusquedaAuto = { total: number; cantidad: number };

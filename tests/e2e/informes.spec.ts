@@ -34,13 +34,65 @@ test.describe("Informes — navegación y CRUD", () => {
     await context.close();
   });
 
-  test("CP-INFORMES-02: crear, ver y eliminar un Informe de Proyecto", async ({ browser }) => {
+  test("CP-INFORMES-02: elegir un Proyecto carga Cliente/Hectáreas solos, y el Total se calcula solo", async ({
+    browser,
+  }) => {
+    const nombreCliente = `${PREFIJO_QA} Cliente Analisis`;
+    const { data: cliente, error: errorCliente } = await adminDb
+      .from("clientes")
+      .insert({ nombre: nombreCliente })
+      .select("id")
+      .single();
+    if (errorCliente || !cliente) throw new Error(`No se pudo sembrar el Cliente QA: ${errorCliente?.message}`);
+    const { data: proyecto, error: errorProyecto } = await adminDb
+      .from("proyectos")
+      .insert({ nombre: `${PREFIJO_QA} Semana 1`, cliente_id: cliente.id, tipo_proyecto: "particular" })
+      .select("id, codigo")
+      .single();
+    if (errorProyecto || !proyecto) throw new Error(`No se pudo sembrar el Proyecto QA: ${errorProyecto?.message}`);
+
+    const { data: informeCampo, error: errorInforme } = await adminDb
+      .from("informes_campo")
+      .insert({
+        cliente: nombreCliente,
+        fecha: "2026-05-20",
+        finca: "Finca QA Analisis",
+        hora_inicio: "07:00",
+        hora_fin: "09:00",
+        meteorologia: "Despejado",
+        modelo_drone: "T30",
+        dosis_por_hectarea: 8,
+        operador: `${PREFIJO_QA} Operador Analisis`,
+        ayudantes: [],
+        tipo_proyecto: "particular",
+        proyecto_id: proyecto.id,
+      })
+      .select("id")
+      .single();
+    if (errorInforme || !informeCampo) throw new Error(`No se pudo sembrar el Informe de Campo QA: ${errorInforme?.message}`);
+    await adminDb
+      .from("informe_campo_parcelas")
+      .insert({ informe_id: informeCampo.id, numero_parcela: "1", hectareas: 12 });
+
     const context = await browser.newContext({ storageState: path.join(DIR_AUTH, "jefe.json") });
     const page = await context.newPage();
-    const nombreProyecto = `${PREFIJO_QA} Proyecto (Semana 1)`;
 
     await page.goto("/informes/proyecto/nuevo");
-    await page.locator('input[name="proyecto"]').fill(nombreProyecto);
+    await page.locator('select[name="proyectoId"]').selectOption(proyecto.id);
+
+    // Cliente y Hectáreas se cargan solos al elegir el Proyecto (llamada al
+    // servidor, ver obtenerDatosProyectoAction) -- se espera a que termine.
+    // Se busca dentro de <p> (no getByText genérico) porque el nombre del
+    // cliente también aparece dentro de la opción elegida del <select>.
+    await expect(page.locator("p", { hasText: nombreCliente })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("p", { hasText: "12" }).first()).toBeVisible();
+
+    await page.locator('input[name="ubicacion"]').fill("El Roble, QA");
+    await page.locator('input[name="precio"]').fill("5");
+    // Total = Hectáreas (12) x Precio (5) = 60, calculado solo (sin campo
+    // editable) -- se verifica leyendo el bloque de Total directamente.
+    await expect(page.getByText("USD 60.00", { exact: true })).toBeVisible();
+
     await page.locator("table input").first().fill(`${PREFIJO_QA} Drone`);
     const inputsNum = page.locator("table input[type='number']");
     await inputsNum.nth(0).fill("10");
@@ -51,13 +103,22 @@ test.describe("Informes — navegación y CRUD", () => {
     // getByRole (no getByText genérico) para no chocar con el
     // "__next-route-announcer__" que Next.js agrega para lectores de
     // pantalla y que repite el mismo texto del <h1> tras cada navegación.
-    await expect(page.getByRole("heading", { name: nombreProyecto })).toBeVisible();
+    await expect(page.getByRole("heading", { name: new RegExp(proyecto.codigo) })).toBeVisible();
     const idInforme = page.url().split("/").pop()!;
 
-    await page.goto("/informes/proyecto");
-    await expect(page.getByText(nombreProyecto).first()).toBeVisible();
+    const { data: informeGuardado } = await adminDb
+      .from("proyecto_informes")
+      .select("proyecto_id, hectareas, precio, total")
+      .eq("id", idInforme)
+      .single();
+    expect(informeGuardado?.proyecto_id).toBe(proyecto.id);
+    expect(Number(informeGuardado?.hectareas)).toBe(12);
+    expect(Number(informeGuardado?.total)).toBe(60);
 
-    const fila = page.locator("tr", { hasText: nombreProyecto }).first();
+    await page.goto("/informes/proyecto");
+    await expect(page.getByText(new RegExp(proyecto.codigo)).first()).toBeVisible();
+
+    const fila = page.locator("tr", { hasText: proyecto.codigo }).first();
     page.once("dialog", (dialog) => dialog.accept());
     await fila.getByRole("button", { name: "Eliminar" }).click();
 
@@ -74,6 +135,10 @@ test.describe("Informes — navegación y CRUD", () => {
       .toBe(0);
 
     await context.close();
+
+    await adminDb.from("informes_campo").delete().eq("id", informeCampo.id);
+    await adminDb.from("proyectos").delete().eq("id", proyecto.id);
+    await adminDb.from("clientes").delete().eq("id", cliente.id);
   });
 
   test("CP-INFORMES-03: crear un Informe Diario vinculado a un Informe de Campo existente", async ({
