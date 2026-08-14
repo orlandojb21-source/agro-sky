@@ -31,6 +31,7 @@ borran automáticamente al terminar — nunca se toca un dato real).
 | CP-AUTH | Autenticación y control de acceso por rol | Si falla, cualquier otra prueba de seguridad pierde sentido — es el cimiento de todo el sistema de permisos |
 | CP-PLANILLA | Asistencia → Informe de Campo → Cálculo de pago | La lógica de negocio más compleja de la app (fórmula de incentivos por hectárea) — un error aquí significa pagarle mal a un colaborador |
 | CP-INFORMES | Navegación de Informes (3 pestañas) + CRUD de Informe de Proyecto e Informe Diario | Sección reestructurada varias veces en la última sesión de trabajo — el mayor riesgo de regresión de rutas ahora mismo |
+| CP-CAJA | Editar un movimiento de Caja Menuda registrado antes del desglose por billete/moneda | Prueba de regresión de un defecto real (2026-08-14): editar uno de esos movimientos le borraba el monto y descuadraba la caja en $34.80 — dinero desapareciendo del saldo sin ningún aviso |
 
 ## 4. Características que NO se prueban en esta versión
 
@@ -82,8 +83,8 @@ mismo patrón ya establecido en `tests/e2e/`.
 
 ## 8. Criterios de salida
 
-- Los 9 casos de prueba (`CP-AUTH-01..06`, `CP-PLANILLA-01..03`,
-  `CP-INFORMES-01..03`) pasan en verde.
+- Los 11 casos de prueba (`CP-AUTH-01..06`, `CP-PLANILLA-01..03`,
+  `CP-INFORMES-01..03`, `CP-CAJA-01..02`) pasan en verde.
 - Cero cuentas ni filas con prefijo `QA Suite` quedan en la base de datos
   después de correr la suite completa (lo verifica `global-teardown.ts`
   automáticamente).
@@ -135,3 +136,5 @@ npm run test:e2e:report   # abre el último reporte HTML
 | CP-INFORMES-01 | Las 3 pestañas navegan bien; rutas viejas devuelven 404 |
 | CP-INFORMES-02 | Crear, ver y eliminar un Informe de Proyecto |
 | CP-INFORMES-03 | Crear un Informe Diario vinculado a un Informe de Campo |
+| CP-CAJA-01 | Cambiar solo la categoría de un movimiento antiguo conserva su monto ($35.00) y avisa del monto heredado |
+| CP-CAJA-02 | Marcar billetes en ese mismo movimiento sí reemplaza el monto heredado (pasa a $20.00) |
