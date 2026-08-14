@@ -102,6 +102,12 @@ export async function limpiarDatosQA(): Promise<void> {
 
   await adminDb.from("proyecto_informes").delete().ilike("proyecto", `${PREFIJO_QA}%`);
 
+  // Proyectos antes de Clientes (cliente_id) -- cualquier Informe de
+  // Campo que los referenciara ya se borró arriba (su "cliente" copiado
+  // sale del nombre del Cliente, que también lleva el prefijo QA).
+  await adminDb.from("proyectos").delete().ilike("nombre", `${PREFIJO_QA}%`);
+  await adminDb.from("clientes").delete().ilike("nombre", `${PREFIJO_QA}%`);
+
   await adminDb.from("planilla_pagos").delete().ilike("colaborador", `${PREFIJO_QA}%`);
   await adminDb.from("planilla_asistencia").delete().ilike("colaborador", `${PREFIJO_QA}%`);
   await adminDb.from("colaboradores").delete().ilike("nombre", `${PREFIJO_QA}%`);

@@ -17,6 +17,8 @@ const STORE = "informes_campo_pendientes";
 
 export type DatosInformeCampoPendiente = {
   cliente: string;
+  tipoProyecto: "ingenio_santa_rosa" | "particular";
+  proyectoId: string;
   fecha: string;
   finca: string;
   horaInicio: string;
@@ -25,7 +27,6 @@ export type DatosInformeCampoPendiente = {
   tipoAplicacion: "liquido" | "granulado";
   modeloDrone: string;
   dosisPorHectarea: string;
-  tipoProyecto: "ingenio_santa_rosa" | "particular";
   jornada: "completo" | "medio";
   operador: string;
   ayudantes: string[];

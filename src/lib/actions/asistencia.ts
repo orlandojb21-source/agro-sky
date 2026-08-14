@@ -139,23 +139,11 @@ export type ResumenAsistencia = {
 };
 
 type InformeCampoFila = {
-  id: string;
   fecha: string;
   cliente: string;
   tipo_proyecto: TipoProyecto | null;
   jornada: Jornada;
-};
-
-// Un día adicional (2do, 3er, etc.) de un Informe de Campo Particular
-// "Abierto" -- ver migración 0085. Mismo tratamiento que un Informe de
-// Campo normal (1 fila por día, su propia contabilidad de hectáreas),
-// solo que el tipo_proyecto/cliente salen del informe padre, no del día
-// mismo.
-type InformeCampoDiaFila = {
-  id: string;
-  fecha: string;
-  jornada: Jornada;
-  informes_campo: { cliente: string; tipo_proyecto: TipoProyecto | null } | null;
+  informe_campo_parcelas: { hectareas: number }[] | null;
 };
 
 // Se llama directo desde el formulario de Pago (no vinculado a un <form>,
@@ -198,87 +186,23 @@ export async function obtenerResumenAsistenciaAction(
   const [
     { data: comoOperador, error: errorOperador },
     { data: comoAyudante, error: errorAyudante },
-    { data: diasComoOperador, error: errorDiasOperador },
-    { data: diasComoAyudante, error: errorDiasAyudante },
   ] = await Promise.all([
     supabase
       .from("informes_campo")
-      .select("id, fecha, cliente, tipo_proyecto, jornada")
+      .select("fecha, cliente, tipo_proyecto, jornada, informe_campo_parcelas ( hectareas )")
       .eq("operador", colaborador)
       .gte("fecha", fechaDesde)
       .lte("fecha", fechaHasta),
     supabase
       .from("informes_campo")
-      .select("id, fecha, cliente, tipo_proyecto, jornada")
-      .contains("ayudantes", [colaborador])
-      .gte("fecha", fechaDesde)
-      .lte("fecha", fechaHasta),
-    // Días adicionales de un informe Particular "Abierto" (migración
-    // 0085) -- mismo criterio, pero el cliente/tipo_proyecto salen del
-    // informe padre (embed simple, no son 2 relaciones hermanas en la
-    // misma consulta, así que no cae en el problema de PostgREST con
-    // embeds hermanos).
-    supabase
-      .from("informe_campo_dias")
-      .select("id, fecha, jornada, informes_campo ( cliente, tipo_proyecto )")
-      .eq("operador", colaborador)
-      .gte("fecha", fechaDesde)
-      .lte("fecha", fechaHasta),
-    supabase
-      .from("informe_campo_dias")
-      .select("id, fecha, jornada, informes_campo ( cliente, tipo_proyecto )")
+      .select("fecha, cliente, tipo_proyecto, jornada, informe_campo_parcelas ( hectareas )")
       .contains("ayudantes", [colaborador])
       .gte("fecha", fechaDesde)
       .lte("fecha", fechaHasta),
   ]);
 
-  if (errorOperador || errorAyudante || errorDiasOperador || errorDiasAyudante) {
+  if (errorOperador || errorAyudante) {
     throw new Error("No se pudo consultar los Informes de Campo.");
-  }
-
-  // Hectáreas de cada día adicional -- consulta aparte (no embebida junto
-  // a "informes_campo" arriba) para no anidar 2 relaciones hermanas en
-  // una sola consulta, mismo problema de PostgREST ya documentado en
-  // Bitácora > Mantenimiento.
-  const diasFilas = [
-    ...(diasComoOperador ?? []),
-    ...(diasComoAyudante ?? []),
-  ] as unknown as InformeCampoDiaFila[];
-  const idsDias = diasFilas.map((d) => d.id);
-  const hectareasPorDia = new Map<string, number>();
-  if (idsDias.length > 0) {
-    const { data: parcelasDias } = await supabase
-      .from("informe_campo_parcelas")
-      .select("dia_id, hectareas")
-      .in("dia_id", idsDias);
-    for (const p of parcelasDias ?? []) {
-      const diaId = p.dia_id as string;
-      hectareasPorDia.set(diaId, (hectareasPorDia.get(diaId) ?? 0) + Number(p.hectareas));
-    }
-  }
-
-  // Hectáreas del día 1 (header) de cada informe -- también aparte, y
-  // filtrando dia_id IS NULL explícitamente: en un Particular "Abierto"
-  // multi-día, informe_campo_parcelas tiene filas de TODOS los días bajo
-  // el mismo informe_id (día 1 = dia_id null, día 2+ = dia_id del hijo),
-  // así que un embed simple aquí sumaría las hectáreas de todos los días
-  // dentro del día 1. Mismo criterio que hectareasPorDia arriba.
-  const informesFilas = [
-    ...(comoOperador ?? []),
-    ...(comoAyudante ?? []),
-  ] as unknown as InformeCampoFila[];
-  const idsInformes = informesFilas.map((i) => i.id);
-  const hectareasPorInforme = new Map<string, number>();
-  if (idsInformes.length > 0) {
-    const { data: parcelasInformes } = await supabase
-      .from("informe_campo_parcelas")
-      .select("informe_id, hectareas")
-      .in("informe_id", idsInformes)
-      .is("dia_id", null);
-    for (const p of parcelasInformes ?? []) {
-      const informeId = p.informe_id as string;
-      hectareasPorInforme.set(informeId, (hectareasPorInforme.get(informeId) ?? 0) + Number(p.hectareas));
-    }
   }
 
   let totalSugerido = 0;
@@ -339,7 +263,10 @@ export async function obtenerResumenAsistenciaAction(
 
   for (const informe of informesConRol) {
     diasProyecto += 1;
-    const hectareasInforme = hectareasPorInforme.get(informe.id) ?? 0;
+    const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce(
+      (s, p) => s + Number(p.hectareas),
+      0,
+    );
     if (!informe.tipo_proyecto) {
       // Informe todavía sin clasificar (Ingenio/Particular) -- no se
       // puede calcular, queda en 0 para que el jefe lo revise.
@@ -372,59 +299,10 @@ export async function obtenerResumenAsistenciaAction(
     });
   }
 
-  // Días adicionales (2do, 3er, etc.) de un Particular "Abierto" -- mismo
-  // tratamiento que un Informe de Campo normal, una fila por día, nunca
-  // se suman hectáreas entre días distintos.
-  const diasConRol: (InformeCampoDiaFila & { rolDia: RolDia })[] = [
-    ...(diasComoOperador ?? []).map((d) => ({
-      ...(d as unknown as InformeCampoDiaFila),
-      rolDia: "operador" as const,
-    })),
-    ...(diasComoAyudante ?? []).map((d) => ({
-      ...(d as unknown as InformeCampoDiaFila),
-      rolDia: "ayudante" as const,
-    })),
-  ];
-
-  for (const dia of diasConRol) {
-    diasProyecto += 1;
-    const hectareasDia = hectareasPorDia.get(dia.id) ?? 0;
-    const tipoProyectoDia = dia.informes_campo?.tipo_proyecto ?? null;
-    const clienteDia = dia.informes_campo?.cliente ?? null;
-    if (!tipoProyectoDia) {
-      detalle.push({
-        fecha: dia.fecha,
-        rolDia: dia.rolDia,
-        tipoTrabajo: "proyecto",
-        jornada: dia.jornada,
-        tipoProyecto: null,
-        hectareas: hectareasDia,
-        clienteInforme: clienteDia,
-        motivo: null,
-        monto: 0,
-      });
-      continue;
-    }
-    hectareasProyecto += hectareasDia;
-    const monto = calcularPagoProyecto(dia.rolDia, tipoProyectoDia, hectareasDia, dia.jornada);
-    totalSugerido += monto;
-    detalle.push({
-      fecha: dia.fecha,
-      rolDia: dia.rolDia,
-      tipoTrabajo: "proyecto",
-      jornada: dia.jornada,
-      tipoProyecto: tipoProyectoDia,
-      hectareas: hectareasDia,
-      clienteInforme: clienteDia,
-      motivo: null,
-      monto,
-    });
-  }
-
   detalle.sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   return {
-    totalDias: diasOficinaCount + diasSinTrabajoCount + informesConRol.length + diasConRol.length,
+    totalDias: diasOficinaCount + diasSinTrabajoCount + informesConRol.length,
     totalSugerido: Math.round(totalSugerido * 100) / 100,
     diasOficina: diasOficinaCount,
     diasProyecto,

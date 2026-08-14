@@ -80,6 +80,19 @@ test.describe("Informes — navegación y CRUD", () => {
     browser,
   }) => {
     const clienteInformeCampo = `${PREFIJO_QA} Cliente Diario`;
+    const { data: cliente, error: errorCliente } = await adminDb
+      .from("clientes")
+      .insert({ nombre: clienteInformeCampo })
+      .select("id")
+      .single();
+    if (errorCliente || !cliente) throw new Error(`No se pudo sembrar el Cliente QA: ${errorCliente?.message}`);
+    const { data: proyecto, error: errorProyecto } = await adminDb
+      .from("proyectos")
+      .insert({ nombre: clienteInformeCampo, cliente_id: cliente.id, tipo_proyecto: "particular" })
+      .select("id")
+      .single();
+    if (errorProyecto || !proyecto) throw new Error(`No se pudo sembrar el Proyecto QA: ${errorProyecto?.message}`);
+
     const { data: informeCampo, error } = await adminDb
       .from("informes_campo")
       .insert({
@@ -94,6 +107,7 @@ test.describe("Informes — navegación y CRUD", () => {
         operador: `${PREFIJO_QA} Operador Diario`,
         ayudantes: [],
         tipo_proyecto: "particular",
+        proyecto_id: proyecto.id,
       })
       .select("id")
       .single();
@@ -127,5 +141,7 @@ test.describe("Informes — navegación y CRUD", () => {
 
     await adminDb.from("informes_diarios").delete().eq("informe_campo_id", informeCampo.id);
     await adminDb.from("informes_campo").delete().eq("id", informeCampo.id);
+    await adminDb.from("proyectos").delete().eq("id", proyecto.id);
+    await adminDb.from("clientes").delete().eq("id", cliente.id);
   });
 });

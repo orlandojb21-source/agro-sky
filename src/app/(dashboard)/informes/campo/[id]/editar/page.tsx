@@ -1,11 +1,19 @@
 import { notFound, redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { InformeCampoForm } from "@/components/forms/InformeCampoForm";
+import { InformeCampoForm, type ProyectoOpcionInformeCampo } from "@/components/forms/InformeCampoForm";
 
 const BUCKET_FIRMAS = "informes-campo-firmas";
 const BUCKET_IMAGENES = "informes-campo-imagenes";
 const DURACION_URL_FIRMADA_SEG = 3600;
+
+type FilaProyecto = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  tipo_proyecto: "ingenio_santa_rosa" | "particular";
+  clientes: { nombre: string } | null;
+};
 
 export default async function EditarInformeCampoPage({
   params,
@@ -26,20 +34,17 @@ export default async function EditarInformeCampoPage({
     { data: productosData },
     { data: colaboradoresData },
     { data: imagenesData },
+    { data: proyectosData },
   ] = await Promise.all([
     supabase.from("informes_campo").select("*").eq("id", id).maybeSingle(),
     supabase.from("informe_campo_parcelas").select("numero_parcela, hectareas").eq("informe_id", id).order("numero_parcela"),
     supabase.from("informe_campo_productos").select("producto_activo, lts_por_hectarea").eq("informe_id", id),
     supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
     supabase.from("informe_campo_imagenes").select("ruta").eq("informe_id", id).order("creado_en"),
+    supabase.from("proyectos").select("id, codigo, nombre, tipo_proyecto, clientes ( nombre )").order("codigo"),
   ]);
 
   if (!informe) notFound();
-  // Un informe "Abierto" no se edita por este formulario -- se le
-  // agregan días o se cierra (ver migración 0085). Mismo candado que
-  // editarInformeCampoAction, para no mostrar un formulario que de
-  // todas formas va a fallar al guardar.
-  if (informe.estado === "abierto") redirect(`/informes/campo/${id}`);
 
   let colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
   // Si el operador o algún ayudante ya guardado se eliminó de la lista
@@ -51,6 +56,14 @@ export default async function EditarInformeCampoPage({
       colaboradoresCampo = [nombre, ...colaboradoresCampo];
     }
   }
+
+  const proyectos: ProyectoOpcionInformeCampo[] = ((proyectosData ?? []) as unknown as FilaProyecto[]).map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    clienteNombre: p.clientes?.nombre ?? "—",
+    tipoProyecto: p.tipo_proyecto,
+  }));
 
   let firmaAgroUrl: string | null = null;
   if (informe.firma_agro_ruta) {
@@ -84,9 +97,10 @@ export default async function EditarInformeCampoPage({
       <InformeCampoForm
         fechaHoy={informe.fecha as string}
         colaboradoresCampo={colaboradoresCampo}
+        proyectos={proyectos}
         valoresIniciales={{
           id: informe.id as string,
-          cliente: informe.cliente as string,
+          proyectoId: informe.proyecto_id as string,
           fecha: informe.fecha as string,
           finca: informe.finca as string,
           horaInicio: informe.hora_inicio as string,
@@ -103,7 +117,6 @@ export default async function EditarInformeCampoPage({
           firmaClienteRuta: informe.firma_cliente_ruta as string | null,
           nombreFirmaCliente: informe.nombre_firma_cliente as string | null,
           firmaClienteUrl,
-          tipoProyecto: informe.tipo_proyecto as "ingenio_santa_rosa" | "particular" | null,
           jornada: informe.jornada as "completo" | "medio",
           parcelas: (parcelasData ?? []).map((p) => ({
             numeroParcela: p.numero_parcela as string,

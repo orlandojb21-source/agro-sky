@@ -13,25 +13,7 @@ export type InformeCampoFila = {
   finca: string;
   operador: string;
   hectareas: number;
-  // Solo un Proyecto Particular puede ser "abierto" -- ver migración
-  // 0085. Un Ingenio Santa Rosa siempre es "cerrado".
-  estado: "abierto" | "cerrado";
 };
-
-function BadgeEstado({ estado }: { estado: "abierto" | "cerrado" }) {
-  if (estado === "abierto") {
-    return (
-      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-        Abierto
-      </span>
-    );
-  }
-  return (
-    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">
-      Cerrado
-    </span>
-  );
-}
 
 type Filtros = {
   texto: string;
@@ -101,7 +83,6 @@ export function InformesCampoTabla({
                 <th className="px-3 py-2 font-medium">Finca</th>
                 <th className="px-3 py-2 font-medium">Operador</th>
                 <th className="px-3 py-2 font-medium">Hectáreas</th>
-                <th className="px-3 py-2 font-medium">Estado</th>
                 <th className="px-3 py-2"></th>
               </tr>
               <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
@@ -130,14 +111,14 @@ export function InformesCampoTabla({
                     className={inputFiltro}
                   />
                 </th>
-                <th className="px-3 py-2" colSpan={2}></th>
+                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={6}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {informes.length === 0
@@ -158,9 +139,6 @@ export function InformesCampoTabla({
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.finca}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.operador}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{i.hectareas}</td>
-                    <td className="px-3 py-3">
-                      <BadgeEstado estado={i.estado} />
-                    </td>
                     <td className="px-3 py-3">
                       <div className="flex gap-3">
                         <Link
@@ -203,10 +181,7 @@ export function InformesCampoTabla({
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
                     {formatDateOnly(i.fecha)}
                   </p>
-                  <p className="flex items-center gap-2 font-medium text-green-900 dark:text-green-50">
-                    {i.cliente}
-                    <BadgeEstado estado={i.estado} />
-                  </p>
+                  <p className="font-medium text-green-900 dark:text-green-50">{i.cliente}</p>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">{i.finca}</p>
                 </div>
                 <p className="shrink-0 text-sm font-medium text-green-700 dark:text-green-400">

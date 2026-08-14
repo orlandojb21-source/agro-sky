@@ -6,6 +6,7 @@ import { requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeCampoSchema } from "@/lib/validation/informesCampo";
 import { TAMANO_MAXIMO_ARCHIVO_BYTES } from "@/lib/limitesArchivos";
+import { resolverProyecto } from "./informesCampo";
 
 const BUCKET_FIRMAS = "informes-campo-firmas";
 
@@ -46,6 +47,11 @@ export async function sincronizarInformeCampoPendienteAction(
 
   const supabase = await createClient();
 
+  const proyecto = await resolverProyecto(supabase, raw.proyectoId);
+  if (!proyecto) {
+    return { ok: false, error: "El proyecto seleccionado ya no existe." };
+  }
+
   const rutaAgro = `${randomUUID()}.png`;
   const { error: errorSubidaAgro } = await supabase.storage
     .from(BUCKET_FIRMAS)
@@ -64,7 +70,9 @@ export async function sincronizarInformeCampoPendienteAction(
   }
 
   const parsed = informeCampoSchema.safeParse({
-    cliente: raw.cliente,
+    cliente: proyecto.cliente,
+    tipoProyecto: proyecto.tipoProyecto,
+    proyectoId: raw.proyectoId,
     fecha: raw.fecha,
     finca: raw.finca,
     horaInicio: raw.horaInicio,
@@ -73,7 +81,6 @@ export async function sincronizarInformeCampoPendienteAction(
     tipoAplicacion: raw.tipoAplicacion,
     modeloDrone: raw.modeloDrone,
     dosisPorHectarea: raw.dosisPorHectarea,
-    tipoProyecto: raw.tipoProyecto,
     jornada: raw.jornada,
     operador: raw.operador,
     ayudantes,
@@ -102,6 +109,7 @@ export async function sincronizarInformeCampoPendienteAction(
     p_modelo_drone: parsed.data.modeloDrone,
     p_dosis_por_hectarea: parsed.data.dosisPorHectarea,
     p_tipo_proyecto: parsed.data.tipoProyecto,
+    p_proyecto_id: parsed.data.proyectoId,
     p_operador: parsed.data.operador,
     p_ayudantes: parsed.data.ayudantes,
     p_firma_agro_ruta: parsed.data.firmaAgroRuta,

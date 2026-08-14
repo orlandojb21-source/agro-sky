@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import type { Rol } from "@/lib/roles";
 
 const TABS = [
+  { href: "/informes/proyectos", label: "Proyectos" },
+  { href: "/informes/clientes", label: "Clientes" },
   { href: "/informes/campo", label: "Informe de Campo" },
   { href: "/informes/diario", label: "Informe Diario" },
   { href: "/informes/proyecto", label: "Análisis de Proyecto" },
@@ -14,8 +16,9 @@ export function InformesSubNav({ rol }: { rol: Rol }) {
   const pathname = usePathname();
   // El rol "campo" solo entra a Informe de Campo -- ver la nota en
   // SECTION_ACCESS (src/lib/roles.ts). Ocultar los otros tabs aquí es
-  // solo cosmético; la restricción real está en los layouts de
-  // informes/diario e informes/proyecto.
+  // solo cosmético; la restricción real está en los layouts de cada
+  // sub-ruta (informes/proyectos, informes/clientes, informes/diario,
+  // informes/proyecto).
   const tabs = rol === "campo" ? TABS.filter((t) => t.href === "/informes/campo") : TABS;
 
   return (

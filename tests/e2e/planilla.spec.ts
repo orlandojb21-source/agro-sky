@@ -28,10 +28,32 @@ async function dibujarFirma(page: Page, canvasLocator: ReturnType<Page["locator"
   await page.mouse.up();
 }
 
+let proyectoId: string;
+let clienteId: string;
+
 test.describe("Planilla — Asistencia + Informe de Campo + Pago", () => {
   test.beforeAll(async () => {
     const { error } = await adminDb.from("colaboradores").insert({ nombre: COLABORADOR, tipo: "campo" });
     if (error) throw new Error(`No se pudo sembrar el colaborador QA: ${error.message}`);
+
+    // Todo Informe de Campo debe elegir un Proyecto ya creado (pedido
+    // explícito del usuario, 2026-08-14) -- se siembra uno de Ingenio
+    // Santa Rosa, mismo tipo que usa esta prueba.
+    const { data: cliente, error: errorCliente } = await adminDb
+      .from("clientes")
+      .insert({ nombre: `${PREFIJO_QA} Cliente` })
+      .select("id")
+      .single();
+    if (errorCliente || !cliente) throw new Error(`No se pudo sembrar el Cliente QA: ${errorCliente?.message}`);
+    clienteId = cliente.id;
+
+    const { data: proyecto, error: errorProyecto } = await adminDb
+      .from("proyectos")
+      .insert({ nombre: `${PREFIJO_QA} Proyecto`, cliente_id: clienteId, tipo_proyecto: "ingenio_santa_rosa" })
+      .select("id")
+      .single();
+    if (errorProyecto || !proyecto) throw new Error(`No se pudo sembrar el Proyecto QA: ${errorProyecto?.message}`);
+    proyectoId = proyecto.id;
   });
 
   test.afterAll(async () => {
@@ -55,6 +77,8 @@ test.describe("Planilla — Asistencia + Informe de Campo + Pago", () => {
       await adminDb.from("informes_campo").delete().eq("id", informe.id);
     }
     await adminDb.from("colaboradores").delete().eq("nombre", COLABORADOR);
+    if (proyectoId) await adminDb.from("proyectos").delete().eq("id", proyectoId);
+    if (clienteId) await adminDb.from("clientes").delete().eq("id", clienteId);
   });
 
   test("CP-PLANILLA-01: registrar Asistencia de un día de Oficina (Proyecto ya no se crea aquí)", async ({
@@ -89,8 +113,7 @@ test.describe("Planilla — Asistencia + Informe de Campo + Pago", () => {
     const page = await context.newPage();
 
     await page.goto("/informes/campo/nuevo");
-    await page.locator('input[name="cliente"]').fill(`${PREFIJO_QA} Cliente`);
-    await page.locator('select[name="tipoProyecto"]').selectOption("ingenio_santa_rosa");
+    await page.locator('select[name="proyectoId"]').selectOption(proyectoId);
     await page.locator('input[name="fecha"]').fill(FECHA);
     await page.locator('input[name="finca"]').fill("Finca QA");
     await page.locator('input[name="horaInicio"]').fill("07:00");

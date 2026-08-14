@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useActionState } from "react";
 import { crearInformeCampoAction, editarInformeCampoAction } from "@/lib/actions/informesCampo";
 import { subirFirmaInformeCampoAction } from "@/lib/actions/informeCampoFirma";
@@ -55,6 +55,14 @@ type ProductoDraft = { productoActivo: string; ltsPorHectarea: string };
 // en el envío.
 type ImagenAdjuntaDraft = { ruta: string; previewUrl: string | null };
 
+export type ProyectoOpcionInformeCampo = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  clienteNombre: string;
+  tipoProyecto: "ingenio_santa_rosa" | "particular";
+};
+
 function parcelaVacia(): ParcelaDraft {
   return { numeroParcela: "", hectareas: "" };
 }
@@ -64,7 +72,7 @@ function productoVacio(): ProductoDraft {
 
 export type ValoresInformeCampo = {
   id: string;
-  cliente: string;
+  proyectoId: string;
   fecha: string;
   finca: string;
   horaInicio: string;
@@ -81,7 +89,6 @@ export type ValoresInformeCampo = {
   firmaClienteRuta: string | null;
   nombreFirmaCliente: string | null;
   firmaClienteUrl: string | null;
-  tipoProyecto: "ingenio_santa_rosa" | "particular" | null;
   // Un solo valor para todo el informe -- cuando es "medio", el pago
   // calculado por lib/calculoIncentivos.ts se divide entre 2.
   jornada: "completo" | "medio";
@@ -96,10 +103,12 @@ export type ValoresInformeCampo = {
 export function InformeCampoForm({
   fechaHoy,
   colaboradoresCampo = [],
+  proyectos,
   valoresIniciales,
 }: {
   fechaHoy: string;
   colaboradoresCampo?: string[];
+  proyectos: ProyectoOpcionInformeCampo[];
   valoresIniciales?: ValoresInformeCampo;
 }) {
   const esEdicion = Boolean(valoresIniciales?.id);
@@ -118,15 +127,19 @@ export function InformeCampoForm({
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
 
-  const [tipoProyecto, setTipoProyecto] = useState(
-    v?.tipoProyecto ?? valoresIniciales?.tipoProyecto ?? "ingenio_santa_rosa",
+  const [proyectoId, setProyectoId] = useState(
+    v?.proyectoId ?? valoresIniciales?.proyectoId ?? "",
   );
-  // Solo Proyecto Particular, y solo al crear (nunca al editar) puede
-  // quedar "abierto" -- ver validation/informesCampo.ts. "Cerrado" es el
-  // default, mismo comportamiento de siempre (un informe = un día,
-  // firmas obligatorias).
-  const [estado, setEstado] = useState(v?.estado ?? "cerrado");
-  const requiereFirmasAhora = estado !== "abierto";
+  // Cliente/tipo del Proyecto elegido -- viajan como hidden inputs SOLO
+  // para que el modo sin conexión (guardarLocalSinConexion) pueda armar
+  // el informe pendiente sin depender de una consulta al servidor; la
+  // Server Action real (crearInformeCampoAction/editarInformeCampoAction)
+  // nunca confía en estos 2 valores, siempre los vuelve a resolver desde
+  // proyectoId del lado del servidor.
+  const proyectoSeleccionado = useMemo(
+    () => proyectos.find((p) => p.id === proyectoId) ?? null,
+    [proyectos, proyectoId],
+  );
 
   const [operador, setOperador] = useState(v?.operador ?? valoresIniciales?.operador ?? "");
 
@@ -345,6 +358,8 @@ export function InformeCampoForm({
 
       const parsed = informeCampoSchema.safeParse({
         cliente: raw.cliente,
+        tipoProyecto: raw.tipoProyecto,
+        proyectoId: raw.proyectoId,
         fecha: raw.fecha,
         finca: raw.finca,
         horaInicio: raw.horaInicio,
@@ -353,7 +368,6 @@ export function InformeCampoForm({
         tipoAplicacion: raw.tipoAplicacion,
         modeloDrone: raw.modeloDrone,
         dosisPorHectarea: raw.dosisPorHectarea,
-        tipoProyecto: raw.tipoProyecto,
         jornada: raw.jornada,
         operador: raw.operador,
         ayudantes: ayudantesRaw,
@@ -373,15 +387,16 @@ export function InformeCampoForm({
       await guardarInformeCampoPendiente(
         {
           cliente: parsed.data.cliente,
+          tipoProyecto: parsed.data.tipoProyecto,
+          proyectoId: parsed.data.proyectoId,
           fecha: parsed.data.fecha,
           finca: parsed.data.finca,
           horaInicio: parsed.data.horaInicio,
           horaFin: parsed.data.horaFin,
           meteorologia: parsed.data.meteorologia,
-          tipoAplicacion: parsed.data.tipoAplicacion,
           modeloDrone: parsed.data.modeloDrone,
+          tipoAplicacion: parsed.data.tipoAplicacion,
           dosisPorHectarea: parsed.data.dosisPorHectarea,
-          tipoProyecto: parsed.data.tipoProyecto,
           jornada: parsed.data.jornada,
           operador: parsed.data.operador,
           ayudantes: parsed.data.ayudantes,
@@ -482,43 +497,35 @@ export function InformeCampoForm({
       <input type="hidden" name="parcelas" value={JSON.stringify(parcelasParaEnviar)} />
       <input type="hidden" name="productos" value={JSON.stringify(productosParaEnviar)} />
       <input type="hidden" name="imagenes" value={JSON.stringify(imagenes.map((img) => img.ruta))} />
+      {/* Solo para el modo sin conexión -- ver guardarLocalSinConexion.
+          La Server Action real nunca confía en estos 2 valores, siempre
+          los vuelve a resolver desde proyectoId en el servidor. */}
+      <input type="hidden" name="cliente" value={proyectoSeleccionado?.clienteNombre ?? ""} />
+      <input type="hidden" name="tipoProyecto" value={proyectoSeleccionado?.tipoProyecto ?? ""} />
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
         <div className="sm:col-span-2">
-          <Field
-            label="Nombre del cliente"
-            name="cliente"
-            defaultValue={v?.cliente ?? valoresIniciales?.cliente ?? undefined}
-            required
-          />
-        </div>
-        <SelectField
-          label="Tipo de proyecto"
-          name="tipoProyecto"
-          value={tipoProyecto}
-          onChange={(e) => {
-            setTipoProyecto(e.target.value);
-            if (e.target.value !== "particular") setEstado("cerrado");
-          }}
-          required
-        >
-          <option value="ingenio_santa_rosa">Ingenio Santa Rosa</option>
-          <option value="particular">Trabajo Particular</option>
-        </SelectField>
-        {!esEdicion && tipoProyecto === "particular" && (
           <SelectField
-            label="¿Cómo vas a manejar este informe?"
-            name="estado"
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
+            label="Proyecto"
+            name="proyectoId"
+            value={proyectoId}
+            onChange={(e) => setProyectoId(e.target.value)}
             required
           >
-            <option value="cerrado">Un solo día — firmar y guardar ahora</option>
-            <option value="abierto">Varios días — dejar Abierto, firmar al terminar</option>
+            <option value="">Selecciona...</option>
+            {proyectos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.codigo} — {p.nombre} ({p.clienteNombre})
+              </option>
+            ))}
           </SelectField>
-        )}
-        {(esEdicion || tipoProyecto !== "particular") && <input type="hidden" name="estado" value="cerrado" />}
+          {proyectos.length === 0 && (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+              Todavía no hay ningún proyecto creado -- pídele a oficina que cree uno primero.
+            </p>
+          )}
+        </div>
         <Field
           label="Fecha de trabajo"
           name="fecha"
@@ -765,48 +772,40 @@ export function InformeCampoForm({
         </button>
       </div>
 
-      {estado === "abierto" ? (
-        <div className="rounded-xl border border-green-100 bg-green-50/60 p-6 text-sm text-green-800 shadow-sm dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-200">
-          Este informe queda <strong>Abierto</strong> -- no hacen falta firmas todavía. Vas a poder
-          agregar más días de trabajo desde la pantalla del informe, y las firmas se piden recién
-          cuando alguien lo cierre.
+      <div className="grid grid-cols-1 gap-6 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
+        <div className="flex flex-col gap-3">
+          <Field
+            label="Nombre — Encargado Agro Sky Corp"
+            name="nombreFirmaAgro"
+            defaultValue={v?.nombreFirmaAgro ?? valoresIniciales?.nombreFirmaAgro ?? undefined}
+            required
+          />
+          <FirmaCanvas
+            label="Firma — Encargado Agro Sky Corp"
+            name="firmaAgroRuta"
+            rutaInicial={v?.firmaAgroRuta ?? valoresIniciales?.firmaAgroRuta}
+            urlInicial={valoresIniciales?.firmaAgroUrl}
+            onGuardar={subirFirmaAgro}
+            onRutaCambia={setFirmaAgroRuta}
+          />
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
-          <div className="flex flex-col gap-3">
-            <Field
-              label="Nombre — Encargado Agro Sky Corp"
-              name="nombreFirmaAgro"
-              defaultValue={v?.nombreFirmaAgro ?? valoresIniciales?.nombreFirmaAgro ?? undefined}
-              required
-            />
-            <FirmaCanvas
-              label="Firma — Encargado Agro Sky Corp"
-              name="firmaAgroRuta"
-              rutaInicial={v?.firmaAgroRuta ?? valoresIniciales?.firmaAgroRuta}
-              urlInicial={valoresIniciales?.firmaAgroUrl}
-              onGuardar={subirFirmaAgro}
-              onRutaCambia={setFirmaAgroRuta}
-            />
-          </div>
-          <div className="flex flex-col gap-3">
-            <Field
-              label="Nombre — Encargado por parte del cliente"
-              name="nombreFirmaCliente"
-              defaultValue={v?.nombreFirmaCliente ?? valoresIniciales?.nombreFirmaCliente ?? undefined}
-              required
-            />
-            <FirmaCanvas
-              label="Firma — Encargado por parte del cliente"
-              name="firmaClienteRuta"
-              rutaInicial={v?.firmaClienteRuta ?? valoresIniciales?.firmaClienteRuta}
-              urlInicial={valoresIniciales?.firmaClienteUrl}
-              onGuardar={subirFirmaCliente}
-              onRutaCambia={setFirmaClienteRuta}
-            />
-          </div>
+        <div className="flex flex-col gap-3">
+          <Field
+            label="Nombre — Encargado por parte del cliente"
+            name="nombreFirmaCliente"
+            defaultValue={v?.nombreFirmaCliente ?? valoresIniciales?.nombreFirmaCliente ?? undefined}
+            required
+          />
+          <FirmaCanvas
+            label="Firma — Encargado por parte del cliente"
+            name="firmaClienteRuta"
+            rutaInicial={v?.firmaClienteRuta ?? valoresIniciales?.firmaClienteRuta}
+            urlInicial={valoresIniciales?.firmaClienteUrl}
+            onGuardar={subirFirmaCliente}
+            onRutaCambia={setFirmaClienteRuta}
+          />
         </div>
-      )}
+      </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
@@ -866,14 +865,8 @@ export function InformeCampoForm({
         )}
         {errorLocal && <p className="text-xs text-red-600 dark:text-red-400">{errorLocal}</p>}
         <div className="flex gap-3">
-          <SubmitButton disabled={(requiereFirmasAhora && faltaAlgunaFirma) || guardandoLocal}>
-            {guardandoLocal
-              ? "Guardando en este celular..."
-              : esEdicion
-                ? "Guardar cambios"
-                : estado === "abierto"
-                  ? "Guardar informe (Abierto)"
-                  : "Guardar informe"}
+          <SubmitButton disabled={faltaAlgunaFirma || guardandoLocal}>
+            {guardandoLocal ? "Guardando en este celular..." : esEdicion ? "Guardar cambios" : "Guardar informe"}
           </SubmitButton>
           <LinkButton
             href={esEdicion ? `/informes/campo/${valoresIniciales!.id}` : "/informes/campo"}
@@ -882,7 +875,7 @@ export function InformeCampoForm({
             Cancelar
           </LinkButton>
         </div>
-        {requiereFirmasAhora && faltaAlgunaFirma && (
+        {faltaAlgunaFirma && (
           <p className="text-xs text-green-700/70 dark:text-green-300/70">
             Faltan firmas por guardar — dibuja y guarda ambas firmas antes de guardar el informe.
           </p>
