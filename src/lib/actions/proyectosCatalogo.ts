@@ -40,6 +40,7 @@ export async function crearProyectoCatalogoAction(
     nombre: parsed.data.nombre,
     cliente_id: parsed.data.clienteId,
     tipo_proyecto: parsed.data.tipoProyecto,
+    estado: parsed.data.estado,
     registrado_por: perfil.id,
   });
 
@@ -70,6 +71,7 @@ export async function editarProyectoCatalogoAction(
       nombre: parsed.data.nombre,
       cliente_id: parsed.data.clienteId,
       tipo_proyecto: parsed.data.tipoProyecto,
+      estado: parsed.data.estado,
     })
     .eq("id", parsed.data.id);
 

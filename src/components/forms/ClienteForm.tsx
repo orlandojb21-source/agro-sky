@@ -82,7 +82,7 @@ export function ClienteForm({ valoresIniciales }: { valoresIniciales?: ValoresCl
 
       <div className="flex gap-3">
         <SubmitButton>Guardar</SubmitButton>
-        <LinkButton href="/informes/clientes" variant="secondary">
+        <LinkButton href="/ventas/clientes" variant="secondary">
           Cancelar
         </LinkButton>
       </div>

@@ -1,10 +1,8 @@
-import { redirect } from "next/navigation";
 import { requireWrite } from "@/lib/session";
 import { ClienteForm } from "@/components/forms/ClienteForm";
 
 export default async function NuevoClientePage() {
-  const perfil = await requireWrite("informes");
-  if (perfil.rol === "campo") redirect("/unauthorized");
+  await requireWrite("ventas");
 
   return (
     <div>

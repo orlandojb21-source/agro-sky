@@ -11,10 +11,26 @@ export type ProyectoCatalogoFila = {
   nombre: string;
   clienteNombre: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular";
+  estado: "abierto" | "cerrado";
 };
 
 function etiquetaTipo(tipo: "ingenio_santa_rosa" | "particular") {
   return tipo === "ingenio_santa_rosa" ? "Ingenio Santa Rosa" : "Trabajo Particular";
+}
+
+function BadgeEstado({ estado }: { estado: "abierto" | "cerrado" }) {
+  if (estado === "abierto") {
+    return (
+      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">
+        Abierto
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800/60 dark:text-gray-300">
+      Cerrado
+    </span>
+  );
 }
 
 export function ProyectoCatalogoTabla({
@@ -46,20 +62,21 @@ export function ProyectoCatalogoTabla({
 
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Código</th>
                 <th className="px-3 py-2 font-medium">Nombre</th>
                 <th className="px-3 py-2 font-medium">Cliente</th>
                 <th className="px-3 py-2 font-medium">Tipo</th>
+                <th className="px-3 py-2 font-medium">Estado</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {filtrados.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70">
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70">
                     {proyectos.length === 0 ? "Todavía no hay proyectos registrados." : "Ningún proyecto coincide con la búsqueda."}
                   </td>
                 </tr>
@@ -73,6 +90,9 @@ export function ProyectoCatalogoTabla({
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{p.nombre}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{p.clienteNombre}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{etiquetaTipo(p.tipoProyecto)}</td>
+                    <td className="px-3 py-3">
+                      <BadgeEstado estado={p.estado} />
+                    </td>
                     <td className="px-3 py-3">
                       {puedeEscribir && (
                         <div className="flex gap-3">
@@ -105,8 +125,13 @@ export function ProyectoCatalogoTabla({
               key={p.id}
               className="rounded-xl border border-green-100 bg-white p-4 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
             >
-              <p className="text-xs text-green-700/60 dark:text-green-300/60">{p.codigo}</p>
-              <p className="font-medium text-green-900 dark:text-green-50">{p.nombre}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs text-green-700/60 dark:text-green-300/60">{p.codigo}</p>
+                  <p className="font-medium text-green-900 dark:text-green-50">{p.nombre}</p>
+                </div>
+                <BadgeEstado estado={p.estado} />
+              </div>
               <p className="mt-1 text-sm text-green-800/80 dark:text-green-200/80">
                 {p.clienteNombre} · {etiquetaTipo(p.tipoProyecto)}
               </p>

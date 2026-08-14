@@ -76,7 +76,7 @@ export function ClienteTabla({
                       {puedeEscribir && (
                         <div className="flex gap-3">
                           <Link
-                            href={`/informes/clientes/${c.id}/editar`}
+                            href={`/ventas/clientes/${c.id}/editar`}
                             className="text-sm text-green-700 hover:underline dark:text-green-300"
                           >
                             Editar
@@ -111,7 +111,7 @@ export function ClienteTabla({
               {puedeEscribir && (
                 <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
                   <Link
-                    href={`/informes/clientes/${c.id}/editar`}
+                    href={`/ventas/clientes/${c.id}/editar`}
                     className="text-sm text-green-700 hover:underline dark:text-green-300"
                   >
                     Editar

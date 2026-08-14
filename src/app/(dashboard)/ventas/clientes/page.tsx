@@ -6,8 +6,8 @@ import { LinkButton } from "@/components/ui/Button";
 import { ClienteTabla, type ClienteFila } from "@/components/forms/ClienteTabla";
 
 export default async function ClientesPage() {
-  const perfil = await requireSection("informes");
-  const puedeEscribir = canWrite(perfil.rol, "informes") && perfil.rol !== "campo";
+  const perfil = await requireSection("ventas");
+  const puedeEscribir = canWrite(perfil.rol, "ventas");
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -28,7 +28,7 @@ export default async function ClientesPage() {
     <div>
       <PageHeader
         title="Clientes"
-        action={puedeEscribir ? <LinkButton href="/informes/clientes/nuevo">+ Nuevo cliente</LinkButton> : undefined}
+        action={puedeEscribir ? <LinkButton href="/ventas/clientes/nuevo">+ Nuevo cliente</LinkButton> : undefined}
       />
       <ClienteTabla clientes={clientes} puedeEscribir={puedeEscribir} />
     </div>

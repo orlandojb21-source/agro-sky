@@ -14,7 +14,7 @@ export default async function EditarProyectoPage({
 
   const supabase = await createClient();
   const [{ data: proyecto }, { data: clientesData }] = await Promise.all([
-    supabase.from("proyectos").select("id, codigo, nombre, cliente_id, tipo_proyecto").eq("id", id).maybeSingle(),
+    supabase.from("proyectos").select("id, codigo, nombre, cliente_id, tipo_proyecto, estado").eq("id", id).maybeSingle(),
     supabase.from("clientes").select("id, nombre").order("nombre"),
   ]);
 
@@ -35,6 +35,7 @@ export default async function EditarProyectoPage({
           nombre: proyecto.nombre as string,
           clienteId: proyecto.cliente_id as string,
           tipoProyecto: proyecto.tipo_proyecto as "ingenio_santa_rosa" | "particular",
+          estado: proyecto.estado as "abierto" | "cerrado",
         }}
       />
     </div>

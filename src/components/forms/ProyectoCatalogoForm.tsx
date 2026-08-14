@@ -13,6 +13,7 @@ type ValoresProyectoCatalogo = {
   nombre: string;
   clienteId: string;
   tipoProyecto: "ingenio_santa_rosa" | "particular";
+  estado: "abierto" | "cerrado";
 };
 
 export function ProyectoCatalogoForm({
@@ -90,10 +91,20 @@ export function ProyectoCatalogoForm({
         <option value="particular">Trabajo Particular</option>
       </SelectField>
 
+      <SelectField
+        label="Estado"
+        name="estado"
+        defaultValue={v?.estado ?? valoresIniciales?.estado ?? "abierto"}
+        required
+      >
+        <option value="abierto">Abierto</option>
+        <option value="cerrado">Cerrado</option>
+      </SelectField>
+
       {clientes.length === 0 && (
         <p className="text-xs text-amber-700 dark:text-amber-400">
           Todavía no hay ningún cliente registrado —{" "}
-          <Link href="/informes/clientes/nuevo" className="underline">
+          <Link href="/ventas/clientes/nuevo" className="underline">
             crea uno primero
           </Link>
           .

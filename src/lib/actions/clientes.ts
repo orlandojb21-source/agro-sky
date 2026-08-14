@@ -17,16 +17,17 @@ function mensajeError(error: { code?: string }): string {
   return "No se pudo guardar el cliente. Intenta de nuevo.";
 }
 
-// Crear/editar/eliminar un Cliente queda solo para oficina (pedido
-// explícito del usuario, 2026-08-14) -- Campo puede LEER la lista (para
-// elegir un Proyecto al crear un Informe de Campo) pero no gestionarla,
-// mismo criterio ya usado para editar/eliminar Informe de Campo.
+// Clientes vive dentro de Ventas (movido desde Informes el 2026-08-14,
+// pedido explícito del usuario) -- Campo ya es "ninguno" en la sección
+// "ventas" (ver SECTION_ACCESS en lib/roles.ts), así que requireWrite ya
+// lo bloquea por completo sin necesitar un chequeo de rol aparte (a
+// diferencia de cuando vivía en "informes", donde Campo sí tenía
+// escritura y hacía falta un redirect manual).
 export async function crearClienteAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requireWrite("informes");
-  if (perfil.rol === "campo") redirect("/unauthorized");
+  await requireWrite("ventas");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = clienteSchema.safeParse(raw);
@@ -47,17 +48,18 @@ export async function crearClienteAction(
 
   if (error) return { error: mensajeError(error), values: raw };
 
-  revalidatePath("/informes/clientes");
+  revalidatePath("/ventas/clientes");
+  // El catálogo de Proyectos (Informes) lee esta misma tabla para su
+  // <select> de Cliente -- se queda apuntando ahí, no se mueve.
   revalidatePath("/informes/proyectos/nuevo");
-  redirect("/informes/clientes");
+  redirect("/ventas/clientes");
 }
 
 export async function editarClienteAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const perfil = await requireWrite("informes");
-  if (perfil.rol === "campo") redirect("/unauthorized");
+  await requireWrite("ventas");
   const raw = Object.fromEntries(formData) as Record<string, string>;
 
   const parsed = clienteEditSchema.safeParse(raw);
@@ -81,15 +83,14 @@ export async function editarClienteAction(
 
   if (error) return { error: mensajeError(error), values: raw };
 
-  revalidatePath("/informes/clientes");
-  redirect("/informes/clientes");
+  revalidatePath("/ventas/clientes");
+  redirect("/ventas/clientes");
 }
 
 export async function eliminarClienteAction(id: string) {
-  const perfil = await requireWrite("informes");
-  if (perfil.rol === "campo") redirect("/unauthorized");
+  await requireWrite("ventas");
   const supabase = await createClient();
   const { error } = await supabase.from("clientes").delete().eq("id", id);
   if (error) throw new Error(mensajeError(error));
-  revalidatePath("/informes/clientes");
+  revalidatePath("/ventas/clientes");
 }

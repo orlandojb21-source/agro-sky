@@ -10,6 +10,7 @@ export const proyectoCatalogoSchema = z.object({
   tipoProyecto: z.enum(["ingenio_santa_rosa", "particular"], {
     message: "Selecciona el tipo de proyecto",
   }),
+  estado: z.enum(["abierto", "cerrado"], { message: "Selecciona el estado" }).default("abierto"),
 });
 
 export const proyectoCatalogoEditSchema = proyectoCatalogoSchema.extend({

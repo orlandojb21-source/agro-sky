@@ -10,6 +10,7 @@ type FilaProyecto = {
   codigo: string;
   nombre: string;
   tipo_proyecto: "ingenio_santa_rosa" | "particular";
+  estado: "abierto" | "cerrado";
   clientes: { nombre: string } | null;
 };
 
@@ -20,7 +21,7 @@ export default async function ProyectosPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("proyectos")
-    .select("id, codigo, nombre, tipo_proyecto, clientes ( nombre )")
+    .select("id, codigo, nombre, tipo_proyecto, estado, clientes ( nombre )")
     .order("creado_en", { ascending: false });
 
   const proyectos: ProyectoCatalogoFila[] = ((data ?? []) as unknown as FilaProyecto[]).map((p) => ({
@@ -29,6 +30,7 @@ export default async function ProyectosPage() {
     nombre: p.nombre,
     clienteNombre: p.clientes?.nombre ?? "—",
     tipoProyecto: p.tipo_proyecto,
+    estado: p.estado,
   }));
 
   return (
