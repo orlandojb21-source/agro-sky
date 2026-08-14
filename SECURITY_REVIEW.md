@@ -570,14 +570,22 @@ proporción:
   conocido de Turbopack (ya lo resolví varias veces esta sesión con el
   mismo remedio). Vale la pena un `KNOWN_ISSUES.md` corto con estos
   casos y su solución, para que no dependa solo de que yo lo recuerde.
-- **Continuidad del servicio / respaldos**: **esto sí es importante
-  confirmar pronto** — hay que verificar en el dashboard de Supabase qué
-  plan tiene el proyecto y qué nivel de respaldo automático incluye (los
-  planes gratuitos de Supabase típicamente no incluyen recuperación a un
-  punto en el tiempo). Si toda la información de la empresa (planilla,
-  ventas, informes) vive solo en ese proyecto sin respaldo, es el
-  hallazgo de continuidad de negocio más importante de este informe,
-  aunque no sea un "hallazgo de código".
+- **Continuidad del servicio / respaldos**: el proyecto de Supabase está
+  en el plan gratuito, que no incluye recuperación a un punto en el
+  tiempo — para cubrir ese hueco mientras se decide si conviene subir de
+  plan, se armó un **respaldo local automático** (`scripts/backup.mjs`,
+  2026-08-14): corre solo todos los días (Programador de Tareas de
+  Windows, tarea "AgroSky Backup Diario", 2:00 a.m.) y exporta cada tabla
+  y cada archivo de Storage a `backups/diario/` (se conservan los
+  últimos 14 días), con una copia extra en `backups/mensual/` el día 1
+  de cada mes (se conservan los últimos 12 meses). Combinado con las
+  migraciones ya versionadas en `supabase/migrations/`, es un respaldo
+  restaurable de verdad. **Limitación real, a tener en cuenta**: vive
+  solo en esta computadora — si se daña o se pierde el equipo sin haber
+  subido los respaldos a otro lado, se pierde igual toda la protección.
+  Sigue siendo recomendable confirmar en el dashboard de Supabase qué
+  nivel de respaldo propio conviene contratar a medida que crece la
+  empresa.
 - **Gestión de versiones/despliegues**: no hay ningún control automático
   (CI) que impida subir código roto a producción — hoy la única
   protección es que yo corro `tsc`/`lint`/`build` a mano antes de cada
@@ -605,9 +613,9 @@ proporción:
 | 1.10 | `recalcular_cadena_vuelo_drone` sin chequeo de autorización | 🟠 Medio | ✅ Corregido 2026-08-13 |
 | 1.10 | `informeCampoOffline.ts` sin límite de tamaño de archivo | 🟠 Medio | ✅ Corregido 2026-08-13 |
 | 1.6 | Bloqueo de cuenta tras 5 intentos fallidos de login | 🟡 Bajo | ✅ Corregido 2026-08-13 |
-| Continuidad | Confirmar plan/respaldos de Supabase | 🔴 Alto (negocio) | ⏳ Pendiente — solo revisar el dashboard, no es código |
-| 1.5 | Leaked password protection (Supabase dashboard) | 🟡 Bajo | ⏳ Pendiente — es un interruptor, no es código |
+| Continuidad | Respaldo local diario + mensual (mientras se decide el plan de Supabase) | 🔴 Alto (negocio) | ✅ Implementado 2026-08-14 |
+| 1.5 | Leaked password protection | 🟡 Bajo | ⏳ Pendiente — requiere plan Pro de Supabase, decisión de negocio del usuario |
 
-Lo único que queda de todo este informe son los 2 puntos marcados
-⏳ arriba — ninguno requiere cambios de código, se hacen desde el
-dashboard de Supabase cuando el usuario los revise.
+Lo único que queda de todo este informe es el punto marcado ⏳ arriba —
+requiere subir de plan en Supabase, no es algo que se resuelva con
+código.
