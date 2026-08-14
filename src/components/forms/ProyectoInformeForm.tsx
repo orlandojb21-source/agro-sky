@@ -2,17 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useActionState } from "react";
-import {
-  crearInformeProyectoAction,
-  editarInformeProyectoAction,
-  buscarViaticosCajaMenudaAction,
-  obtenerDatosProyectoAction,
-} from "@/lib/actions/proyectos";
+import { crearInformeProyectoAction, editarInformeProyectoAction, obtenerDatosProyectoAction } from "@/lib/actions/proyectos";
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import { formatMoney, formatDateOnly } from "@/lib/format";
-import { CATEGORIAS_GASTO_OPERATIVO } from "@/lib/proyectoGastos";
+import { CATEGORIAS_GASTO_OPERATIVO, textoEquipoDeCampo } from "@/lib/proyectoGastos";
 
 const CLASE_INPUT =
   "w-full rounded-lg border border-green-200 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
@@ -30,21 +25,43 @@ function CampoLectura({ label, valor }: { label: string; valor: string }) {
   );
 }
 
+// Mismo formato que claveEquipo() en lib/actions/proyectos.ts -- así cada
+// bloque se puede emparejar con su equipoKey al guardar.
+function claveEquipo(operador: string, ayudantes: string[]): string {
+  const ordenados = ayudantes.map((a) => a.trim()).filter((a) => a !== "").sort();
+  return `${operador.trim()}||${ordenados.join(",")}`;
+}
+
 // Drone y Hectáreas son de solo lectura (una fila por Informe de Campo del
 // Proyecto, ver obtenerDatosProyectoAction) -- solo el Precio se llena a
 // mano, por fila.
 type FilaDraft = { informeCampoId: string; drone: string; hectareas: number; precio: string };
 
 type ItemGastoDraft = { categoria: string; cantidad: string; precio: string };
-type BloqueGastoDraft = { drone: string; operador: string; ayudantes: string[]; items: ItemGastoDraft[] };
+// Un bloque por cada Operador+Ayudantes que aparezca en los Informes de
+// Campo del Proyecto (ver obtenerDatosProyectoAction) -- no se agregan ni
+// quitan bloques a mano.
+type BloqueGastoDraft = { key: string; operador: string; ayudantes: string[]; items: ItemGastoDraft[] };
+type BusquedaAuto = { cantidad: number; total: number };
+type InfoAutoPorEquipo = Record<string, { viaticos: BusquedaAuto; planilla: BusquedaAuto }>;
 
-function bloqueGastoVacio(): BloqueGastoDraft {
-  return {
-    drone: "",
-    operador: "",
-    ayudantes: [],
-    items: CATEGORIAS_GASTO_OPERATIVO.map((c) => ({ categoria: c.valor, cantidad: "", precio: "" })),
-  };
+// Viáticos y Planilla se sugieren solos (cantidad 1, precio = lo
+// encontrado en Caja Menuda/Planilla) cuando hay coincidencias y todavía
+// no se había escrito nada a mano en esa categoría; el resto de
+// categorías siempre arranca vacío. Si ya había un valor (edición, o tras
+// reintentar por un error), ese valor se conserva.
+function itemsAutoPara(equipo: { viaticos: BusquedaAuto; planilla: BusquedaAuto }, anteriores?: ItemGastoDraft[]): ItemGastoDraft[] {
+  return CATEGORIAS_GASTO_OPERATIVO.map((c) => {
+    const anterior = anteriores?.find((it) => it.categoria === c.valor);
+    if (anterior) return anterior;
+    if (c.valor === "viaticos" && equipo.viaticos.cantidad > 0) {
+      return { categoria: c.valor, cantidad: "1", precio: String(equipo.viaticos.total) };
+    }
+    if (c.valor === "planilla" && equipo.planilla.cantidad > 0) {
+      return { categoria: c.valor, cantidad: "1", precio: String(equipo.planilla.total) };
+    }
+    return { categoria: c.valor, cantidad: "", precio: "" };
+  });
 }
 
 export type ProyectoOpcion = { id: string; codigo: string; nombre: string; clienteNombre: string };
@@ -60,7 +77,6 @@ export type ValoresInforme = {
   fecha: string;
   filas: { informeCampoId: string; drone: string; hectareas: number; precio: number }[];
   gastosOperativos: {
-    drone: string;
     operador: string | null;
     ayudantes: string[];
     items: { categoria: string; cantidad: number; precio: number }[];
@@ -68,10 +84,11 @@ export type ValoresInforme = {
 };
 
 function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number]): BloqueGastoDraft {
+  const operador = inicial.operador ?? "";
   return {
-    drone: inicial.drone,
-    operador: inicial.operador ?? "",
-    ayudantes: inicial.ayudantes.length > 0 ? inicial.ayudantes : [],
+    key: claveEquipo(operador, inicial.ayudantes),
+    operador,
+    ayudantes: inicial.ayudantes,
     items: CATEGORIAS_GASTO_OPERATIVO.map((c) => {
       const encontrado = inicial.items.find((it) => it.categoria === c.valor);
       return {
@@ -85,12 +102,10 @@ function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number])
 
 export function ProyectoInformeForm({
   fechaHoy,
-  colaboradoresCampo = [],
   proyectos,
   valoresIniciales,
 }: {
   fechaHoy: string;
-  colaboradoresCampo?: string[];
   proyectos: ProyectoOpcion[];
   valoresIniciales?: ValoresInforme;
 }) {
@@ -103,10 +118,7 @@ export function ProyectoInformeForm({
   const v = state.values;
 
   const [proyectoId, setProyectoId] = useState(v?.proyectoId ?? valoresIniciales?.proyectoId ?? "");
-  const [cliente, setCliente] = useState(valoresIniciales?.cliente ?? "");
-  const [hectareas, setHectareas] = useState<number | null>(valoresIniciales?.hectareas ?? null);
   const [precio, setPrecio] = useState(String(v?.precio ?? valoresIniciales?.precio ?? ""));
-  const [cargandoProyecto, setCargandoProyecto] = useState(false);
   // La fecha nunca se edita a mano: al crear queda como la fecha actual
   // (fechaHoy, la fecha en que se está haciendo el análisis), y al editar
   // se conserva la fecha con la que se creó -- pedido explícito del
@@ -122,55 +134,96 @@ export function ProyectoInformeForm({
     setPrecio(String(state.values?.precio ?? ""));
   }
 
-  const [filas, setFilas] = useState<FilaDraft[]>(() => {
+  // Todo lo que se carga solo a partir del Proyecto elegido vive en un solo
+  // estado (en vez de 5 sueltos) para poder actualizarlo de una sola vez
+  // dentro del efecto de abajo. proyectoId identifica a qué Proyecto
+  // corresponde esta vista -- mientras no coincida con el proyectoId
+  // elegido, "cargandoProyecto" se deriva como true (sin necesidad de un
+  // setState aparte dentro del efecto).
+  type VistaProyecto = {
+    proyectoId: string;
+    cliente: string;
+    hectareas: number | null;
+    filas: FilaDraft[];
+    gastosOperativos: BloqueGastoDraft[];
+    infoAuto: InfoAutoPorEquipo;
+  };
+
+  const [vista, setVista] = useState<VistaProyecto>(() => {
+    let filas: FilaDraft[] = [];
     if (v?.filas) {
       try {
         const parsed = JSON.parse(v.filas) as { informeCampoId: string; precio: number }[];
-        return parsed.map((f) => ({
-          informeCampoId: f.informeCampoId,
-          drone: "",
-          hectareas: 0,
-          precio: String(f.precio),
-        }));
+        filas = parsed.map((f) => ({ informeCampoId: f.informeCampoId, drone: "", hectareas: 0, precio: String(f.precio) }));
       } catch {
         // sigue abajo con los valores iniciales / vacío
       }
-    }
-    if (valoresIniciales?.filas) {
-      return valoresIniciales.filas.map((f) => ({
+    } else if (valoresIniciales?.filas) {
+      filas = valoresIniciales.filas.map((f) => ({
         informeCampoId: f.informeCampoId,
         drone: f.drone,
         hectareas: f.hectareas,
         precio: String(f.precio),
       }));
     }
-    return [];
+
+    let gastosOperativos: BloqueGastoDraft[] = [];
+    if (v?.gastosOperativos) {
+      try {
+        const parsed = JSON.parse(v.gastosOperativos) as {
+          equipoKey: string;
+          items: { categoria: string; cantidad: number; precio: number }[];
+        }[];
+        gastosOperativos = parsed.map((b) => ({
+          key: b.equipoKey,
+          operador: "",
+          ayudantes: [],
+          items: b.items.map((it) => ({
+            categoria: it.categoria,
+            cantidad: String(it.cantidad),
+            precio: String(it.precio),
+          })),
+        }));
+      } catch {
+        // sigue abajo con los valores iniciales / sin bloques
+      }
+    } else if (valoresIniciales?.gastosOperativos) {
+      gastosOperativos = valoresIniciales.gastosOperativos.map(bloqueDesdeInicial);
+    }
+
+    return {
+      proyectoId: valoresIniciales?.proyectoId ?? v?.proyectoId ?? "",
+      cliente: valoresIniciales?.cliente ?? "",
+      hectareas: valoresIniciales?.hectareas ?? null,
+      filas,
+      gastosOperativos,
+      infoAuto: {},
+    };
   });
+  const { cliente, hectareas, filas, gastosOperativos, infoAuto } = vista;
+  const cargandoProyecto = proyectoId !== "" && vista.proyectoId !== proyectoId;
 
   // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente, las
-  // Hectáreas (suma de parcelas de los Informes de Campo de ese Proyecto) y
-  // el cuadro Drone/HA (una fila por Informe de Campo) -- el servidor
-  // vuelve a calcular estos mismos valores al guardar, esto es solo la
-  // vista previa. El Precio que ya se haya escrito por fila se conserva
-  // (se busca por informeCampoId), tanto al reintentar tras un error como
-  // al recargar la lista de Informes de Campo del mismo Proyecto.
+  // Hectáreas, el cuadro Drone/HA (una fila por Informe de Campo) y los
+  // bloques de Gastos Operativos (uno por Operador+Ayudantes, con Viáticos
+  // y Planilla ya sugeridos desde Caja Menuda/Planilla si hay
+  // coincidencias) -- el servidor vuelve a calcular estos mismos valores
+  // al guardar, esto es solo la vista previa. Lo que ya se haya escrito a
+  // mano por fila/categoría se conserva (se busca por informeCampoId o por
+  // equipoKey), tanto al reintentar tras un error como al recargar el
+  // mismo Proyecto.
   useEffect(() => {
-    if (!proyectoId) {
-      setCliente("");
-      setHectareas(null);
-      setFilas([]);
-      return;
-    }
+    if (!proyectoId) return;
     let cancelado = false;
-    setCargandoProyecto(true);
     obtenerDatosProyectoAction(proyectoId)
       .then((datos) => {
         if (cancelado) return;
-        setCliente(datos.cliente);
-        setHectareas(datos.hectareas);
-        setFilas((prev) =>
-          datos.filas.map((f) => {
-            const anterior = prev.find((p) => p.informeCampoId === f.informeCampoId);
+        setVista((prev) => ({
+          proyectoId,
+          cliente: datos.cliente,
+          hectareas: datos.hectareas,
+          filas: datos.filas.map((f) => {
+            const anterior = prev.filas.find((p) => p.informeCampoId === f.informeCampoId);
             return {
               informeCampoId: f.informeCampoId,
               drone: f.drone,
@@ -178,15 +231,23 @@ export function ProyectoInformeForm({
               precio: anterior ? anterior.precio : "",
             };
           }),
-        );
+          gastosOperativos: datos.equipos.map((eq) => {
+            const anterior = prev.gastosOperativos.find((b) => b.key === eq.key);
+            return {
+              key: eq.key,
+              operador: eq.operador,
+              ayudantes: eq.ayudantes,
+              items: itemsAutoPara(eq, anterior?.items),
+            };
+          }),
+          infoAuto: Object.fromEntries(
+            datos.equipos.map((eq) => [eq.key, { viaticos: eq.viaticos, planilla: eq.planilla }]),
+          ),
+        }));
       })
       .catch(() => {
         if (cancelado) return;
-        setCliente("—");
-        setHectareas(null);
-      })
-      .finally(() => {
-        if (!cancelado) setCargandoProyecto(false);
+        setVista((prev) => ({ ...prev, proyectoId, cliente: "—", hectareas: null }));
       });
     return () => {
       cancelado = true;
@@ -195,68 +256,11 @@ export function ProyectoInformeForm({
 
   const total = (hectareas ?? 0) * (Number(precio) || 0);
 
-  const [gastosOperativos, setGastosOperativos] = useState<BloqueGastoDraft[]>(() => {
-    if (v?.gastosOperativos) {
-      try {
-        return JSON.parse(v.gastosOperativos) as BloqueGastoDraft[];
-      } catch {
-        // sigue abajo con los valores iniciales / sin bloques
-      }
-    }
-    if (valoresIniciales?.gastosOperativos) {
-      return valoresIniciales.gastosOperativos.map(bloqueDesdeInicial);
-    }
-    return [];
-  });
-
-  const [mensajeViaticos, setMensajeViaticos] = useState<Record<number, string>>({});
-  const [buscandoViaticos, setBuscandoViaticos] = useState<Record<number, boolean>>({});
-
   function actualizarPrecioFila(index: number, valor: string) {
-    setFilas((prev) => prev.map((f, i) => (i === index ? { ...f, precio: valor } : f)));
-  }
-
-  function agregarBloqueGasto() {
-    setGastosOperativos((prev) => [...prev, bloqueGastoVacio()]);
-  }
-
-  function quitarBloqueGasto(index: number) {
-    setGastosOperativos((prev) => prev.filter((_, i) => i !== index));
-    setMensajeViaticos((prev) => {
-      const siguiente = { ...prev };
-      delete siguiente[index];
-      return siguiente;
-    });
-  }
-
-  function actualizarNombreDrone(bloqueIndex: number, valor: string) {
-    setGastosOperativos((prev) => prev.map((b, i) => (i === bloqueIndex ? { ...b, drone: valor } : b)));
-  }
-
-  function actualizarOperador(bloqueIndex: number, valor: string) {
-    setGastosOperativos((prev) => prev.map((b, i) => (i === bloqueIndex ? { ...b, operador: valor } : b)));
-  }
-
-  function agregarAyudante(bloqueIndex: number) {
-    setGastosOperativos((prev) =>
-      prev.map((b, i) => (i === bloqueIndex ? { ...b, ayudantes: [...b.ayudantes, ""] } : b)),
-    );
-  }
-
-  function actualizarAyudante(bloqueIndex: number, ayudanteIndex: number, valor: string) {
-    setGastosOperativos((prev) =>
-      prev.map((b, i) =>
-        i !== bloqueIndex
-          ? b
-          : { ...b, ayudantes: b.ayudantes.map((a, j) => (j === ayudanteIndex ? valor : a)) },
-      ),
-    );
-  }
-
-  function quitarAyudante(bloqueIndex: number, ayudanteIndex: number) {
-    setGastosOperativos((prev) =>
-      prev.map((b, i) => (i === bloqueIndex ? { ...b, ayudantes: b.ayudantes.filter((_, j) => j !== ayudanteIndex) } : b)),
-    );
+    setVista((prev) => ({
+      ...prev,
+      filas: prev.filas.map((f, i) => (i === index ? { ...f, precio: valor } : f)),
+    }));
   }
 
   function actualizarItemGasto(
@@ -265,70 +269,14 @@ export function ProyectoInformeForm({
     campo: "cantidad" | "precio",
     valor: string,
   ) {
-    setGastosOperativos((prev) =>
-      prev.map((b, i) =>
+    setVista((prev) => ({
+      ...prev,
+      gastosOperativos: prev.gastosOperativos.map((b, i) =>
         i !== bloqueIndex
           ? b
           : { ...b, items: b.items.map((it, j) => (j === itemIndex ? { ...it, [campo]: valor } : it)) },
       ),
-    );
-  }
-
-  function llenarCategoria(bloqueIndex: number, categoria: string, total: number) {
-    setGastosOperativos((prev) =>
-      prev.map((b, i) =>
-        i !== bloqueIndex
-          ? b
-          : {
-              ...b,
-              items: b.items.map((it) =>
-                it.categoria === categoria ? { ...it, cantidad: "1", precio: String(total) } : it,
-              ),
-            },
-      ),
-    );
-  }
-
-  // Junta al Operador + Ayudantes del bloque en un solo equipo, para buscar
-  // pagos/movimientos de cualquiera de ellos (el gasto lo hace todo el
-  // equipo de campo, no una sola persona -- pedido explícito del usuario).
-  function equipoDelBloque(bloqueIndex: number): string[] {
-    const bloque = gastosOperativos[bloqueIndex];
-    if (!bloque) return [];
-    return [bloque.operador, ...bloque.ayudantes].filter((n) => n.trim() !== "");
-  }
-
-  // Busca en tiempo real en el servidor (nunca en una lista cargada al abrir
-  // la página) -- así funciona sin importar si el movimiento de Caja Menuda
-  // se registró antes o después de abrir este formulario. Categoría
-  // "Viáticos", sin filtro de fecha (el análisis ya no tiene un rango), el
-  // Concepto CONTENIDO en el nombre del Cliente del Proyecto elegido (no
-  // exacto -- pedido explícito del usuario, ya que el Concepto suele traer
-  // texto extra, ej. "Ingenio Santa Rosa" encaja dentro de un Concepto
-  // "Ingenio Santa Rosa - comida cuadrilla"), y (si se dio) el "Nombre" del
-  // movimiento (a quién se le entregó el dinero) debe ser alguien del
-  // Equipo de Campo. El resultado sigue siendo editable a mano después.
-  async function traerDeCajaMenuda(bloqueIndex: number) {
-    setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: true }));
-    try {
-      const equipo = equipoDelBloque(bloqueIndex);
-      const { total, cantidad } = await buscarViaticosCajaMenudaAction(cliente, equipo);
-      llenarCategoria(bloqueIndex, "viaticos", total);
-      setMensajeViaticos((prev) => ({
-        ...prev,
-        [bloqueIndex]:
-          cantidad > 0
-            ? `${cantidad} movimiento${cantidad === 1 ? "" : "s"} de Caja Menuda encontrado${cantidad === 1 ? "" : "s"}, total ${formatMoney(total)}`
-            : "No se encontraron movimientos de Caja Menuda que coincidan (revisa que el Concepto mencione el nombre del proyecto)",
-      }));
-    } catch (err) {
-      setMensajeViaticos((prev) => ({
-        ...prev,
-        [bloqueIndex]: err instanceof Error ? err.message : "No se pudo buscar en Caja Menuda. Intenta de nuevo.",
-      }));
-    } finally {
-      setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: false }));
-    }
+    }));
   }
 
   const filasParaEnviar = filas.map((f) => ({
@@ -337,9 +285,7 @@ export function ProyectoInformeForm({
   }));
 
   const gastosOperativosParaEnviar = gastosOperativos.map((b) => ({
-    drone: b.drone,
-    operador: b.operador,
-    ayudantes: b.ayudantes.map((a) => a.trim()).filter((a) => a !== ""),
+    equipoKey: b.key,
     items: b.items.map((it) => ({
       categoria: it.categoria,
       cantidad: Number(it.cantidad) || 0,
@@ -360,7 +306,12 @@ export function ProyectoInformeForm({
             label="Proyecto"
             name="proyectoId"
             value={proyectoId}
-            onChange={(e) => setProyectoId(e.target.value)}
+            onChange={(e) => {
+              const valor = e.target.value;
+              setProyectoId(valor);
+              if (!valor)
+                setVista({ proyectoId: "", cliente: "", hectareas: null, filas: [], gastosOperativos: [], infoAuto: {} });
+            }}
             required
           >
             <option value="">Selecciona...</option>
@@ -448,173 +399,106 @@ export function ProyectoInformeForm({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={agregarBloqueGasto}
-        className="self-start rounded-lg border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
-      >
-        + Agregar Gastos operativos
-      </button>
+      <div className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Gastos operativos</h2>
 
-      {gastosOperativos.map((bloque, bi) => {
-        const totalBloque = bloque.items.reduce(
-          (s, it) => s + (Number(it.cantidad) || 0) * (Number(it.precio) || 0),
-          0,
-        );
-        return (
-          <div
-            key={bi}
-            className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex flex-col gap-3">
-                <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
-                  Drone
-                  <input
-                    value={bloque.drone}
-                    onChange={(e) => actualizarNombreDrone(bi, e.target.value)}
-                    placeholder="Ej. AGRO SKY 1"
-                    className={`${CLASE_INPUT} max-w-xs`}
-                  />
-                </label>
+        {gastosOperativos.length === 0 && (
+          <p className="rounded-xl border border-green-100 bg-white px-4 py-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
+            {cargandoProyecto
+              ? "Cargando..."
+              : proyectoId
+                ? "Este proyecto todavía no tiene Informes de Campo."
+                : "Elige un Proyecto para ver sus equipos de trabajo."}
+          </p>
+        )}
 
-                <div className="rounded-lg border border-green-100 p-3 dark:border-green-900/40">
-                  <p className="text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-                    Equipo de Campo
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-end gap-3">
-                    <SelectField
-                      label="Operador"
-                      name={`operador-${bi}`}
-                      defaultValue={bloque.operador}
-                      onChange={(e) => actualizarOperador(bi, e.target.value)}
-                    >
-                      <option value="">Selecciona...</option>
-                      {colaboradoresCampo.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </SelectField>
-                    {bloque.ayudantes.map((ayudante, ai) => (
-                      <div key={ai} className="flex items-end gap-1">
-                        <SelectField
-                          label={`Ayudante ${ai + 1}`}
-                          name={`ayudante-${bi}-${ai}`}
-                          defaultValue={ayudante}
-                          onChange={(e) => actualizarAyudante(bi, ai, e.target.value)}
-                        >
-                          <option value="">Selecciona...</option>
-                          {colaboradoresCampo.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </SelectField>
-                        <button
-                          type="button"
-                          onClick={() => quitarAyudante(bi, ai)}
-                          className="pb-2 text-sm text-red-600 hover:underline dark:text-red-400"
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => agregarAyudante(bi)}
-                    className="mt-2 rounded-lg border border-green-200 px-3 py-1 text-xs text-green-800 hover:bg-green-50 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
-                  >
-                    + Agregar ayudante
-                  </button>
-                </div>
+        {gastosOperativos.map((bloque, bi) => {
+          const totalBloque = bloque.items.reduce(
+            (s, it) => s + (Number(it.cantidad) || 0) * (Number(it.precio) || 0),
+            0,
+          );
+          const info = infoAuto[bloque.key];
+          return (
+            <div
+              key={bloque.key}
+              className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
+            >
+              <h3 className="text-sm font-semibold text-green-900 dark:text-green-50">
+                {textoEquipoDeCampo(bloque.operador, bloque.ayudantes) || "Equipo sin nombre"}
+              </h3>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                      <th className="px-2 py-2 font-medium">Categoría</th>
+                      <th className="px-2 py-2 font-medium">Cantidad</th>
+                      <th className="px-2 py-2 font-medium">Precio unitario</th>
+                      <th className="px-2 py-2 font-medium">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bloque.items.map((item, ii) => {
+                      const totalItem = (Number(item.cantidad) || 0) * (Number(item.precio) || 0);
+                      const etiqueta = CATEGORIAS_GASTO_OPERATIVO.find((c) => c.valor === item.categoria)!.etiqueta;
+                      const autoDe =
+                        item.categoria === "viaticos"
+                          ? info?.viaticos
+                          : item.categoria === "planilla"
+                            ? info?.planilla
+                            : undefined;
+                      return (
+                        <tr key={item.categoria} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                          <td className="px-2 py-2 text-green-900 dark:text-green-50">
+                            {etiqueta}
+                            {autoDe && autoDe.cantidad > 0 && (
+                              <span className="block text-xs font-normal text-green-700/70 dark:text-green-300/70">
+                                {autoDe.cantidad} en {item.categoria === "viaticos" ? "Caja Menuda" : "Planilla"} (
+                                {formatMoney(autoDe.total)})
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={item.cantidad}
+                              onChange={(e) => actualizarItemGasto(bi, ii, "cantidad", e.target.value)}
+                              className={CLASE_INPUT}
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={item.precio}
+                              onChange={(e) => actualizarItemGasto(bi, ii, "precio", e.target.value)}
+                              className={CLASE_INPUT}
+                            />
+                          </td>
+                          <td className="px-2 py-2 font-medium text-green-900 dark:text-green-50">
+                            {formatMoney(totalItem)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
+                      <td className="px-2 py-2 text-green-900 dark:text-green-50" colSpan={3}>
+                        total
+                      </td>
+                      <td className="px-2 py-2 text-green-700 dark:text-green-400">{formatMoney(totalBloque)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-              <button
-                type="button"
-                onClick={() => quitarBloqueGasto(bi)}
-                className="text-sm text-red-600 hover:underline dark:text-red-400"
-              >
-                Quitar bloque
-              </button>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
-                    <th className="px-2 py-2 font-medium">Categoría</th>
-                    <th className="px-2 py-2 font-medium">Cantidad</th>
-                    <th className="px-2 py-2 font-medium">Precio unitario</th>
-                    <th className="px-2 py-2 font-medium">Total</th>
-                    <th className="px-2 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bloque.items.map((item, ii) => {
-                    const totalItem = (Number(item.cantidad) || 0) * (Number(item.precio) || 0);
-                    const etiqueta = CATEGORIAS_GASTO_OPERATIVO.find((c) => c.valor === item.categoria)!.etiqueta;
-                    return (
-                      <tr key={item.categoria} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
-                        <td className="px-2 py-2 text-green-900 dark:text-green-50">{etiqueta}</td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={item.cantidad}
-                            onChange={(e) => actualizarItemGasto(bi, ii, "cantidad", e.target.value)}
-                            className={CLASE_INPUT}
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={item.precio}
-                            onChange={(e) => actualizarItemGasto(bi, ii, "precio", e.target.value)}
-                            className={CLASE_INPUT}
-                          />
-                        </td>
-                        <td className="px-2 py-2 font-medium text-green-900 dark:text-green-50">
-                          {formatMoney(totalItem)}
-                        </td>
-                        <td className="px-2 py-2">
-                          {item.categoria === "viaticos" && (
-                            <button
-                              type="button"
-                              onClick={() => traerDeCajaMenuda(bi)}
-                              disabled={buscandoViaticos[bi] || !cliente.trim()}
-                              className="whitespace-nowrap text-sm text-green-700 hover:underline disabled:opacity-40 dark:text-green-300"
-                            >
-                              {buscandoViaticos[bi] ? "Buscando..." : "Traer de Caja Menuda"}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
-                    <td className="px-2 py-2 text-green-900 dark:text-green-50" colSpan={3}>
-                      total
-                    </td>
-                    <td className="px-2 py-2 text-green-700 dark:text-green-400" colSpan={2}>
-                      {formatMoney(totalBloque)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            {mensajeViaticos[bi] && (
-              <p className="text-xs text-green-700/80 dark:text-green-300/80">{mensajeViaticos[bi]}</p>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar informe"}</SubmitButton>

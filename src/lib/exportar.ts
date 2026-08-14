@@ -418,7 +418,6 @@ export type ItemGastoOperativoExportable = {
 };
 
 export type BloqueGastoOperativoExportable = {
-  drone: string;
   operador: string | null;
   ayudantes: string[];
   items: ItemGastoOperativoExportable[];
@@ -522,7 +521,7 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
     const equipo = textoEquipoDeCampo(bloque.operador, bloque.ayudantes);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    const tituloBloque = `Gastos operativos — ${bloque.drone}${equipo ? ` (${equipo})` : ""}`;
+    const tituloBloque = `Gastos operativos — ${equipo || "Equipo sin nombre"}`;
     const lineasTitulo = doc.splitTextToSize(tituloBloque, anchoPagina - 28) as string[];
     doc.text(lineasTitulo, 14, yGastos);
     yGastos += lineasTitulo.length * 5;

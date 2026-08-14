@@ -28,10 +28,13 @@ export const itemGastoOperativoSchema = z.object({
   precio: z.number().min(0, "No puede ser negativo").default(0),
 });
 
+// El set de bloques (qué Operador+Ayudantes existen) se recalcula siempre
+// en el servidor a partir de los Informes de Campo del Proyecto -- desde
+// el navegador solo viaja equipoKey (para emparejar cada bloque con sus
+// items) y los items en sí (Cantidad/Precio por categoría, siempre
+// editables a mano, incluidas Viáticos/Planilla).
 export const bloqueGastoOperativoSchema = z.object({
-  drone: z.string().trim().min(1, "Falta el nombre del drone para los gastos operativos"),
-  operador: z.string().trim().optional().default(""),
-  ayudantes: z.array(z.string().trim().min(1)).default([]),
+  equipoKey: z.string().min(1),
   items: z.array(itemGastoOperativoSchema).default([]),
 });
 

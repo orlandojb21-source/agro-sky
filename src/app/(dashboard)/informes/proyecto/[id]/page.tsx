@@ -13,7 +13,6 @@ import type { InformeProyectoExportable } from "@/lib/exportar";
 type ItemGastoFila = { id: string; categoria: string; cantidad: number; precio: number; total: number };
 type BloqueGastoFila = {
   id: string;
-  drone: string;
   operador: string | null;
   ayudantes: string[] | null;
   proyecto_gastos_operativos_items: { id: string; categoria: string; cantidad: number; precio: number; total: number }[] | null;
@@ -43,7 +42,7 @@ export default async function DetalleInformeProyectoPage({
     supabase
       .from("proyecto_gastos_operativos")
       .select(
-        "id, drone, operador, ayudantes, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )",
+        "id, operador, ayudantes, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )",
       )
       .eq("informe_id", id)
       .order("id"),
@@ -82,7 +81,6 @@ export default async function DetalleInformeProyectoPage({
     });
     return {
       id: b.id,
-      drone: b.drone,
       operador: b.operador,
       ayudantes: b.ayudantes ?? [],
       items,
@@ -99,7 +97,6 @@ export default async function DetalleInformeProyectoPage({
     fecha: informe.fecha as string,
     filas: filas.map((f) => ({ drone: f.drone, hectareas: f.hectareas, precio: f.precio, total: f.total })),
     gastosOperativos: gastosOperativos.map((b) => ({
-      drone: b.drone,
       operador: b.operador,
       ayudantes: b.ayudantes,
       items: b.items.map((it) => ({
@@ -213,11 +210,7 @@ export default async function DetalleInformeProyectoPage({
           className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
         >
           <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
-            Gastos operativos — {bloque.drone}
-            {(() => {
-              const equipo = textoEquipoDeCampo(bloque.operador, bloque.ayudantes);
-              return equipo ? ` (${equipo})` : "";
-            })()}
+            Gastos operativos — {textoEquipoDeCampo(bloque.operador, bloque.ayudantes) || "Equipo sin nombre"}
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-sm">
