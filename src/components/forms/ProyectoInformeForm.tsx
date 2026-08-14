@@ -30,11 +30,10 @@ function CampoLectura({ label, valor }: { label: string; valor: string }) {
   );
 }
 
-type FilaDraft = { drone: string; hectareas: string; precio: string };
-
-function filaVacia(): FilaDraft {
-  return { drone: "", hectareas: "", precio: "" };
-}
+// Drone y Hectáreas son de solo lectura (una fila por Informe de Campo del
+// Proyecto, ver obtenerDatosProyectoAction) -- solo el Precio se llena a
+// mano, por fila.
+type FilaDraft = { informeCampoId: string; drone: string; hectareas: number; precio: string };
 
 type ItemGastoDraft = { categoria: string; cantidad: string; precio: string };
 type BloqueGastoDraft = { drone: string; operador: string; ayudantes: string[]; items: ItemGastoDraft[] };
@@ -59,7 +58,7 @@ export type ValoresInforme = {
   precio: number | null;
   total: number | null;
   fecha: string;
-  filas: { drone: string; hectareas: number; precio: number }[];
+  filas: { informeCampoId: string; drone: string; hectareas: number; precio: number }[];
   gastosOperativos: {
     drone: string;
     operador: string | null;
@@ -123,14 +122,43 @@ export function ProyectoInformeForm({
     setPrecio(String(state.values?.precio ?? ""));
   }
 
-  // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente y las
-  // Hectáreas (suma de parcelas de los Informes de Campo de ese Proyecto) --
-  // el servidor vuelve a calcular estos mismos valores al guardar, esto es
-  // solo la vista previa.
+  const [filas, setFilas] = useState<FilaDraft[]>(() => {
+    if (v?.filas) {
+      try {
+        const parsed = JSON.parse(v.filas) as { informeCampoId: string; precio: number }[];
+        return parsed.map((f) => ({
+          informeCampoId: f.informeCampoId,
+          drone: "",
+          hectareas: 0,
+          precio: String(f.precio),
+        }));
+      } catch {
+        // sigue abajo con los valores iniciales / vacío
+      }
+    }
+    if (valoresIniciales?.filas) {
+      return valoresIniciales.filas.map((f) => ({
+        informeCampoId: f.informeCampoId,
+        drone: f.drone,
+        hectareas: f.hectareas,
+        precio: String(f.precio),
+      }));
+    }
+    return [];
+  });
+
+  // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente, las
+  // Hectáreas (suma de parcelas de los Informes de Campo de ese Proyecto) y
+  // el cuadro Drone/HA (una fila por Informe de Campo) -- el servidor
+  // vuelve a calcular estos mismos valores al guardar, esto es solo la
+  // vista previa. El Precio que ya se haya escrito por fila se conserva
+  // (se busca por informeCampoId), tanto al reintentar tras un error como
+  // al recargar la lista de Informes de Campo del mismo Proyecto.
   useEffect(() => {
     if (!proyectoId) {
       setCliente("");
       setHectareas(null);
+      setFilas([]);
       return;
     }
     let cancelado = false;
@@ -140,6 +168,17 @@ export function ProyectoInformeForm({
         if (cancelado) return;
         setCliente(datos.cliente);
         setHectareas(datos.hectareas);
+        setFilas((prev) =>
+          datos.filas.map((f) => {
+            const anterior = prev.find((p) => p.informeCampoId === f.informeCampoId);
+            return {
+              informeCampoId: f.informeCampoId,
+              drone: f.drone,
+              hectareas: f.hectareas,
+              precio: anterior ? anterior.precio : "",
+            };
+          }),
+        );
       })
       .catch(() => {
         if (cancelado) return;
@@ -155,25 +194,6 @@ export function ProyectoInformeForm({
   }, [proyectoId]);
 
   const total = (hectareas ?? 0) * (Number(precio) || 0);
-
-  const [filas, setFilas] = useState<FilaDraft[]>(() => {
-    if (v?.filas) {
-      try {
-        const parsed = JSON.parse(v.filas) as FilaDraft[];
-        if (parsed.length > 0) return parsed;
-      } catch {
-        // sigue abajo con los valores iniciales / fila vacía
-      }
-    }
-    if (valoresIniciales?.filas && valoresIniciales.filas.length > 0) {
-      return valoresIniciales.filas.map((f) => ({
-        drone: f.drone,
-        hectareas: String(f.hectareas),
-        precio: String(f.precio),
-      }));
-    }
-    return [filaVacia()];
-  });
 
   const [gastosOperativos, setGastosOperativos] = useState<BloqueGastoDraft[]>(() => {
     if (v?.gastosOperativos) {
@@ -192,16 +212,8 @@ export function ProyectoInformeForm({
   const [mensajeViaticos, setMensajeViaticos] = useState<Record<number, string>>({});
   const [buscandoViaticos, setBuscandoViaticos] = useState<Record<number, boolean>>({});
 
-  function actualizarFila(index: number, campo: keyof FilaDraft, valor: string) {
-    setFilas((prev) => prev.map((f, i) => (i === index ? { ...f, [campo]: valor } : f)));
-  }
-
-  function agregarFila() {
-    setFilas((prev) => [...prev, filaVacia()]);
-  }
-
-  function quitarFila(index: number) {
-    setFilas((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  function actualizarPrecioFila(index: number, valor: string) {
+    setFilas((prev) => prev.map((f, i) => (i === index ? { ...f, precio: valor } : f)));
   }
 
   function agregarBloqueGasto() {
@@ -320,8 +332,7 @@ export function ProyectoInformeForm({
   }
 
   const filasParaEnviar = filas.map((f) => ({
-    drone: f.drone,
-    hectareas: Number(f.hectareas) || 0,
+    informeCampoId: f.informeCampoId,
     precio: Number(f.precio) || 0,
   }));
 
@@ -395,69 +406,46 @@ export function ProyectoInformeForm({
                 <th className="px-2 py-2 font-medium">HA</th>
                 <th className="px-2 py-2 font-medium">Precio</th>
                 <th className="px-2 py-2 font-medium">Total</th>
-                <th className="px-2 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {filas.map((f, i) => {
-                const total = (Number(f.hectareas) || 0) * (Number(f.precio) || 0);
-                return (
-                  <tr key={i} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
-                    <td className="px-2 py-2">
-                      <input
-                        value={f.drone}
-                        onChange={(e) => actualizarFila(i, "drone", e.target.value)}
-                        placeholder="Ej. AGRO SKY 1"
-                        className={CLASE_INPUT}
-                      />
-                    </td>
-                    <td className="px-2 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={f.hectareas}
-                        onChange={(e) => actualizarFila(i, "hectareas", e.target.value)}
-                        className={CLASE_INPUT}
-                      />
-                    </td>
-                    <td className="px-2 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={f.precio}
-                        onChange={(e) => actualizarFila(i, "precio", e.target.value)}
-                        className={CLASE_INPUT}
-                      />
-                    </td>
-                    <td className="px-2 py-2 font-medium text-green-900 dark:text-green-50">
-                      {formatMoney(total)}
-                    </td>
-                    <td className="px-2 py-2">
-                      <button
-                        type="button"
-                        onClick={() => quitarFila(i)}
-                        disabled={filas.length === 1}
-                        className="text-sm text-red-600 hover:underline disabled:opacity-30 dark:text-red-400"
-                      >
-                        Quitar
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filas.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-2 py-6 text-center text-sm text-green-700/70 dark:text-green-200/70">
+                    {cargandoProyecto
+                      ? "Cargando..."
+                      : proyectoId
+                        ? "Este proyecto todavía no tiene Informes de Campo."
+                        : "Elige un Proyecto para ver sus Informes de Campo."}
+                  </td>
+                </tr>
+              ) : (
+                filas.map((f, i) => {
+                  const total = f.hectareas * (Number(f.precio) || 0);
+                  return (
+                    <tr key={f.informeCampoId} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                      <td className="px-2 py-2 text-green-900 dark:text-green-50">{f.drone}</td>
+                      <td className="px-2 py-2 text-green-900 dark:text-green-50">{f.hectareas}</td>
+                      <td className="px-2 py-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={f.precio}
+                          onChange={(e) => actualizarPrecioFila(i, e.target.value)}
+                          className={CLASE_INPUT}
+                        />
+                      </td>
+                      <td className="px-2 py-2 font-medium text-green-900 dark:text-green-50">
+                        {formatMoney(total)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-
-        <button
-          type="button"
-          onClick={agregarFila}
-          className="self-start rounded-lg border border-green-200 px-3 py-1.5 text-sm text-green-800 hover:bg-green-50 dark:border-green-800 dark:text-green-200 dark:hover:bg-green-950/40"
-        >
-          + Agregar fila
-        </button>
       </div>
 
       <button

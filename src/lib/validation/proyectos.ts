@@ -14,9 +14,11 @@ function numeroOpcionalNoNegativo(mensaje: string) {
     .refine((v) => v === null || (!Number.isNaN(v) && v >= 0), mensaje);
 }
 
+// El Drone y las Hectáreas de cada fila se recalculan siempre en el
+// servidor a partir del Informe de Campo (ver crear_informe_proyecto) --
+// desde el navegador solo viaja el Precio que se le puso a cada uno.
 export const filaProyectoSchema = z.object({
-  drone: z.string().trim().min(1, "Falta el nombre del drone/empresa"),
-  hectareas: z.number().min(0, "No puede ser negativo").default(0),
+  informeCampoId: z.string().uuid(),
   precio: z.number().min(0, "No puede ser negativo").default(0),
 });
 

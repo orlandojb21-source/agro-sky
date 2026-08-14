@@ -41,8 +41,7 @@ export async function crearInformeProyectoAction(
     p_ubicacion: parsed.data.ubicacion || null,
     p_precio: parsed.data.precio,
     p_filas: parsed.data.filas.map((f) => ({
-      drone: f.drone,
-      hectareas: f.hectareas,
+      informeCampoId: f.informeCampoId,
       precio: f.precio,
     })),
     p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
@@ -104,8 +103,7 @@ export async function editarInformeProyectoAction(
     p_ubicacion: parsed.data.ubicacion || null,
     p_precio: parsed.data.precio,
     p_filas: parsed.data.filas.map((f) => ({
-      drone: f.drone,
-      hectareas: f.hectareas,
+      informeCampoId: f.informeCampoId,
       precio: f.precio,
     })),
     p_gastos_operativos: parsed.data.gastosOperativos.map((b) => ({
@@ -140,11 +138,21 @@ export async function eliminarInformeProyectoAction(id: string) {
   revalidatePath("/informes/proyecto");
 }
 
-export type DatosProyecto = { cliente: string; hectareas: number };
+export type FilaProyectoPreview = { informeCampoId: string; drone: string; hectareas: number };
+export type DatosProyecto = { cliente: string; hectareas: number; filas: FilaProyectoPreview[] };
+
+type FilaInformeCampo = {
+  id: string;
+  fecha: string;
+  modelo_drone: string;
+  informe_campo_parcelas: { hectareas: number }[] | null;
+};
 
 // Vista previa en el formulario al elegir un Proyecto -- el servidor
 // vuelve a calcular estos mismos valores al guardar (nunca se confía en lo
 // que muestre esta vista previa), así que acá solo importa que coincida.
+// Una fila por cada Informe de Campo del Proyecto (mismo Drone que aparezca
+// en 2 Informes de Campo distintos sale 2 veces).
 export async function obtenerDatosProyectoAction(proyectoId: string): Promise<DatosProyecto> {
   await requirePerfil();
   const supabase = await createClient();
@@ -159,15 +167,27 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const { data: informesData } = await supabase
     .from("informes_campo")
-    .select("informe_campo_parcelas ( hectareas )")
-    .eq("proyecto_id", proyectoId);
+    .select("id, fecha, modelo_drone, informe_campo_parcelas ( hectareas )")
+    .eq("proyecto_id", proyectoId)
+    .order("fecha")
+    .order("creado_en");
 
-  const hectareas = ((informesData ?? []) as unknown as { informe_campo_parcelas: { hectareas: number }[] | null }[])
-    .reduce((s, informe) => s + (informe.informe_campo_parcelas ?? []).reduce((s2, p) => s2 + Number(p.hectareas), 0), 0);
+  const informes = (informesData ?? []) as unknown as FilaInformeCampo[];
+
+  const filas: FilaProyectoPreview[] = informes.map((informe) => ({
+    informeCampoId: informe.id,
+    drone: informe.modelo_drone,
+    hectareas:
+      Math.round(
+        (informe.informe_campo_parcelas ?? []).reduce((s, p) => s + Number(p.hectareas), 0) * 100,
+      ) / 100,
+  }));
+
+  const hectareas = filas.reduce((s, f) => s + f.hectareas, 0);
 
   const clienteNombre = (proyecto as unknown as { clientes: { nombre: string } | null }).clientes?.nombre ?? "—";
 
-  return { cliente: clienteNombre, hectareas: Math.round(hectareas * 100) / 100 };
+  return { cliente: clienteNombre, hectareas: Math.round(hectareas * 100) / 100, filas };
 }
 
 export type ResultadoBusquedaAuto = { total: number; cantidad: number };

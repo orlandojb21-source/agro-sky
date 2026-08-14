@@ -93,10 +93,15 @@ test.describe("Informes — navegación y CRUD", () => {
     // editable) -- se verifica leyendo el bloque de Total directamente.
     await expect(page.getByText("USD 60.00", { exact: true })).toBeVisible();
 
-    await page.locator("table input").first().fill(`${PREFIJO_QA} Drone`);
-    const inputsNum = page.locator("table input[type='number']");
-    await inputsNum.nth(0).fill("10");
-    await inputsNum.nth(1).fill("50");
+    // El cuadro Drone/HA se genera solo -- una fila por Informe de Campo
+    // del Proyecto (Drone = modelo_drone, HA = suma de sus parcelas), sin
+    // botón para agregar/quitar filas. Solo el Precio de esa fila es
+    // editable.
+    const filaDrone = page.locator("table tbody tr", { hasText: "T30" });
+    await expect(filaDrone).toBeVisible({ timeout: 10000 });
+    await expect(filaDrone.getByText("12", { exact: true })).toBeVisible();
+    await filaDrone.locator('input[type="number"]').fill("8");
+
     await page.getByRole("button", { name: "Guardar informe" }).click();
     await page.waitForURL(/\/informes\/proyecto\/[0-9a-f-]+$/, { timeout: 15000 });
 
@@ -114,6 +119,17 @@ test.describe("Informes — navegación y CRUD", () => {
     expect(informeGuardado?.proyecto_id).toBe(proyecto.id);
     expect(Number(informeGuardado?.hectareas)).toBe(12);
     expect(Number(informeGuardado?.total)).toBe(60);
+
+    const { data: filaGuardada } = await adminDb
+      .from("proyecto_filas")
+      .select("informe_campo_id, drone, hectareas, precio, total")
+      .eq("informe_id", idInforme)
+      .single();
+    expect(filaGuardada?.informe_campo_id).toBe(informeCampo.id);
+    expect(filaGuardada?.drone).toBe("T30");
+    expect(Number(filaGuardada?.hectareas)).toBe(12);
+    expect(Number(filaGuardada?.precio)).toBe(8);
+    expect(Number(filaGuardada?.total)).toBe(96);
 
     await page.goto("/informes/proyecto");
     await expect(page.getByText(new RegExp(proyecto.codigo)).first()).toBeVisible();

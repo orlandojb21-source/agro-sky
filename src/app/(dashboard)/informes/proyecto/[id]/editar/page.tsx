@@ -33,7 +33,11 @@ export default async function EditarInformeProyectoPage({
         .select("id, proyecto_id, ubicacion, hectareas, precio, total, fecha")
         .eq("id", id)
         .maybeSingle(),
-      supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
+      supabase
+        .from("proyecto_filas")
+        .select("informe_campo_id, drone, hectareas, precio")
+        .eq("informe_id", id)
+        .order("id"),
       supabase
         .from("proyecto_gastos_operativos")
         .select("drone, operador, ayudantes, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
@@ -73,6 +77,7 @@ export default async function EditarInformeProyectoPage({
           total: informe.total === null ? null : Number(informe.total),
           fecha: informe.fecha as string,
           filas: (filasData ?? []).map((f) => ({
+            informeCampoId: f.informe_campo_id as string,
             drone: f.drone as string,
             hectareas: Number(f.hectareas),
             precio: Number(f.precio),
