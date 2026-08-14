@@ -1,0 +1,14 @@
+-- Agro Sky — migración 0088: proyecto opcional en Gastos Operativos > Gastos
+-- Ejecutar una sola vez en Supabase: Dashboard > SQL Editor > New query > pegar > Run
+--
+-- Pedido del usuario (2026-08-14): poder ligar, opcionalmente, un gasto de
+-- Compras > Gastos a un Proyecto del catálogo nuevo (migración 0087) -- no
+-- todos los gastos son de un Proyecto en particular, nunca obligatorio.
+-- Primer paso de varios hacia poder alimentar "Análisis de Proyecto" con
+-- datos reales de otros módulos (Informe de Campo ya quedó ligado en la
+-- 0087; gastos es el siguiente).
+--
+-- Mismo criterio que gastos.proveedor_id (migración 0056): "on delete set
+-- null", para que borrar un Proyecto del catálogo nunca bloquee ni borre
+-- un gasto ya registrado -- simplemente queda sin proyecto asignado.
+alter table gastos add column proyecto_id uuid references proyectos (id) on delete set null;

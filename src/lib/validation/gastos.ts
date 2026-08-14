@@ -25,6 +25,9 @@ const gastoBase = z
   .object({
     fecha: z.string().trim().min(1, "Fecha requerida"),
     proveedorId: z.string().trim().optional().default(""),
+    // Opcional -- no todo gasto es de un Proyecto en particular (pedido
+    // explícito del usuario, 2026-08-14). Mismo patrón que proveedorId.
+    proyectoId: z.string().trim().optional().default(""),
     categoria: z.string().trim().min(1, "Selecciona una categoría"),
     // Solo aplica cuando categoria = "otro" -- se valida con .refine() abajo
     // porque su obligatoriedad depende de la categoría elegida. Se
@@ -61,6 +64,7 @@ export const gastoEditSchema = z
     id: z.string().uuid(),
     fecha: z.string().trim().min(1, "Fecha requerida"),
     proveedorId: z.string().trim().optional().default(""),
+    proyectoId: z.string().trim().optional().default(""),
     categoria: z.string().trim().min(1, "Selecciona una categoría"),
     categoriaOtro: z.string().trim().optional().default(""),
     numeroFactura: z.string().trim().optional().default(""),

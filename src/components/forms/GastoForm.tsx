@@ -11,11 +11,13 @@ import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 
 export type ProveedorOpcion = { id: string; nombre: string };
+export type ProyectoOpcionGasto = { id: string; codigo: string; nombre: string; clienteNombre: string };
 
 type ValoresGasto = {
   id?: string;
   fecha: string;
   proveedorId: string | null;
+  proyectoId: string | null;
   categoria: string;
   categoriaOtro: string | null;
   numeroFactura: string | null;
@@ -34,11 +36,13 @@ const CLASE_INPUT_ARCHIVO =
 
 export function GastoForm({
   proveedores,
+  proyectos,
   categorias,
   fechaHoy,
   valoresIniciales,
 }: {
   proveedores: ProveedorOpcion[];
+  proyectos: ProyectoOpcionGasto[];
   categorias: string[];
   fechaHoy: string;
   valoresIniciales?: ValoresGasto;
@@ -127,6 +131,18 @@ export function GastoForm({
           {proveedores.map((p) => (
             <option key={p.id} value={p.id}>
               {p.nombre}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          label="Proyecto"
+          name="proyectoId"
+          defaultValue={state.values?.proyectoId ?? valoresIniciales?.proyectoId ?? ""}
+        >
+          <option value="">Sin proyecto</option>
+          {proyectos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.codigo} — {p.nombre} ({p.clienteNombre})
             </option>
           ))}
         </SelectField>

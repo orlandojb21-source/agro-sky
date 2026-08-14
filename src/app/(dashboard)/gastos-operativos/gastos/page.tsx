@@ -14,6 +14,7 @@ type GastoFila = {
   id: string;
   fecha: string;
   proveedorNombre: string | null;
+  proyectoCodigo: string | null;
   categoria: string;
   categoriaOtro: string | null;
   numeroFactura: string | null;
@@ -30,7 +31,7 @@ export default async function GastosPage() {
   const { data } = await supabase
     .from("gastos")
     .select(
-      "id, fecha, categoria, categoria_otro, numero_factura, monto, estado_pago, fecha_tope_pago, proveedores ( nombre )",
+      "id, fecha, categoria, categoria_otro, numero_factura, monto, estado_pago, fecha_tope_pago, proveedores ( nombre ), proyectos ( codigo )",
     )
     .order("fecha", { ascending: false });
 
@@ -38,6 +39,7 @@ export default async function GastosPage() {
     id: g.id as string,
     fecha: g.fecha as string,
     proveedorNombre: (g.proveedores as unknown as { nombre: string } | null)?.nombre ?? null,
+    proyectoCodigo: (g.proyectos as unknown as { codigo: string } | null)?.codigo ?? null,
     categoria: g.categoria as string,
     categoriaOtro: g.categoria_otro as string | null,
     numeroFactura: g.numero_factura as string | null,
@@ -56,6 +58,7 @@ export default async function GastosPage() {
         g.categoria === "otro" ? (g.categoriaOtro ?? "Otro") : (CATEGORIA_GASTO_LABEL[g.categoria] ?? g.categoria),
     },
     { header: "Proveedor", render: (g) => g.proveedorNombre ?? "—" },
+    { header: "Proyecto", render: (g) => g.proyectoCodigo ?? "—" },
     { header: "N.° Factura", render: (g) => g.numeroFactura ?? "—" },
     { header: "Monto", render: (g) => formatMoney(g.monto) },
     {
