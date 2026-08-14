@@ -8,14 +8,21 @@ import { ROL_LABEL, ROLES, type Rol } from "@/lib/roles";
 import { formatDate } from "@/lib/format";
 
 type Filtros = {
-  texto: string;
+  nombre: string;
+  correo: string;
+  telefono: string;
   rol: "" | Rol;
 };
 
-const FILTROS_VACIOS: Filtros = { texto: "", rol: "" };
+const FILTROS_VACIOS: Filtros = { nombre: "", correo: "", telefono: "", rol: "" };
+
+function coincide(valor: string, filtro: string) {
+  if (!filtro.trim()) return true;
+  return valor.toLowerCase().includes(filtro.trim().toLowerCase());
+}
 
 const inputFiltro =
-  "rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
 export function UsuariosTabla({
   usuarios,
@@ -33,66 +40,88 @@ export function UsuariosTabla({
   }
 
   const filtrados = useMemo(() => {
-    const texto = filtros.texto.trim().toLowerCase();
     return usuarios.filter((u) => {
-      if (
-        texto &&
-        !`${u.nombreCompleto} ${u.email} ${u.telefono ?? ""}`.toLowerCase().includes(texto)
-      )
-        return false;
+      if (!coincide(u.nombreCompleto, filtros.nombre)) return false;
+      if (!coincide(u.email, filtros.correo)) return false;
+      if (!coincide(u.telefono ?? "", filtros.telefono)) return false;
       if (filtros.rol && u.rol !== filtros.rol) return false;
       return true;
     });
   }, [usuarios, filtros]);
 
-  const hayFiltrosActivos = filtros.texto !== "" || filtros.rol !== "";
+  const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={filtros.texto}
-          onChange={(e) => setFiltro("texto", e.target.value)}
-          placeholder="Buscar nombre, correo o teléfono..."
-          className={`w-full max-w-sm ${inputFiltro}`}
-        />
-        <select
-          value={filtros.rol}
-          onChange={(e) => setFiltro("rol", e.target.value as Filtros["rol"])}
-          className={inputFiltro}
-        >
-          <option value="">Todos los roles</option>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {ROL_LABEL[r]}
-            </option>
-          ))}
-        </select>
-        {hayFiltrosActivos && (
-          <button
-            onClick={() => setFiltros(FILTROS_VACIOS)}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Limpiar filtros
-          </button>
-        )}
-        <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {usuarios.length}
-        </span>
-      </div>
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {usuarios.length}
+      </span>
 
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-4 py-2 font-medium">Nombre</th>
-                <th className="px-4 py-2 font-medium">Correo</th>
-                <th className="px-4 py-2 font-medium">Teléfono</th>
-                <th className="px-4 py-2 font-medium">Rol</th>
-                <th className="px-4 py-2 font-medium">Desde</th>
-                <th className="px-4 py-2"></th>
+                <th className="px-4 pt-2 font-medium">Nombre</th>
+                <th className="px-4 pt-2 font-medium">Correo</th>
+                <th className="px-4 pt-2 font-medium">Teléfono</th>
+                <th className="px-4 pt-2 font-medium">Rol</th>
+                <th className="px-4 pt-2 font-medium">Desde</th>
+                <th className="px-4 pt-2"></th>
+              </tr>
+              <tr className="border-b border-green-100 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30">
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.nombre}
+                    onChange={(e) => setFiltro("nombre", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.correo}
+                    onChange={(e) => setFiltro("correo", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.telefono}
+                    onChange={(e) => setFiltro("telefono", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <select
+                    value={filtros.rol}
+                    onChange={(e) => setFiltro("rol", e.target.value as Filtros["rol"])}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todos</option>
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROL_LABEL[r]}
+                      </option>
+                    ))}
+                  </select>
+                </th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2">
+                  {hayFiltrosActivos && (
+                    <button
+                      onClick={() => setFiltros(FILTROS_VACIOS)}
+                      className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -140,6 +169,35 @@ export function UsuariosTabla({
       </div>
 
       <div className="flex flex-col gap-3 sm:hidden">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-green-100 bg-white p-3 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <input
+            type="text"
+            value={filtros.nombre}
+            onChange={(e) => setFiltro("nombre", e.target.value)}
+            placeholder="Buscar nombre..."
+            className={`w-full ${inputFiltro}`}
+          />
+          <select
+            value={filtros.rol}
+            onChange={(e) => setFiltro("rol", e.target.value as Filtros["rol"])}
+            className={inputFiltro}
+          >
+            <option value="">Todos los roles</option>
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROL_LABEL[r]}
+              </option>
+            ))}
+          </select>
+          {hayFiltrosActivos && (
+            <button
+              onClick={() => setFiltros(FILTROS_VACIOS)}
+              className="text-sm text-green-700 hover:underline dark:text-green-300"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
             {usuarios.length === 0 ? "Todavía no hay usuarios." : "Ningún usuario coincide con los filtros."}

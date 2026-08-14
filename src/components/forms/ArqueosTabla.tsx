@@ -25,15 +25,15 @@ function claseDiferencia(diferencia: number): string {
 }
 
 type Filtros = {
-  texto: string;
+  nota: string;
   fechaDesde: string;
   fechaHasta: string;
 };
 
-const FILTROS_VACIOS: Filtros = { texto: "", fechaDesde: "", fechaHasta: "" };
+const FILTROS_VACIOS: Filtros = { nota: "", fechaDesde: "", fechaHasta: "" };
 
 const inputFiltro =
-  "rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
 export function ArqueosTabla({
   arqueos,
@@ -49,9 +49,9 @@ export function ArqueosTabla({
   }
 
   const filtrados = useMemo(() => {
-    const texto = filtros.texto.trim().toLowerCase();
+    const nota = filtros.nota.trim().toLowerCase();
     return arqueos.filter((a) => {
-      if (texto && !(a.nota ?? "").toLowerCase().includes(texto)) return false;
+      if (nota && !(a.nota ?? "").toLowerCase().includes(nota)) return false;
       if (filtros.fechaDesde && a.fecha < filtros.fechaDesde) return false;
       if (filtros.fechaHasta && a.fecha > filtros.fechaHasta) return false;
       return true;
@@ -59,41 +59,6 @@ export function ArqueosTabla({
   }, [arqueos, filtros]);
 
   const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
-
-  const filtrosUi = (
-    <div className="flex flex-wrap items-center gap-3">
-      <input
-        type="text"
-        value={filtros.texto}
-        onChange={(e) => setFiltro("texto", e.target.value)}
-        placeholder="Buscar en la nota..."
-        className={`w-full max-w-sm ${inputFiltro}`}
-      />
-      <input
-        type="date"
-        value={filtros.fechaDesde}
-        onChange={(e) => setFiltro("fechaDesde", e.target.value)}
-        className={inputFiltro}
-      />
-      <input
-        type="date"
-        value={filtros.fechaHasta}
-        onChange={(e) => setFiltro("fechaHasta", e.target.value)}
-        className={inputFiltro}
-      />
-      {hayFiltrosActivos && (
-        <button
-          onClick={() => setFiltros(FILTROS_VACIOS)}
-          className="text-sm text-green-700 hover:underline dark:text-green-300"
-        >
-          Limpiar filtros
-        </button>
-      )}
-      <span className="text-xs text-green-700/60 dark:text-green-300/60">
-        {filtrados.length} de {arqueos.length}
-      </span>
-    </div>
-  );
 
   if (arqueos.length === 0) {
     return (
@@ -105,7 +70,9 @@ export function ArqueosTabla({
 
   return (
     <div className="flex flex-col gap-4">
-      {filtrosUi}
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {arqueos.length}
+      </span>
 
       {/* Vista de escritorio */}
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
@@ -113,12 +80,54 @@ export function ArqueosTabla({
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-3 py-2 font-medium">Fecha</th>
-                <th className="px-3 py-2 font-medium">Total contado</th>
-                <th className="px-3 py-2 font-medium">Saldo esperado</th>
-                <th className="px-3 py-2 font-medium">Diferencia</th>
-                <th className="px-3 py-2 font-medium">Nota</th>
-                <th className="px-3 py-2"></th>
+                <th className="px-3 pt-2 font-medium">Fecha</th>
+                <th className="px-3 pt-2 font-medium">Total contado</th>
+                <th className="px-3 pt-2 font-medium">Saldo esperado</th>
+                <th className="px-3 pt-2 font-medium">Diferencia</th>
+                <th className="px-3 pt-2 font-medium">Nota</th>
+                <th className="px-3 pt-2"></th>
+              </tr>
+              <tr className="border-b border-green-100 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30">
+                <th className="px-3 pb-2">
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="date"
+                      value={filtros.fechaDesde}
+                      onChange={(e) => setFiltro("fechaDesde", e.target.value)}
+                      className={inputFiltro}
+                      aria-label="Desde"
+                    />
+                    <input
+                      type="date"
+                      value={filtros.fechaHasta}
+                      onChange={(e) => setFiltro("fechaHasta", e.target.value)}
+                      className={inputFiltro}
+                      aria-label="Hasta"
+                    />
+                  </div>
+                </th>
+                <th className="px-3 pb-2"></th>
+                <th className="px-3 pb-2"></th>
+                <th className="px-3 pb-2"></th>
+                <th className="px-3 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.nota}
+                    onChange={(e) => setFiltro("nota", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-3 pb-2">
+                  {hayFiltrosActivos && (
+                    <button
+                      onClick={() => setFiltros(FILTROS_VACIOS)}
+                      className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -165,6 +174,35 @@ export function ArqueosTabla({
 
       {/* Vista de movil: una tarjeta por arqueo */}
       <div className="flex flex-col gap-3 sm:hidden">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-green-100 bg-white p-3 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <input
+            type="text"
+            value={filtros.nota}
+            onChange={(e) => setFiltro("nota", e.target.value)}
+            placeholder="Buscar en la nota..."
+            className={`w-full ${inputFiltro}`}
+          />
+          <input
+            type="date"
+            value={filtros.fechaDesde}
+            onChange={(e) => setFiltro("fechaDesde", e.target.value)}
+            className={inputFiltro}
+          />
+          <input
+            type="date"
+            value={filtros.fechaHasta}
+            onChange={(e) => setFiltro("fechaHasta", e.target.value)}
+            className={inputFiltro}
+          />
+          {hayFiltrosActivos && (
+            <button
+              onClick={() => setFiltros(FILTROS_VACIOS)}
+              className="text-sm text-green-700 hover:underline dark:text-green-300"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
             Ningún arqueo coincide con los filtros.

@@ -18,14 +18,22 @@ export type DroneFila = {
 };
 
 type Filtros = {
+  nombre: string;
+  modelo: string;
+  operador: string;
   texto: string;
   estado: "" | EstadoDrone;
 };
 
-const FILTROS_VACIOS: Filtros = { texto: "", estado: "" };
+const FILTROS_VACIOS: Filtros = { nombre: "", modelo: "", operador: "", texto: "", estado: "" };
+
+function coincide(valor: string, filtro: string) {
+  if (!filtro.trim()) return true;
+  return valor.toLowerCase().includes(filtro.trim().toLowerCase());
+}
 
 const inputFiltro =
-  "rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
 export function DronesTabla({ drones }: { drones: DroneFila[] }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
@@ -35,68 +43,94 @@ export function DronesTabla({ drones }: { drones: DroneFila[] }) {
   }
 
   const filtrados = useMemo(() => {
-    const texto = filtros.texto.trim().toLowerCase();
     return drones.filter((d) => {
-      if (
-        texto &&
-        !`${d.nombre} ${d.modelo} ${d.operadorActual ?? ""}`.toLowerCase().includes(texto)
-      )
+      if (!coincide(d.nombre, filtros.nombre)) return false;
+      if (!coincide(d.modelo, filtros.modelo)) return false;
+      if (!coincide(d.operadorActual ?? "", filtros.operador)) return false;
+      if (filtros.texto.trim() && !coincide(`${d.nombre} ${d.modelo} ${d.operadorActual ?? ""}`, filtros.texto))
         return false;
       if (filtros.estado && d.estado !== filtros.estado) return false;
       return true;
     });
   }, [drones, filtros]);
 
-  const hayFiltrosActivos = filtros.texto !== "" || filtros.estado !== "";
+  const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={filtros.texto}
-          onChange={(e) => setFiltro("texto", e.target.value)}
-          placeholder="Buscar nombre, modelo u operador..."
-          className={`w-full max-w-sm ${inputFiltro}`}
-        />
-        <select
-          value={filtros.estado}
-          onChange={(e) => setFiltro("estado", e.target.value as Filtros["estado"])}
-          className={inputFiltro}
-        >
-          <option value="">Todos los estados</option>
-          {ESTADO_DRONE.map((e) => (
-            <option key={e} value={e}>
-              {ESTADO_DRONE_LABEL[e]}
-            </option>
-          ))}
-        </select>
-        {hayFiltrosActivos && (
-          <button
-            onClick={() => setFiltros(FILTROS_VACIOS)}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Limpiar filtros
-          </button>
-        )}
-        <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {drones.length}
-        </span>
-      </div>
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {drones.length}
+      </span>
 
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-4 py-2 font-medium">Nombre</th>
-                <th className="px-4 py-2 font-medium">Modelo</th>
-                <th className="px-4 py-2 font-medium">Estado</th>
-                <th className="px-4 py-2 font-medium">Operador asignado</th>
-                <th className="px-4 py-2 font-medium">Área Cubierta</th>
-                <th className="px-4 py-2 font-medium">Horas de Vuelo</th>
-                <th className="px-4 py-2 font-medium">Vuelos</th>
-                <th className="px-4 py-2"></th>
+                <th className="px-4 pt-2 font-medium">Nombre</th>
+                <th className="px-4 pt-2 font-medium">Modelo</th>
+                <th className="px-4 pt-2 font-medium">Estado</th>
+                <th className="px-4 pt-2 font-medium">Operador asignado</th>
+                <th className="px-4 pt-2 font-medium">Área Cubierta</th>
+                <th className="px-4 pt-2 font-medium">Horas de Vuelo</th>
+                <th className="px-4 pt-2 font-medium">Vuelos</th>
+                <th className="px-4 pt-2"></th>
+              </tr>
+              <tr className="border-b border-green-100 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30">
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.nombre}
+                    onChange={(e) => setFiltro("nombre", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.modelo}
+                    onChange={(e) => setFiltro("modelo", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <select
+                    value={filtros.estado}
+                    onChange={(e) => setFiltro("estado", e.target.value as Filtros["estado"])}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todos</option>
+                    {ESTADO_DRONE.map((e) => (
+                      <option key={e} value={e}>
+                        {ESTADO_DRONE_LABEL[e]}
+                      </option>
+                    ))}
+                  </select>
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.operador}
+                    onChange={(e) => setFiltro("operador", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2">
+                  {hayFiltrosActivos && (
+                    <button
+                      onClick={() => setFiltros(FILTROS_VACIOS)}
+                      className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -137,6 +171,35 @@ export function DronesTabla({ drones }: { drones: DroneFila[] }) {
       </div>
 
       <div className="flex flex-col gap-3 sm:hidden">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-green-100 bg-white p-3 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <input
+            type="text"
+            value={filtros.texto}
+            onChange={(e) => setFiltro("texto", e.target.value)}
+            placeholder="Buscar nombre, modelo u operador..."
+            className={`w-full ${inputFiltro}`}
+          />
+          <select
+            value={filtros.estado}
+            onChange={(e) => setFiltro("estado", e.target.value as Filtros["estado"])}
+            className={inputFiltro}
+          >
+            <option value="">Todos los estados</option>
+            {ESTADO_DRONE.map((e) => (
+              <option key={e} value={e}>
+                {ESTADO_DRONE_LABEL[e]}
+              </option>
+            ))}
+          </select>
+          {hayFiltrosActivos && (
+            <button
+              onClick={() => setFiltros(FILTROS_VACIOS)}
+              className="text-sm text-green-700 hover:underline dark:text-green-300"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
             {drones.length === 0 ? "Todavía no hay drones registrados." : "Ningún drone coincide con los filtros."}

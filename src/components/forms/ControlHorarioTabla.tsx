@@ -15,16 +15,21 @@ export type ControlHorarioFila = {
 };
 
 type Filtros = {
-  texto: string;
+  colaborador: string;
   cumplio: "" | "si" | "no";
   fechaDesde: string;
   fechaHasta: string;
 };
 
-const FILTROS_VACIOS: Filtros = { texto: "", cumplio: "", fechaDesde: "", fechaHasta: "" };
+const FILTROS_VACIOS: Filtros = { colaborador: "", cumplio: "", fechaDesde: "", fechaHasta: "" };
+
+function coincide(valor: string, filtro: string) {
+  if (!filtro.trim()) return true;
+  return valor.toLowerCase().includes(filtro.trim().toLowerCase());
+}
 
 const inputFiltro =
-  "rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
 export function ControlHorarioTabla({
   registros,
@@ -40,9 +45,8 @@ export function ControlHorarioTabla({
   }
 
   const filtrados = useMemo(() => {
-    const texto = filtros.texto.trim().toLowerCase();
     return registros.filter((r) => {
-      if (texto && !r.colaborador.toLowerCase().includes(texto)) return false;
+      if (!coincide(r.colaborador, filtros.colaborador)) return false;
       if (filtros.cumplio === "si" && !r.cumplio) return false;
       if (filtros.cumplio === "no" && r.cumplio) return false;
       if (filtros.fechaDesde && r.fecha < filtros.fechaDesde) return false;
@@ -55,58 +59,71 @@ export function ControlHorarioTabla({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={filtros.texto}
-          onChange={(e) => setFiltro("texto", e.target.value)}
-          placeholder="Buscar colaborador..."
-          className={`w-full max-w-sm ${inputFiltro}`}
-        />
-        <select
-          value={filtros.cumplio}
-          onChange={(e) => setFiltro("cumplio", e.target.value as Filtros["cumplio"])}
-          className={inputFiltro}
-        >
-          <option value="">Todos</option>
-          <option value="si">Cumplió</option>
-          <option value="no">No cumplió</option>
-        </select>
-        <input
-          type="date"
-          value={filtros.fechaDesde}
-          onChange={(e) => setFiltro("fechaDesde", e.target.value)}
-          className={inputFiltro}
-        />
-        <input
-          type="date"
-          value={filtros.fechaHasta}
-          onChange={(e) => setFiltro("fechaHasta", e.target.value)}
-          className={inputFiltro}
-        />
-        {hayFiltrosActivos && (
-          <button
-            onClick={() => setFiltros(FILTROS_VACIOS)}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Limpiar filtros
-          </button>
-        )}
-        <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {registros.length}
-        </span>
-      </div>
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {registros.length}
+      </span>
 
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-4 py-2 font-medium">Fecha</th>
-                <th className="px-4 py-2 font-medium">Colaborador</th>
-                <th className="px-4 py-2 font-medium">Asistencia</th>
-                <th className="px-4 py-2 font-medium">Nota</th>
-                <th className="px-4 py-2"></th>
+                <th className="px-4 pt-2 font-medium">Fecha</th>
+                <th className="px-4 pt-2 font-medium">Colaborador</th>
+                <th className="px-4 pt-2 font-medium">Asistencia</th>
+                <th className="px-4 pt-2 font-medium">Nota</th>
+                <th className="px-4 pt-2"></th>
+              </tr>
+              <tr className="border-b border-green-100 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30">
+                <th className="px-4 pb-2">
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="date"
+                      value={filtros.fechaDesde}
+                      onChange={(e) => setFiltro("fechaDesde", e.target.value)}
+                      className={inputFiltro}
+                      aria-label="Desde"
+                    />
+                    <input
+                      type="date"
+                      value={filtros.fechaHasta}
+                      onChange={(e) => setFiltro("fechaHasta", e.target.value)}
+                      className={inputFiltro}
+                      aria-label="Hasta"
+                    />
+                  </div>
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.colaborador}
+                    onChange={(e) => setFiltro("colaborador", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <select
+                    value={filtros.cumplio}
+                    onChange={(e) => setFiltro("cumplio", e.target.value as Filtros["cumplio"])}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todos</option>
+                    <option value="si">Cumplió</option>
+                    <option value="no">No cumplió</option>
+                  </select>
+                </th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2">
+                  {hayFiltrosActivos && (
+                    <button
+                      onClick={() => setFiltros(FILTROS_VACIOS)}
+                      className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -163,6 +180,44 @@ export function ControlHorarioTabla({
       </div>
 
       <div className="flex flex-col gap-3 sm:hidden">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-green-100 bg-white p-3 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <input
+            type="text"
+            value={filtros.colaborador}
+            onChange={(e) => setFiltro("colaborador", e.target.value)}
+            placeholder="Buscar colaborador..."
+            className={`w-full ${inputFiltro}`}
+          />
+          <select
+            value={filtros.cumplio}
+            onChange={(e) => setFiltro("cumplio", e.target.value as Filtros["cumplio"])}
+            className={inputFiltro}
+          >
+            <option value="">Todos</option>
+            <option value="si">Cumplió</option>
+            <option value="no">No cumplió</option>
+          </select>
+          <input
+            type="date"
+            value={filtros.fechaDesde}
+            onChange={(e) => setFiltro("fechaDesde", e.target.value)}
+            className={inputFiltro}
+          />
+          <input
+            type="date"
+            value={filtros.fechaHasta}
+            onChange={(e) => setFiltro("fechaHasta", e.target.value)}
+            className={inputFiltro}
+          />
+          {hayFiltrosActivos && (
+            <button
+              onClick={() => setFiltros(FILTROS_VACIOS)}
+              className="text-sm text-green-700 hover:underline dark:text-green-300"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
             {registros.length === 0

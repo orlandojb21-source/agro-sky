@@ -13,6 +13,17 @@ export type ProveedorFila = {
   correo: string | null;
 };
 
+type Filtros = { nombre: string; contacto: string; telefono: string; correo: string };
+const FILTROS_VACIOS: Filtros = { nombre: "", contacto: "", telefono: "", correo: "" };
+
+function coincide(valor: string | null, filtro: string) {
+  if (!filtro.trim()) return true;
+  return (valor ?? "").toLowerCase().includes(filtro.trim().toLowerCase());
+}
+
+const inputFiltro =
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
+
 export function ProveedoresTabla({
   proveedores,
   puedeEscribir,
@@ -20,36 +31,88 @@ export function ProveedoresTabla({
   proveedores: ProveedorFila[];
   puedeEscribir: boolean;
 }) {
-  const [texto, setTexto] = useState("");
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
+
+  function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
+    setFiltros((f) => ({ ...f, [campo]: valor }));
+  }
 
   const filtrados = useMemo(() => {
-    const t = texto.trim().toLowerCase();
-    if (!t) return proveedores;
-    return proveedores.filter((p) =>
-      [p.nombre, p.contacto, p.telefono, p.correo].filter(Boolean).join(" ").toLowerCase().includes(t),
-    );
-  }, [proveedores, texto]);
+    return proveedores.filter((p) => {
+      if (!coincide(p.nombre, filtros.nombre)) return false;
+      if (!coincide(p.contacto, filtros.contacto)) return false;
+      if (!coincide(p.telefono, filtros.telefono)) return false;
+      if (!coincide(p.correo, filtros.correo)) return false;
+      return true;
+    });
+  }, [proveedores, filtros]);
+
+  const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
   return (
     <div className="flex flex-col gap-4">
-      <input
-        type="text"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        placeholder="Buscar proveedor..."
-        className="w-full max-w-sm rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-      />
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {proveedores.length}
+      </span>
 
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-4 py-2 font-medium">Nombre</th>
-                <th className="px-4 py-2 font-medium">Contacto</th>
-                <th className="px-4 py-2 font-medium">Teléfono</th>
-                <th className="px-4 py-2 font-medium">Correo</th>
-                <th className="px-4 py-2"></th>
+                <th className="px-4 pt-2 font-medium">Nombre</th>
+                <th className="px-4 pt-2 font-medium">Contacto</th>
+                <th className="px-4 pt-2 font-medium">Teléfono</th>
+                <th className="px-4 pt-2 font-medium">Correo</th>
+                <th className="px-4 pt-2"></th>
+              </tr>
+              <tr className="border-b border-green-100 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30">
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.nombre}
+                    onChange={(e) => setFiltro("nombre", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.contacto}
+                    onChange={(e) => setFiltro("contacto", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.telefono}
+                    onChange={(e) => setFiltro("telefono", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.correo}
+                    onChange={(e) => setFiltro("correo", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  {hayFiltrosActivos && (
+                    <button
+                      onClick={() => setFiltros(FILTROS_VACIOS)}
+                      className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -96,6 +159,13 @@ export function ProveedoresTabla({
       </div>
 
       <div className="flex flex-col gap-3 sm:hidden">
+        <input
+          type="text"
+          value={filtros.nombre}
+          onChange={(e) => setFiltro("nombre", e.target.value)}
+          placeholder="Buscar proveedor..."
+          className={`w-full rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30`}
+        />
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
             {proveedores.length === 0

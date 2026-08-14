@@ -1,5 +1,5 @@
 export interface Column<T> {
-  header: string;
+  header: React.ReactNode;
   render: (row: T) => React.ReactNode;
 }
 
@@ -26,8 +26,8 @@ export function DataTable<T extends { id: string }>({
         <table className="w-full min-w-max text-left text-sm">
           <thead>
             <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-              {columns.map((c) => (
-                <th key={c.header} className="whitespace-nowrap px-4 py-3 font-medium">
+              {columns.map((c, i) => (
+                <th key={i} className="whitespace-nowrap px-4 py-3 font-medium align-top">
                   {c.header}
                 </th>
               ))}
@@ -39,8 +39,8 @@ export function DataTable<T extends { id: string }>({
                 key={row.id}
                 className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
               >
-                {columns.map((c) => (
-                  <td key={c.header} className="px-4 py-3 align-middle">
+                {columns.map((c, i) => (
+                  <td key={i} className="px-4 py-3 align-middle">
                     {c.render(row)}
                   </td>
                 ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { ImagenAmpliable } from "@/components/ui/ImagenAmpliable";
@@ -43,13 +43,27 @@ function descripcionIntervalo(f: EstadoPreventivoFila): string {
 }
 
 const inputFiltro =
-  "rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
-type FiltrosPreventivo = { texto: string; estado: "" | "vencido" | "al_dia" };
-const FILTROS_PREVENTIVO_VACIOS: FiltrosPreventivo = { texto: "", estado: "" };
+function EncabezadoFiltro({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span>{titulo}</span>
+      {children}
+    </div>
+  );
+}
 
-type FiltrosCorrectivo = { texto: string; fechaDesde: string; fechaHasta: string };
-const FILTROS_CORRECTIVO_VACIOS: FiltrosCorrectivo = { texto: "", fechaDesde: "", fechaHasta: "" };
+type FiltrosPreventivo = { drone: string; tipo: string; estado: "" | "vencido" | "al_dia" };
+const FILTROS_PREVENTIVO_VACIOS: FiltrosPreventivo = { drone: "", tipo: "", estado: "" };
+
+function coincide(valor: string, filtro: string) {
+  if (!filtro.trim()) return true;
+  return valor.toLowerCase().includes(filtro.trim().toLowerCase());
+}
+
+type FiltrosCorrectivo = { drone: string; motivo: string; piezas: string; fechaDesde: string; fechaHasta: string };
+const FILTROS_CORRECTIVO_VACIOS: FiltrosCorrectivo = { drone: "", motivo: "", piezas: "", fechaDesde: "", fechaHasta: "" };
 
 export function TablaPreventivo({
   estado,
@@ -61,24 +75,62 @@ export function TablaPreventivo({
   const [filtros, setFiltros] = useState<FiltrosPreventivo>(FILTROS_PREVENTIVO_VACIOS);
 
   const filtrados = useMemo(() => {
-    const texto = filtros.texto.trim().toLowerCase();
     return estado.filter((f) => {
-      if (texto && !`${f.droneNombre} ${f.tipo}`.toLowerCase().includes(texto)) return false;
+      if (!coincide(f.droneNombre, filtros.drone)) return false;
+      if (!coincide(f.tipo, filtros.tipo)) return false;
       if (filtros.estado === "vencido" && !f.vencido) return false;
       if (filtros.estado === "al_dia" && f.vencido) return false;
       return true;
     });
   }, [estado, filtros]);
 
-  const hayFiltrosActivos = filtros.texto !== "" || filtros.estado !== "";
+  const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
   const columnas: Column<EstadoPreventivoFila>[] = [
-    { header: "Drone", render: (f) => <Link href={`/bitacora/${f.droneId}`} className="hover:underline">{f.droneNombre}</Link> },
-    { header: "Tipo", render: (f) => f.tipo },
+    {
+      header: (
+        <EncabezadoFiltro titulo="Drone">
+          <input
+            type="text"
+            value={filtros.drone}
+            onChange={(e) => setFiltros((f) => ({ ...f, drone: e.target.value }))}
+            placeholder="Filtrar..."
+            className={inputFiltro}
+          />
+        </EncabezadoFiltro>
+      ),
+      render: (f) => <Link href={`/bitacora/${f.droneId}`} className="hover:underline">{f.droneNombre}</Link>,
+    },
+    {
+      header: (
+        <EncabezadoFiltro titulo="Tipo">
+          <input
+            type="text"
+            value={filtros.tipo}
+            onChange={(e) => setFiltros((f) => ({ ...f, tipo: e.target.value }))}
+            placeholder="Filtrar..."
+            className={inputFiltro}
+          />
+        </EncabezadoFiltro>
+      ),
+      render: (f) => f.tipo,
+    },
     { header: "Último", render: (f) => formatDateOnly(f.fecha) },
     { header: "Intervalo", render: (f) => descripcionIntervalo(f) },
     {
-      header: "Estado",
+      header: (
+        <EncabezadoFiltro titulo="Estado">
+          <select
+            value={filtros.estado}
+            onChange={(e) => setFiltros((f) => ({ ...f, estado: e.target.value as FiltrosPreventivo["estado"] }))}
+            className={inputFiltro}
+          >
+            <option value="">Todos</option>
+            <option value="vencido">Vencido</option>
+            <option value="al_dia">Al día</option>
+          </select>
+        </EncabezadoFiltro>
+      ),
       render: (f) =>
         f.vencido ? (
           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/40 dark:text-red-300">
@@ -93,7 +145,16 @@ export function TablaPreventivo({
     ...(puedeEliminar
       ? [
           {
-            header: "",
+            header: hayFiltrosActivos ? (
+              <button
+                onClick={() => setFiltros(FILTROS_PREVENTIVO_VACIOS)}
+                className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+              >
+                Limpiar
+              </button>
+            ) : (
+              ""
+            ),
             render: (f: EstadoPreventivoFila) => (
               <DeleteButton
                 action={eliminarMantenimientoPreventivoAction.bind(null, f.id)}
@@ -107,35 +168,9 @@ export function TablaPreventivo({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={filtros.texto}
-          onChange={(e) => setFiltros((f) => ({ ...f, texto: e.target.value }))}
-          placeholder="Buscar drone o tipo..."
-          className={`w-full max-w-sm ${inputFiltro}`}
-        />
-        <select
-          value={filtros.estado}
-          onChange={(e) => setFiltros((f) => ({ ...f, estado: e.target.value as FiltrosPreventivo["estado"] }))}
-          className={inputFiltro}
-        >
-          <option value="">Todos los estados</option>
-          <option value="vencido">Vencido</option>
-          <option value="al_dia">Al día</option>
-        </select>
-        {hayFiltrosActivos && (
-          <button
-            onClick={() => setFiltros(FILTROS_PREVENTIVO_VACIOS)}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Limpiar filtros
-          </button>
-        )}
-        <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {estado.length}
-        </span>
-      </div>
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {estado.length}
+      </span>
       <DataTable
         rows={filtrados}
         columns={columnas}
@@ -159,9 +194,10 @@ export function TablaCorrectivo({
   const [filtros, setFiltros] = useState<FiltrosCorrectivo>(FILTROS_CORRECTIVO_VACIOS);
 
   const filtrados = useMemo(() => {
-    const texto = filtros.texto.trim().toLowerCase();
     return correctivos.filter((c) => {
-      if (texto && !`${c.droneNombre} ${c.motivo} ${c.piezas}`.toLowerCase().includes(texto)) return false;
+      if (!coincide(c.droneNombre, filtros.drone)) return false;
+      if (!coincide(c.motivo, filtros.motivo)) return false;
+      if (!coincide(c.piezas, filtros.piezas)) return false;
       if (filtros.fechaDesde && c.fecha < filtros.fechaDesde) return false;
       if (filtros.fechaHasta && c.fecha > filtros.fechaHasta) return false;
       return true;
@@ -171,10 +207,71 @@ export function TablaCorrectivo({
   const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
   const columnas: Column<CorrectivoFila>[] = [
-    { header: "Fecha", render: (c) => formatDateOnly(c.fecha) },
-    { header: "Drone", render: (c) => c.droneNombre },
-    { header: "Motivo", render: (c) => c.motivo },
-    { header: "Piezas cambiadas", render: (c) => c.piezas || "—" },
+    {
+      header: (
+        <EncabezadoFiltro titulo="Fecha">
+          <div className="flex flex-col gap-1">
+            <input
+              type="date"
+              value={filtros.fechaDesde}
+              onChange={(e) => setFiltros((f) => ({ ...f, fechaDesde: e.target.value }))}
+              className={inputFiltro}
+              aria-label="Desde"
+            />
+            <input
+              type="date"
+              value={filtros.fechaHasta}
+              onChange={(e) => setFiltros((f) => ({ ...f, fechaHasta: e.target.value }))}
+              className={inputFiltro}
+              aria-label="Hasta"
+            />
+          </div>
+        </EncabezadoFiltro>
+      ),
+      render: (c) => formatDateOnly(c.fecha),
+    },
+    {
+      header: (
+        <EncabezadoFiltro titulo="Drone">
+          <input
+            type="text"
+            value={filtros.drone}
+            onChange={(e) => setFiltros((f) => ({ ...f, drone: e.target.value }))}
+            placeholder="Filtrar..."
+            className={inputFiltro}
+          />
+        </EncabezadoFiltro>
+      ),
+      render: (c) => c.droneNombre,
+    },
+    {
+      header: (
+        <EncabezadoFiltro titulo="Motivo">
+          <input
+            type="text"
+            value={filtros.motivo}
+            onChange={(e) => setFiltros((f) => ({ ...f, motivo: e.target.value }))}
+            placeholder="Filtrar..."
+            className={inputFiltro}
+          />
+        </EncabezadoFiltro>
+      ),
+      render: (c) => c.motivo,
+    },
+    {
+      header: (
+        <EncabezadoFiltro titulo="Piezas cambiadas">
+          <input
+            type="text"
+            value={filtros.piezas}
+            onChange={(e) => setFiltros((f) => ({ ...f, piezas: e.target.value }))}
+            placeholder="Filtrar..."
+            className={inputFiltro}
+          />
+        </EncabezadoFiltro>
+      ),
+      render: (c) => c.piezas || "—",
+    },
     {
       header: "Imágenes",
       render: (c) =>
@@ -196,7 +293,16 @@ export function TablaCorrectivo({
     ...(puedeEliminar
       ? [
           {
-            header: "",
+            header: hayFiltrosActivos ? (
+              <button
+                onClick={() => setFiltros(FILTROS_CORRECTIVO_VACIOS)}
+                className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+              >
+                Limpiar
+              </button>
+            ) : (
+              ""
+            ),
             render: (c: CorrectivoFila) => (
               <DeleteButton
                 action={eliminarMantenimientoCorrectivoAction.bind(null, c.id)}
@@ -210,38 +316,9 @@ export function TablaCorrectivo({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={filtros.texto}
-          onChange={(e) => setFiltros((f) => ({ ...f, texto: e.target.value }))}
-          placeholder="Buscar drone, motivo o pieza..."
-          className={`w-full max-w-sm ${inputFiltro}`}
-        />
-        <input
-          type="date"
-          value={filtros.fechaDesde}
-          onChange={(e) => setFiltros((f) => ({ ...f, fechaDesde: e.target.value }))}
-          className={inputFiltro}
-        />
-        <input
-          type="date"
-          value={filtros.fechaHasta}
-          onChange={(e) => setFiltros((f) => ({ ...f, fechaHasta: e.target.value }))}
-          className={inputFiltro}
-        />
-        {hayFiltrosActivos && (
-          <button
-            onClick={() => setFiltros(FILTROS_CORRECTIVO_VACIOS)}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Limpiar filtros
-          </button>
-        )}
-        <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {correctivos.length}
-        </span>
-      </div>
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {correctivos.length}
+      </span>
       <DataTable
         rows={filtrados}
         columns={columnas}

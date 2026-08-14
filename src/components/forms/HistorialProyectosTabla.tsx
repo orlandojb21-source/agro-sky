@@ -32,22 +32,34 @@ function BadgeEstado({ estado }: { estado: "abierto" | "cerrado" }) {
   );
 }
 
-type Filtros = { texto: string; estado: "" | "abierto" | "cerrado" };
-const FILTROS_VACIOS: Filtros = { texto: "", estado: "" };
+type Filtros = { codigo: string; nombre: string; estado: "" | "abierto" | "cerrado" };
+const FILTROS_VACIOS: Filtros = { codigo: "", nombre: "", estado: "" };
+
+function coincide(valor: string, filtro: string) {
+  if (!filtro.trim()) return true;
+  return valor.toLowerCase().includes(filtro.trim().toLowerCase());
+}
+
+const inputFiltro =
+  "w-full min-w-0 rounded-md border border-green-200 bg-white px-2 py-1 text-xs font-normal normal-case text-green-900 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30 dark:text-green-50";
 
 export function HistorialProyectosTabla({ proyectos }: { proyectos: HistorialProyectoFila[] }) {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VACIOS);
 
+  function setFiltro<K extends keyof Filtros>(campo: K, valor: string) {
+    setFiltros((f) => ({ ...f, [campo]: valor }));
+  }
+
   const filtrados = useMemo(() => {
-    const texto = filtros.texto.trim().toLowerCase();
     return proyectos.filter((p) => {
-      if (texto && !`${p.codigo} ${p.nombre}`.toLowerCase().includes(texto)) return false;
+      if (!coincide(p.codigo, filtros.codigo)) return false;
+      if (!coincide(p.nombre, filtros.nombre)) return false;
       if (filtros.estado && p.estado !== filtros.estado) return false;
       return true;
     });
   }, [proyectos, filtros]);
 
-  const hayFiltrosActivos = filtros.texto !== "" || filtros.estado !== "";
+  const hayFiltrosActivos = Object.values(filtros).some((v) => v !== "");
 
   if (proyectos.length === 0) {
     return (
@@ -59,46 +71,62 @@ export function HistorialProyectosTabla({ proyectos }: { proyectos: HistorialPro
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={filtros.texto}
-          onChange={(e) => setFiltros((f) => ({ ...f, texto: e.target.value }))}
-          placeholder="Buscar código o nombre..."
-          className="w-full max-w-sm rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-        />
-        <select
-          value={filtros.estado}
-          onChange={(e) => setFiltros((f) => ({ ...f, estado: e.target.value as Filtros["estado"] }))}
-          className="rounded-lg border border-green-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-        >
-          <option value="">Todos los estados</option>
-          <option value="abierto">Abierto</option>
-          <option value="cerrado">Cerrado</option>
-        </select>
-        {hayFiltrosActivos && (
-          <button
-            onClick={() => setFiltros(FILTROS_VACIOS)}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Limpiar filtros
-          </button>
-        )}
-        <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {proyectos.length}
-        </span>
-      </div>
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {proyectos.length}
+      </span>
 
       <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-4 py-2 font-medium">Código</th>
-                <th className="px-4 py-2 font-medium">Nombre</th>
-                <th className="px-4 py-2 font-medium">Tipo</th>
-                <th className="px-4 py-2 font-medium">Estado</th>
-                <th className="px-4 py-2 font-medium">Creado</th>
+                <th className="px-4 pt-2 font-medium">Código</th>
+                <th className="px-4 pt-2 font-medium">Nombre</th>
+                <th className="px-4 pt-2 font-medium">Tipo</th>
+                <th className="px-4 pt-2 font-medium">Estado</th>
+                <th className="px-4 pt-2 font-medium">Creado</th>
+              </tr>
+              <tr className="border-b border-green-100 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30">
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.codigo}
+                    onChange={(e) => setFiltro("codigo", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2">
+                  <input
+                    type="text"
+                    value={filtros.nombre}
+                    onChange={(e) => setFiltro("nombre", e.target.value)}
+                    placeholder="Filtrar..."
+                    className={inputFiltro}
+                  />
+                </th>
+                <th className="px-4 pb-2"></th>
+                <th className="px-4 pb-2">
+                  <select
+                    value={filtros.estado}
+                    onChange={(e) => setFiltro("estado", e.target.value as Filtros["estado"])}
+                    className={inputFiltro}
+                  >
+                    <option value="">Todos</option>
+                    <option value="abierto">Abierto</option>
+                    <option value="cerrado">Cerrado</option>
+                  </select>
+                </th>
+                <th className="px-4 pb-2">
+                  {hayFiltrosActivos && (
+                    <button
+                      onClick={() => setFiltros(FILTROS_VACIOS)}
+                      className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
