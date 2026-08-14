@@ -38,6 +38,10 @@ export const gastoSchema = z.object({
   categoria: z.string().trim().min(1, "Selecciona una categoría"),
   nombre: z.string().trim().optional().default(""),
   proveedorId: z.string().trim().optional().default(""),
+  // Opcional -- no todo gasto de Caja Menuda es de un Proyecto en
+  // particular (pedido explícito del usuario, 2026-08-14). Mismo patrón
+  // que proveedorId, y que gastos.proyectoId (Compras).
+  proyectoId: z.string().trim().optional().default(""),
   numeroRecibo: z.string().trim().optional().default(""),
   concepto: z.string().trim().optional().default(""),
   colaborador: z.string().trim().optional().default(""),

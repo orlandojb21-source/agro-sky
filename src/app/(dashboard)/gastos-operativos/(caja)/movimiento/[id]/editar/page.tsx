@@ -4,6 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { obtenerCategoriasGasto } from "@/lib/categorias";
 import { MovimientoForm } from "@/components/forms/MovimientoForm";
 
+type FilaProyecto = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  clientes: { nombre: string } | null;
+};
+
 export default async function EditarMovimientoPage({
   params,
 }: {
@@ -13,23 +20,31 @@ export default async function EditarMovimientoPage({
   await requireWrite("gastos-operativos");
 
   const supabase = await createClient();
-  const [{ data: gasto }, { data: colaboradoresData }, { data: proveedoresData }, categorias] = await Promise.all([
-    supabase
-      .from("caja_gastos")
-      .select(
-        "id, fecha, categoria, nombre, proveedor_id, numero_recibo, concepto, monto_detalle, colaborador, previsto, entregado_detalle, vuelto_detalle, nota",
-      )
-      .eq("id", id)
-      .maybeSingle(),
-    supabase.from("colaboradores").select("nombre").order("nombre"),
-    supabase.from("proveedores").select("id, nombre").order("nombre"),
-    obtenerCategoriasGasto(supabase, "caja_menuda"),
-  ]);
+  const [{ data: gasto }, { data: colaboradoresData }, { data: proveedoresData }, { data: proyectosData }, categorias] =
+    await Promise.all([
+      supabase
+        .from("caja_gastos")
+        .select(
+          "id, fecha, categoria, nombre, proveedor_id, proyecto_id, numero_recibo, concepto, monto_detalle, colaborador, previsto, entregado_detalle, vuelto_detalle, nota",
+        )
+        .eq("id", id)
+        .maybeSingle(),
+      supabase.from("colaboradores").select("nombre").order("nombre"),
+      supabase.from("proveedores").select("id, nombre").order("nombre"),
+      supabase.from("proyectos").select("id, codigo, nombre, clientes ( nombre )").order("codigo"),
+      obtenerCategoriasGasto(supabase, "caja_menuda"),
+    ]);
 
   if (!gasto) notFound();
 
   const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
   const proveedores = (proveedoresData ?? []).map((p) => ({ id: p.id as string, nombre: p.nombre as string }));
+  const proyectos = ((proyectosData ?? []) as unknown as FilaProyecto[]).map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    clienteNombre: p.clientes?.nombre ?? "—",
+  }));
 
   return (
     <div>
@@ -40,6 +55,7 @@ export default async function EditarMovimientoPage({
         fechaHoy={gasto.fecha}
         colaboradores={colaboradores}
         proveedores={proveedores}
+        proyectos={proyectos}
         categorias={categorias}
         valoresIniciales={{
           id: gasto.id,
@@ -47,6 +63,7 @@ export default async function EditarMovimientoPage({
           categoria: gasto.categoria,
           nombre: gasto.nombre,
           proveedorId: gasto.proveedor_id,
+          proyectoId: gasto.proyecto_id,
           numeroRecibo: gasto.numero_recibo,
           concepto: gasto.concepto,
           montoDetalle: gasto.monto_detalle as Record<string, number> | null,

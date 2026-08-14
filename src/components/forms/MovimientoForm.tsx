@@ -14,6 +14,7 @@ const CLASE_INPUT =
   "rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
 
 export type ProveedorOpcion = { id: string; nombre: string };
+export type ProyectoOpcion = { id: string; codigo: string; nombre: string; clienteNombre: string };
 
 type ValoresMovimiento = {
   id?: string;
@@ -21,6 +22,7 @@ type ValoresMovimiento = {
   categoria: string | null;
   nombre: string | null;
   proveedorId: string | null;
+  proyectoId: string | null;
   numeroRecibo: string | null;
   concepto: string | null;
   montoDetalle: Record<string, number> | null;
@@ -46,12 +48,14 @@ export function MovimientoForm({
   fechaHoy,
   colaboradores,
   proveedores,
+  proyectos,
   categorias,
   valoresIniciales,
 }: {
   fechaHoy: string;
   colaboradores: string[];
   proveedores: ProveedorOpcion[];
+  proyectos: ProyectoOpcion[];
   categorias: string[];
   valoresIniciales?: ValoresMovimiento;
 }) {
@@ -129,6 +133,18 @@ export function MovimientoForm({
         {proveedores.map((p) => (
           <option key={p.id} value={p.id}>
             {p.nombre}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        label="Proyecto"
+        name="proyectoId"
+        defaultValue={v?.proyectoId ?? valoresIniciales?.proyectoId ?? ""}
+      >
+        <option value="">Sin proyecto</option>
+        {proyectos.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.codigo} — {p.nombre} ({p.clienteNombre})
           </option>
         ))}
       </SelectField>
