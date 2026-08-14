@@ -99,17 +99,25 @@ export function ProyectoCatalogoTabla({
                     </td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{p.hectareas}</td>
                     <td className="px-3 py-3">
-                      {puedeEscribir && (
-                        <div className="flex gap-3">
-                          <Link
-                            href={`/informes/proyectos/${p.id}/editar`}
-                            className="text-sm text-green-700 hover:underline dark:text-green-300"
-                          >
-                            Editar
-                          </Link>
-                          <DeleteButton action={eliminarProyectoCatalogoAction.bind(null, p.id)} />
-                        </div>
-                      )}
+                      <div className="flex gap-3">
+                        <Link
+                          href={`/informes/proyectos/${p.id}`}
+                          className="text-sm text-green-700 hover:underline dark:text-green-300"
+                        >
+                          Ver
+                        </Link>
+                        {puedeEscribir && (
+                          <>
+                            <Link
+                              href={`/informes/proyectos/${p.id}/editar`}
+                              className="text-sm text-green-700 hover:underline dark:text-green-300"
+                            >
+                              Editar
+                            </Link>
+                            <DeleteButton action={eliminarProyectoCatalogoAction.bind(null, p.id)} />
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -140,17 +148,25 @@ export function ProyectoCatalogoTabla({
               <p className="mt-1 text-sm text-green-800/80 dark:text-green-200/80">
                 {p.clienteNombre} · {etiquetaTipo(p.tipoProyecto)} · {p.hectareas} ha
               </p>
-              {puedeEscribir && (
-                <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                  <Link
-                    href={`/informes/proyectos/${p.id}/editar`}
-                    className="text-sm text-green-700 hover:underline dark:text-green-300"
-                  >
-                    Editar
-                  </Link>
-                  <DeleteButton action={eliminarProyectoCatalogoAction.bind(null, p.id)} />
-                </div>
-              )}
+              <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+                <Link
+                  href={`/informes/proyectos/${p.id}`}
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Ver
+                </Link>
+                {puedeEscribir && (
+                  <>
+                    <Link
+                      href={`/informes/proyectos/${p.id}/editar`}
+                      className="text-sm text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Editar
+                    </Link>
+                    <DeleteButton action={eliminarProyectoCatalogoAction.bind(null, p.id)} />
+                  </>
+                )}
+              </div>
             </div>
           ))
         )}
