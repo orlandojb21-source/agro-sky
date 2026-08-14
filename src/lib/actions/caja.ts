@@ -12,7 +12,12 @@ import {
   vueltoSchema,
   arqueoSchema,
 } from "@/lib/validation/caja";
-import { DENOMINACIONES, calcularSaldoActual, detalleDesdeFormData } from "@/lib/caja";
+import {
+  DENOMINACIONES,
+  calcularSaldoActual,
+  detalleDesdeFormData,
+  montoConservandoHeredado,
+} from "@/lib/caja";
 import { categoriaGastoValida } from "@/lib/categorias";
 import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
 import { esSoporteOJefe } from "@/lib/roles";
@@ -82,29 +87,48 @@ export async function editarGastoAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", values: raw };
   }
 
-  const monto = detalleDesdeFormData(raw, "monto");
-  const entregado = detalleDesdeFormData(raw, "entregado");
-  const vuelto = detalleDesdeFormData(raw, "vuelto");
-
   const supabase = await createClient();
 
   if (!(await categoriaGastoValida(supabase, "caja_menuda", parsed.data.categoria))) {
     return { error: "Categoría no válida.", values: raw };
   }
 
+  const { data: gastoActual } = await supabase
+    .from("caja_gastos")
+    .select("fecha, monto, monto_detalle, entregado, entregado_detalle, vuelto, vuelto_detalle")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+
+  if (!gastoActual) {
+    return { error: "No se encontró el movimiento que intentas editar.", values: raw };
+  }
+
   if (!esSoporteOJefe(perfil.rol)) {
-    const { data: gastoActual } = await supabase
-      .from("caja_gastos")
-      .select("fecha")
-      .eq("id", parsed.data.id)
-      .maybeSingle();
-    if (gastoActual && !fechaPermitida(gastoActual.fecha as string, perfil.rol)) {
+    if (!fechaPermitida(gastoActual.fecha as string, perfil.rol)) {
       return { error: MENSAJE_REGISTRO_FECHA_VIEJA, values: raw };
     }
     if (!fechaPermitida(parsed.data.fecha, perfil.rol)) {
       return { error: MENSAJE_FECHA_NO_PERMITIDA, values: raw };
     }
   }
+
+  // Se conservan los montos heredados (sin desglose por billete) que el
+  // formulario no puede representar -- ver montoConservandoHeredado.
+  const monto = montoConservandoHeredado(
+    detalleDesdeFormData(raw, "monto"),
+    gastoActual.monto as number | null,
+    gastoActual.monto_detalle,
+  );
+  const entregado = montoConservandoHeredado(
+    detalleDesdeFormData(raw, "entregado"),
+    gastoActual.entregado as number | null,
+    gastoActual.entregado_detalle,
+  );
+  const vuelto = montoConservandoHeredado(
+    detalleDesdeFormData(raw, "vuelto"),
+    gastoActual.vuelto as number | null,
+    gastoActual.vuelto_detalle,
+  );
 
   const { error } = await supabase
     .from("caja_gastos")
@@ -116,14 +140,14 @@ export async function editarGastoAction(
       proyecto_id: parsed.data.proyectoId || null,
       numero_recibo: parsed.data.numeroRecibo || null,
       concepto: parsed.data.concepto || null,
-      monto: monto?.total ?? null,
-      monto_detalle: monto?.detalle ?? null,
+      monto: monto.total,
+      monto_detalle: monto.detalle,
       colaborador: parsed.data.colaborador || null,
       previsto: parsed.data.previsto,
-      entregado: entregado?.total ?? null,
-      entregado_detalle: entregado?.detalle ?? null,
-      vuelto: vuelto?.total ?? null,
-      vuelto_detalle: vuelto?.detalle ?? null,
+      entregado: entregado.total,
+      entregado_detalle: entregado.detalle,
+      vuelto: vuelto.total,
+      vuelto_detalle: vuelto.detalle,
       nota: parsed.data.nota || null,
     })
     .eq("id", parsed.data.id);

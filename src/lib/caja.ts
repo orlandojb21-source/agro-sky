@@ -142,3 +142,29 @@ export function detalleDesdeFormData(
   if (!algunaCantidad) return null;
   return { detalle, total: Math.round(total * 100) / 100 };
 }
+
+export type MontoFormulario = { detalle: Record<string, number>; total: number } | null;
+
+// Los movimientos registrados antes de que existiera el desglose por
+// billete/moneda (migracion 0014) guardan su monto en dolares pero con el
+// detalle en null. El formulario de edicion abre la grilla de
+// denominaciones en cero para esos movimientos -- no hay desglose que
+// mostrar -- asi que volver a guardarlos (aunque sea solo para corregirles
+// la categoria) escribiria monto = null y ese dinero desapareceria del
+// saldo, descuadrando la caja.
+//
+// Por eso: si el formulario no trae ninguna denominacion marcada pero el
+// registro ya tenia un monto heredado sin detalle, se conserva ese monto
+// tal cual. Si el usuario si marca billetes, lo que marco manda y el
+// movimiento queda por fin con su desglose.
+export function montoConservandoHeredado(
+  delFormulario: MontoFormulario,
+  valorGuardado: number | string | null | undefined,
+  detalleGuardado: unknown,
+): { total: number | null; detalle: Record<string, number> | null } {
+  if (delFormulario) return { total: delFormulario.total, detalle: delFormulario.detalle };
+  if (detalleGuardado == null && valorGuardado != null) {
+    return { total: Number(valorGuardado), detalle: null };
+  }
+  return { total: null, detalle: null };
+}

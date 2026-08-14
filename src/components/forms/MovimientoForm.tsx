@@ -7,6 +7,7 @@ import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import { DenominacionGrid } from "@/components/forms/DenominacionGrid";
 import { CategoriaGastoField } from "@/components/forms/CategoriaGastoField";
+import { formatMoney } from "@/lib/format";
 
 const CONCEPTOS_SUGERIDOS = ["Transporte", "Comida", "Combustible", "Hospedaje", "Materiales", "Otro"];
 
@@ -31,7 +32,25 @@ type ValoresMovimiento = {
   entregadoDetalle: Record<string, number> | null;
   vueltoDetalle: Record<string, number> | null;
   nota: string | null;
+  // Monto en dólares de un movimiento antiguo que se registró sin desglose
+  // por billete/moneda: la grilla no lo puede mostrar, así que se avisa
+  // aparte. Se conserva solo si no se marca ningún billete (ver
+  // montoConservandoHeredado en lib/caja.ts).
+  montoHeredado: number | null;
+  entregadoHeredado: number | null;
+  vueltoHeredado: number | null;
 };
+
+function AvisoMontoHeredado({ monto }: { monto: number | null }) {
+  if (monto === null) return null;
+  return (
+    <p className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+      Este movimiento se registró antes del desglose por billetes, con un monto de{" "}
+      <strong>{formatMoney(monto)}</strong>. Si dejas la grilla en cero se conserva ese monto; si
+      marcas billetes y monedas, el total que marques lo reemplaza.
+    </p>
+  );
+}
 
 // Convierte el detalle guardado en la BD ({ b20: 3, m25: 2, ... }) en el
 // formato de campos con prefijo que espera DenominacionGrid como valor
@@ -174,6 +193,7 @@ export function MovimientoForm({
         <p className="mb-2 text-sm text-green-900 dark:text-green-100">
           Monto entregado (billetes y monedas)
         </p>
+        <AvisoMontoHeredado monto={valoresIniciales?.montoHeredado ?? null} />
         <DenominacionGrid prefijo="monto" valoresIniciales={montoIniciales} />
       </div>
 
@@ -198,12 +218,14 @@ export function MovimientoForm({
         <p className="mb-2 text-sm text-green-900 dark:text-green-100">
           Entregado (billetes y monedas realmente entregados)
         </p>
+        <AvisoMontoHeredado monto={valoresIniciales?.entregadoHeredado ?? null} />
         <DenominacionGrid prefijo="entregado" valoresIniciales={entregadoIniciales} />
       </div>
       <div>
         <p className="mb-2 text-sm text-green-900 dark:text-green-100">
           Vuelto (déjalo en cero si aún no regresa el colaborador)
         </p>
+        <AvisoMontoHeredado monto={valoresIniciales?.vueltoHeredado ?? null} />
         <DenominacionGrid prefijo="vuelto" valoresIniciales={vueltoIniciales} />
       </div>
 

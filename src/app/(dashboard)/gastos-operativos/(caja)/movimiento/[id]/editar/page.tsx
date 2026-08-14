@@ -25,7 +25,7 @@ export default async function EditarMovimientoPage({
       supabase
         .from("caja_gastos")
         .select(
-          "id, fecha, categoria, nombre, proveedor_id, proyecto_id, numero_recibo, concepto, monto_detalle, colaborador, previsto, entregado_detalle, vuelto_detalle, nota",
+          "id, fecha, categoria, nombre, proveedor_id, proyecto_id, numero_recibo, concepto, monto, monto_detalle, colaborador, previsto, entregado, entregado_detalle, vuelto, vuelto_detalle, nota",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -36,6 +36,11 @@ export default async function EditarMovimientoPage({
     ]);
 
   if (!gasto) notFound();
+
+  // Solo tiene sentido avisar del monto heredado cuando no hay desglose que
+  // mostrar en la grilla; si el detalle existe, la grilla ya lo refleja.
+  const heredado = (valor: unknown, detalle: unknown) =>
+    detalle === null && valor !== null ? Number(valor) : null;
 
   const colaboradores = (colaboradoresData ?? []).map((c) => c.nombre as string);
   const proveedores = (proveedoresData ?? []).map((p) => ({ id: p.id as string, nombre: p.nombre as string }));
@@ -72,6 +77,9 @@ export default async function EditarMovimientoPage({
           entregadoDetalle: gasto.entregado_detalle as Record<string, number> | null,
           vueltoDetalle: gasto.vuelto_detalle as Record<string, number> | null,
           nota: gasto.nota,
+          montoHeredado: heredado(gasto.monto, gasto.monto_detalle),
+          entregadoHeredado: heredado(gasto.entregado, gasto.entregado_detalle),
+          vueltoHeredado: heredado(gasto.vuelto, gasto.vuelto_detalle),
         }}
       />
     </div>
