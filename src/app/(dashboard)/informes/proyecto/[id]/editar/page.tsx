@@ -30,7 +30,7 @@ export default async function EditarInformeProyectoPage({
     await Promise.all([
       supabase
         .from("proyecto_informes")
-        .select("id, proyecto_id, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
+        .select("id, proyecto_id, ubicacion, hectareas, precio, total, fecha")
         .eq("id", id)
         .maybeSingle(),
       supabase.from("proyecto_filas").select("drone, hectareas, precio").eq("informe_id", id).order("id"),
@@ -60,8 +60,7 @@ export default async function EditarInformeProyectoPage({
         Editar análisis de proyecto
       </h1>
       <ProyectoInformeForm
-        fechaHoy={informe.fecha_desde as string}
-        fechaHastaSugerida={informe.fecha_hasta as string}
+        fechaHoy={informe.fecha as string}
         colaboradoresCampo={colaboradoresCampo}
         proyectos={proyectos}
         valoresIniciales={{
@@ -72,8 +71,7 @@ export default async function EditarInformeProyectoPage({
           hectareas: informe.hectareas === null ? null : Number(informe.hectareas),
           precio: informe.precio === null ? null : Number(informe.precio),
           total: informe.total === null ? null : Number(informe.total),
-          fechaDesde: informe.fecha_desde as string,
-          fechaHasta: informe.fecha_hasta as string,
+          fecha: informe.fecha as string,
           filas: (filasData ?? []).map((f) => ({
             drone: f.drone as string,
             hectareas: Number(f.hectareas),

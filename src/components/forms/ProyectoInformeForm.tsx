@@ -11,7 +11,7 @@ import {
 import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDateOnly } from "@/lib/format";
 import { CATEGORIAS_GASTO_OPERATIVO } from "@/lib/proyectoGastos";
 
 const CLASE_INPUT =
@@ -58,8 +58,7 @@ export type ValoresInforme = {
   hectareas: number | null;
   precio: number | null;
   total: number | null;
-  fechaDesde: string;
-  fechaHasta: string;
+  fecha: string;
   filas: { drone: string; hectareas: number; precio: number }[];
   gastosOperativos: {
     drone: string;
@@ -87,13 +86,11 @@ function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number])
 
 export function ProyectoInformeForm({
   fechaHoy,
-  fechaHastaSugerida,
   colaboradoresCampo = [],
   proyectos,
   valoresIniciales,
 }: {
   fechaHoy: string;
-  fechaHastaSugerida: string;
   colaboradoresCampo?: string[];
   proyectos: ProyectoOpcion[];
   valoresIniciales?: ValoresInforme;
@@ -111,10 +108,11 @@ export function ProyectoInformeForm({
   const [hectareas, setHectareas] = useState<number | null>(valoresIniciales?.hectareas ?? null);
   const [precio, setPrecio] = useState(String(v?.precio ?? valoresIniciales?.precio ?? ""));
   const [cargandoProyecto, setCargandoProyecto] = useState(false);
-  const [fechaDesde, setFechaDesde] = useState(v?.fechaDesde ?? valoresIniciales?.fechaDesde ?? fechaHoy);
-  const [fechaHasta, setFechaHasta] = useState(
-    v?.fechaHasta ?? valoresIniciales?.fechaHasta ?? fechaHastaSugerida,
-  );
+  // La fecha nunca se edita a mano: al crear queda como la fecha actual
+  // (fechaHoy, la fecha en que se está haciendo el análisis), y al editar
+  // se conserva la fecha con la que se creó -- pedido explícito del
+  // usuario, ya no hay un rango que llenar.
+  const fecha = valoresIniciales?.fecha ?? fechaHoy;
 
   const [prevState, setPrevState] = useState(state);
   const [remountKey, setRemountKey] = useState(0);
@@ -123,8 +121,6 @@ export function ProyectoInformeForm({
     setRemountKey((k) => k + 1);
     setProyectoId(state.values?.proyectoId ?? "");
     setPrecio(String(state.values?.precio ?? ""));
-    setFechaDesde(state.values?.fechaDesde ?? fechaHoy);
-    setFechaHasta(state.values?.fechaHasta ?? fechaHastaSugerida);
   }
 
   // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente y las
@@ -293,18 +289,18 @@ export function ProyectoInformeForm({
   // Busca en tiempo real en el servidor (nunca en una lista cargada al abrir
   // la página) -- así funciona sin importar si el movimiento de Caja Menuda
   // se registró antes o después de abrir este formulario. Categoría
-  // "Viáticos", fecha dentro de la semana, el Concepto CONTENIDO en el
-  // nombre del Cliente del Proyecto elegido (no exacto -- pedido explícito
-  // del usuario, ya que el Concepto suele traer texto extra, ej. "Ingenio
-  // Santa Rosa" encaja dentro de un Concepto "Ingenio Santa Rosa - comida
-  // cuadrilla"), y (si se dio) el "Nombre" del movimiento (a quién se le
-  // entregó el dinero) debe ser alguien del Equipo de Campo. El resultado
-  // sigue siendo editable a mano después.
+  // "Viáticos", sin filtro de fecha (el análisis ya no tiene un rango), el
+  // Concepto CONTENIDO en el nombre del Cliente del Proyecto elegido (no
+  // exacto -- pedido explícito del usuario, ya que el Concepto suele traer
+  // texto extra, ej. "Ingenio Santa Rosa" encaja dentro de un Concepto
+  // "Ingenio Santa Rosa - comida cuadrilla"), y (si se dio) el "Nombre" del
+  // movimiento (a quién se le entregó el dinero) debe ser alguien del
+  // Equipo de Campo. El resultado sigue siendo editable a mano después.
   async function traerDeCajaMenuda(bloqueIndex: number) {
     setBuscandoViaticos((prev) => ({ ...prev, [bloqueIndex]: true }));
     try {
       const equipo = equipoDelBloque(bloqueIndex);
-      const { total, cantidad } = await buscarViaticosCajaMenudaAction(cliente, fechaDesde, fechaHasta, equipo);
+      const { total, cantidad } = await buscarViaticosCajaMenudaAction(cliente, equipo);
       llenarCategoria(bloqueIndex, "viaticos", total);
       setMensajeViaticos((prev) => ({
         ...prev,
@@ -387,24 +383,7 @@ export function ProyectoInformeForm({
           onChange={(e) => setPrecio(e.target.value)}
         />
         <CampoLectura label="Total" valor={formatMoney(total)} />
-        <div className="grid grid-cols-2 gap-3 sm:col-span-2">
-          <Field
-            label="Fecha desde"
-            name="fechaDesde"
-            type="date"
-            defaultValue={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-            required
-          />
-          <Field
-            label="Fecha hasta"
-            name="fechaHasta"
-            type="date"
-            defaultValue={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-            required
-          />
-        </div>
+        <CampoLectura label="Fecha" valor={formatDateOnly(fecha)} />
       </div>
 
       <div className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">

@@ -27,8 +27,6 @@ export async function crearInformeProyectoAction(
     proyectoId: raw.proyectoId,
     ubicacion: raw.ubicacion,
     precio: raw.precio,
-    fechaDesde: raw.fechaDesde,
-    fechaHasta: raw.fechaHasta,
     filas,
     gastosOperativos,
   });
@@ -42,8 +40,6 @@ export async function crearInformeProyectoAction(
     p_proyecto_id: parsed.data.proyectoId,
     p_ubicacion: parsed.data.ubicacion || null,
     p_precio: parsed.data.precio,
-    p_fecha_desde: parsed.data.fechaDesde,
-    p_fecha_hasta: parsed.data.fechaHasta,
     p_filas: parsed.data.filas.map((f) => ({
       drone: f.drone,
       hectareas: f.hectareas,
@@ -93,8 +89,6 @@ export async function editarInformeProyectoAction(
     proyectoId: raw.proyectoId,
     ubicacion: raw.ubicacion,
     precio: raw.precio,
-    fechaDesde: raw.fechaDesde,
-    fechaHasta: raw.fechaHasta,
     filas,
     gastosOperativos,
   });
@@ -109,8 +103,6 @@ export async function editarInformeProyectoAction(
     p_proyecto_id: parsed.data.proyectoId,
     p_ubicacion: parsed.data.ubicacion || null,
     p_precio: parsed.data.precio,
-    p_fecha_desde: parsed.data.fechaDesde,
-    p_fecha_hasta: parsed.data.fechaHasta,
     p_filas: parsed.data.filas.map((f) => ({
       drone: f.drone,
       hectareas: f.hectareas,
@@ -210,25 +202,20 @@ function coincideConProyecto(textoLibre: string, proyecto: string): boolean {
 }
 
 // Mismo principio que se usaba para Planilla (ver historial de este
-// archivo) pero para Caja Menuda: categoría "Viáticos",
-// fecha dentro de la semana, el Concepto relacionado con el nombre del
-// proyecto (ver coincideConProyecto), y opcionalmente el Equipo de Campo
-// (Operador + Ayudantes) = "Nombre" del movimiento (a quién se le entregó
-// el dinero) -- debe ser alguno de ellos.
+// archivo) pero para Caja Menuda: categoría "Viáticos", sin filtro de
+// fecha (el Análisis de Proyecto ya no tiene un rango -- jala todo el
+// historial del Cliente, igual que las Hectáreas jalan todos los Informes
+// de Campo del Proyecto sin importar cuándo se hicieron), el Concepto
+// relacionado con el nombre del proyecto (ver coincideConProyecto), y
+// opcionalmente el Equipo de Campo (Operador + Ayudantes) = "Nombre" del
+// movimiento (a quién se le entregó el dinero) -- debe ser alguno de ellos.
 export async function buscarViaticosCajaMenudaAction(
   proyecto: string,
-  fechaDesde: string,
-  fechaHasta: string,
   equipo: string[],
 ): Promise<ResultadoBusquedaAuto> {
   await requirePerfil();
   const supabase = await createClient();
-  let consulta = supabase
-    .from("caja_gastos")
-    .select("concepto, monto")
-    .eq("categoria", "Viáticos")
-    .gte("fecha", fechaDesde)
-    .lte("fecha", fechaHasta);
+  let consulta = supabase.from("caja_gastos").select("concepto, monto").eq("categoria", "Viáticos");
   const nombresEquipo = equipo.map((n) => n.trim()).filter((n) => n !== "");
   if (nombresEquipo.length > 0) {
     consulta = consulta.in("nombre", nombresEquipo);

@@ -430,8 +430,7 @@ export type InformeProyectoExportable = {
   hectareas: number | null;
   precio: number | null;
   total: number | null;
-  fechaDesde: string;
-  fechaHasta: string;
+  fecha: string;
   filas: FilaInformeExportable[];
   gastosOperativos: BloqueGastoOperativoExportable[];
 };
@@ -485,7 +484,7 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
     `Hectáreas: ${informe.hectareas ?? "—"}`,
     `Precio: ${informe.precio !== null ? formatMoney(informe.precio) : "—"}`,
     `Total: ${informe.total !== null ? formatMoney(informe.total) : "—"}`,
-    `Fecha: ${formatDateOnly(informe.fechaDesde)} al ${formatDateOnly(informe.fechaHasta)}`,
+    `Fecha: ${formatDateOnly(informe.fecha)}`,
   ]) {
     doc.text(linea, 14, yInforme);
     yInforme += 6;

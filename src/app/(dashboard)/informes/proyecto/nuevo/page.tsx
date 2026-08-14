@@ -11,11 +11,7 @@ type FilaProyecto = {
 
 export default async function NuevoInformeProyectoPage() {
   await requireWrite("informes");
-  const hoy = new Date();
-  const fechaHoy = hoy.toISOString().slice(0, 10);
-  const hasta = new Date(hoy);
-  hasta.setDate(hasta.getDate() + 6);
-  const fechaHastaSugerida = hasta.toISOString().slice(0, 10);
+  const fechaHoy = new Date().toISOString().slice(0, 10);
 
   const supabase = await createClient();
   const [{ data: colaboradoresData }, { data: proyectosData }] = await Promise.all([
@@ -36,12 +32,7 @@ export default async function NuevoInformeProyectoPage() {
       <h1 className="mb-6 text-2xl font-semibold text-green-900 dark:text-green-50">
         Nuevo análisis de proyecto
       </h1>
-      <ProyectoInformeForm
-        fechaHoy={fechaHoy}
-        fechaHastaSugerida={fechaHastaSugerida}
-        colaboradoresCampo={colaboradoresCampo}
-        proyectos={proyectos}
-      />
+      <ProyectoInformeForm fechaHoy={fechaHoy} colaboradoresCampo={colaboradoresCampo} proyectos={proyectos} />
     </div>
   );
 }

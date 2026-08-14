@@ -32,7 +32,7 @@ export default async function DetalleInformeProyectoPage({
   const [{ data: informe }, { data: filasData }, { data: gastosData }] = await Promise.all([
     supabase
       .from("proyecto_informes")
-      .select("id, proyecto, ubicacion, hectareas, precio, total, fecha_desde, fecha_hasta")
+      .select("id, proyecto, ubicacion, hectareas, precio, total, fecha")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -96,8 +96,7 @@ export default async function DetalleInformeProyectoPage({
     hectareas: informe.hectareas === null ? null : Number(informe.hectareas),
     precio: informe.precio === null ? null : Number(informe.precio),
     total: informe.total === null ? null : Number(informe.total),
-    fechaDesde: informe.fecha_desde as string,
-    fechaHasta: informe.fecha_hasta as string,
+    fecha: informe.fecha as string,
     filas: filas.map((f) => ({ drone: f.drone, hectareas: f.hectareas, precio: f.precio, total: f.total })),
     gastosOperativos: gastosOperativos.map((b) => ({
       drone: b.drone,
@@ -122,7 +121,7 @@ export default async function DetalleInformeProyectoPage({
           </h1>
           <p className="mt-1 text-sm text-green-700/70 dark:text-green-200/70">
             {informe.ubicacion ? `${informe.ubicacion as string} — ` : ""}
-            {formatDateOnly(informe.fecha_desde as string)} al {formatDateOnly(informe.fecha_hasta as string)}
+            {formatDateOnly(informe.fecha as string)}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

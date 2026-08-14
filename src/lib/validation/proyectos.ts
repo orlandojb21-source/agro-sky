@@ -33,31 +33,17 @@ export const bloqueGastoOperativoSchema = z.object({
   items: z.array(itemGastoOperativoSchema).default([]),
 });
 
-// Base sin el refine de fechas -- separada para poder reutilizarla tanto en
-// el schema de creación como en el de edición (extend() no funciona sobre
-// el resultado de un .refine(), hay que extenderla antes).
-const informeProyectoBaseSchema = z.object({
-  // El Proyecto se elige del catálogo -- Cliente, texto de encabezado y
-  // Hectáreas se derivan siempre en el servidor a partir de proyectoId
-  // (ver crear_informe_proyecto/editar_informe_proyecto), nunca de lo que
-  // mande el navegador.
+export const informeProyectoSchema = z.object({
+  // El Proyecto se elige del catálogo -- Cliente, texto de encabezado,
+  // Hectáreas y Total se derivan siempre en el servidor a partir de
+  // proyectoId (ver crear_informe_proyecto/editar_informe_proyecto), nunca
+  // de lo que mande el navegador. La fecha tampoco se manda: al crear
+  // queda como la fecha actual, y al editar no se toca.
   proyectoId: z.string().uuid("Selecciona un proyecto"),
   ubicacion: z.string().trim().optional().default(""),
   precio: numeroOpcionalNoNegativo("El precio no puede ser negativo"),
-  fechaDesde: z.string().min(1, "Fecha desde requerida"),
-  fechaHasta: z.string().min(1, "Fecha hasta requerida"),
   filas: z.array(filaProyectoSchema).default([]),
   gastosOperativos: z.array(bloqueGastoOperativoSchema).default([]),
 });
 
-const fechasEnOrden = (data: { fechaDesde: string; fechaHasta: string }) => data.fechaHasta >= data.fechaDesde;
-const fechasEnOrdenOpciones = {
-  message: "La fecha hasta debe ser igual o posterior a la fecha desde",
-  path: ["fechaHasta"],
-};
-
-export const informeProyectoSchema = informeProyectoBaseSchema.refine(fechasEnOrden, fechasEnOrdenOpciones);
-
-export const informeProyectoEditSchema = informeProyectoBaseSchema
-  .extend({ id: z.string().uuid() })
-  .refine(fechasEnOrden, fechasEnOrdenOpciones);
+export const informeProyectoEditSchema = informeProyectoSchema.extend({ id: z.string().uuid() });

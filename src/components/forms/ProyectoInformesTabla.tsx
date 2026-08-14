@@ -10,8 +10,7 @@ export type InformeProyectoFila = {
   id: string;
   proyecto: string;
   ubicacion: string | null;
-  fechaDesde: string;
-  fechaHasta: string;
+  fecha: string;
   hectareas: number | null;
   precio: number | null;
   total: number | null;
@@ -50,8 +49,8 @@ export function ProyectoInformesTabla({
         !(i.ubicacion ?? "").toLowerCase().includes(texto)
       )
         return false;
-      if (filtros.fechaDesde && i.fechaHasta < filtros.fechaDesde) return false;
-      if (filtros.fechaHasta && i.fechaDesde > filtros.fechaHasta) return false;
+      if (filtros.fechaDesde && i.fecha < filtros.fechaDesde) return false;
+      if (filtros.fechaHasta && i.fecha > filtros.fechaHasta) return false;
       return true;
     });
   }, [informes, filtros]);
@@ -60,51 +59,43 @@ export function ProyectoInformesTabla({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        {hayFiltrosActivos && (
-          <button
-            onClick={() => setFiltros(FILTROS_VACIOS)}
-            className="text-sm text-green-700 hover:underline dark:text-green-300"
-          >
-            Limpiar filtros
-          </button>
-        )}
-        <span className="text-xs text-green-700/60 dark:text-green-300/60">
-          {filtrados.length} de {informes.length} informes
-        </span>
-      </div>
+      <span className="text-xs text-green-700/60 dark:text-green-300/60">
+        {filtrados.length} de {informes.length} informes
+      </span>
 
       <div className="hidden overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm sm:block dark:border-green-900/40 dark:bg-green-950/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
-                <th className="px-3 py-2 font-medium">Semana</th>
-                <th className="px-3 py-2 font-medium">Proyecto</th>
-                <th className="px-3 py-2 font-medium">Ubicación</th>
-                <th className="px-3 py-2 font-medium">Hectáreas</th>
-                <th className="px-3 py-2 font-medium">Precio</th>
-                <th className="px-3 py-2 font-medium">Total</th>
-                <th className="px-3 py-2"></th>
+                <th className="px-3 pt-2 font-medium">Fecha</th>
+                <th className="px-3 pt-2 font-medium">Proyecto</th>
+                <th className="px-3 pt-2 font-medium">Ubicación</th>
+                <th className="px-3 pt-2 font-medium">Hectáreas</th>
+                <th className="px-3 pt-2 font-medium">Precio</th>
+                <th className="px-3 pt-2 font-medium">Total</th>
+                <th className="px-3 pt-2"></th>
               </tr>
-              <tr className="border-b border-green-100 bg-green-50/60 dark:border-green-900/40 dark:bg-green-950/20">
-                <th className="px-3 py-2">
-                  <div className="flex gap-1">
+              <tr className="border-b border-green-100 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30">
+                <th className="px-3 pb-2">
+                  <div className="flex flex-col gap-1">
                     <input
                       type="date"
                       value={filtros.fechaDesde}
                       onChange={(e) => setFiltro("fechaDesde", e.target.value)}
                       className={inputFiltro}
+                      aria-label="Desde"
                     />
                     <input
                       type="date"
                       value={filtros.fechaHasta}
                       onChange={(e) => setFiltro("fechaHasta", e.target.value)}
                       className={inputFiltro}
+                      aria-label="Hasta"
                     />
                   </div>
                 </th>
-                <th className="px-3 py-2" colSpan={2}>
+                <th className="px-3 pb-2" colSpan={2}>
                   <input
                     type="text"
                     value={filtros.texto}
@@ -113,7 +104,19 @@ export function ProyectoInformesTabla({
                     className={inputFiltro}
                   />
                 </th>
-                <th className="px-3 py-2" colSpan={3}></th>
+                <th className="px-3 pb-2"></th>
+                <th className="px-3 pb-2"></th>
+                <th className="px-3 pb-2"></th>
+                <th className="px-3 pb-2">
+                  {hayFiltrosActivos && (
+                    <button
+                      onClick={() => setFiltros(FILTROS_VACIOS)}
+                      className="whitespace-nowrap text-xs font-normal normal-case text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -135,7 +138,7 @@ export function ProyectoInformesTabla({
                     className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
                   >
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
-                      {formatDateOnly(i.fechaDesde)} – {formatDateOnly(i.fechaHasta)}
+                      {formatDateOnly(i.fecha)}
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                       {i.proyecto}
@@ -177,6 +180,35 @@ export function ProyectoInformesTabla({
       </div>
 
       <div className="flex flex-col gap-3 sm:hidden">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-green-100 bg-white p-3 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <input
+            type="text"
+            value={filtros.texto}
+            onChange={(e) => setFiltro("texto", e.target.value)}
+            placeholder="Buscar proyecto o ubicación..."
+            className={`w-full ${inputFiltro}`}
+          />
+          <input
+            type="date"
+            value={filtros.fechaDesde}
+            onChange={(e) => setFiltro("fechaDesde", e.target.value)}
+            className={inputFiltro}
+          />
+          <input
+            type="date"
+            value={filtros.fechaHasta}
+            onChange={(e) => setFiltro("fechaHasta", e.target.value)}
+            className={inputFiltro}
+          />
+          {hayFiltrosActivos && (
+            <button
+              onClick={() => setFiltros(FILTROS_VACIOS)}
+              className="text-sm text-green-700 hover:underline dark:text-green-300"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
         {filtrados.length === 0 ? (
           <div className="rounded-xl border border-green-100 bg-white p-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
             {informes.length === 0
@@ -192,7 +224,7 @@ export function ProyectoInformesTabla({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
-                    {formatDateOnly(i.fechaDesde)} – {formatDateOnly(i.fechaHasta)}
+                    {formatDateOnly(i.fecha)}
                   </p>
                   <p className="font-medium text-green-900 dark:text-green-50">{i.proyecto}</p>
                   {i.ubicacion && (
