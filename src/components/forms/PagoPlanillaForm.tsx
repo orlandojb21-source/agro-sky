@@ -19,6 +19,12 @@ import { formatMoney, formatDateOnly } from "@/lib/format";
 // servidor.
 const TASA_CSS = 0.0975;
 const TASA_SEGURO_EDUCATIVO = 0.0125;
+// El Décimo Tercer Mes lleva su propia tasa de CSS, más baja que la del
+// salario normal, y nunca lleva Seguro Educativo (pedido explícito del
+// usuario, 2026-08-16, con cálculo de regla de 3 aparte) -- por eso el
+// CSS sugerido es la suma de dos bases distintas, nunca un 9.75% plano
+// sobre monto+Décimo.
+const TASA_CSS_DECIMO = 0.0725;
 
 export type ColaboradorOpcion = {
   nombre: string;
@@ -98,6 +104,19 @@ function calcularDeduccion(montoTexto: string, tasa: number): string {
   const monto = Number(montoTexto);
   if (!montoTexto || Number.isNaN(monto) || monto <= 0) return "";
   return String(Math.round(monto * tasa * 100) / 100);
+}
+
+// El CSS del salario y el del Décimo se calculan por separado, cada uno
+// con su propia tasa (9.75% / 7.25%), y se suman -- nunca se juntan las 2
+// bases y se les aplica un solo 9.75% (eso sobrestimaba el descuento del
+// Décimo). El Seguro Educativo, en cambio, sigue siendo solo sobre el
+// salario (calcularDeduccion(monto, TASA_SEGURO_EDUCATIVO) en cada
+// llamada, sin cambios) -- el Décimo nunca lo lleva.
+function calcularCssConDecimo(montoTexto: string, decimoTexto: string): string {
+  const cssSalario = Number(calcularDeduccion(montoTexto, TASA_CSS)) || 0;
+  const cssDecimo = Number(calcularDeduccion(decimoTexto, TASA_CSS_DECIMO)) || 0;
+  const total = cssSalario + cssDecimo;
+  return total > 0 ? String(Math.round(total * 100) / 100) : "";
 }
 
 // El salario (y la bonificación, si aplica) de un colaborador Fijo se
@@ -207,12 +226,10 @@ export function PagoPlanillaForm({
     const cssHistorico = v?.css ?? (valoresIniciales?.css != null ? String(valoresIniciales.css) : null);
     const seguroHistorico =
       v?.seguroEducativo ?? (valoresIniciales?.seguroEducativo != null ? String(valoresIniciales.seguroEducativo) : null);
-    // El Décimo SÍ entra en la base de CSS, pero nunca en la de Seguro
-    // Educativo (pedido explícito del usuario, 2026-08-15).
-    const css = cssHistorico ??
-      (aplicaDeduccionesColab
-        ? calcularDeduccion(String((Number(monto) || 0) + (Number(decimoTercerMes) || 0)), TASA_CSS)
-        : "");
+    // El Décimo SÍ lleva CSS (a su propia tasa, TASA_CSS_DECIMO), pero
+    // nunca Seguro Educativo (pedido explícito del usuario, 2026-08-15,
+    // tasa ajustada 2026-08-16).
+    const css = cssHistorico ?? (aplicaDeduccionesColab ? calcularCssConDecimo(monto, decimoTercerMes) : "");
     const seguroEducativo = seguroHistorico ?? (aplicaDeduccionesColab ? calcularDeduccion(monto, TASA_SEGURO_EDUCATIVO) : "");
     const bonificacionSugerida = !esEdicion && esFijoColab ? mitadTexto(colaborador!.bonificacion) : "";
     const bonificacion =
@@ -410,19 +427,16 @@ export function PagoPlanillaForm({
 
   // Las deducciones siguen al monto mientras se está escribiendo -- si el
   // monto cambia (ej. un ajuste manual), CSS/Seguro Educativo se
-  // recalculan al 9.75%/1.25% del nuevo monto, sin quedarse ancladas al
-  // salario original. Siguen siendo editables a mano después de esto. Pero
-  // solo para colaboradores a los que de verdad les aplica (mostrarDeducciones)
-  // -- si no, quedan en "" para no sugerir un descuento que no corresponde.
-  // El CSS se calcula sobre monto + Décimo (si lo hay); el Seguro
-  // Educativo, solo sobre el monto.
+  // recalculan sin quedarse ancladas al salario original. Siguen siendo
+  // editables a mano después de esto. Pero solo para colaboradores a los
+  // que de verdad les aplica (mostrarDeducciones) -- si no, quedan en ""
+  // para no sugerir un descuento que no corresponde. El CSS suma la parte
+  // del monto (9.75%) más la del Décimo (7.25%, si lo hay) -- nunca una
+  // sola tasa sobre las 2 bases juntas. El Seguro Educativo sigue siendo
+  // solo sobre el monto.
   function cambiarMonto(texto: string) {
     setMontoTexto(texto);
-    setCssTexto(
-      mostrarDeducciones
-        ? calcularDeduccion(String((Number(texto) || 0) + (Number(decimoTexto) || 0)), TASA_CSS)
-        : "",
-    );
+    setCssTexto(mostrarDeducciones ? calcularCssConDecimo(texto, decimoTexto) : "");
     setSeguroTexto(mostrarDeducciones ? calcularDeduccion(texto, TASA_SEGURO_EDUCATIVO) : "");
   }
 
@@ -430,11 +444,7 @@ export function PagoPlanillaForm({
   // recalcula CSS (el Décimo nunca lleva Seguro Educativo).
   function cambiarDecimo(texto: string) {
     setDecimoTexto(texto);
-    setCssTexto(
-      mostrarDeducciones
-        ? calcularDeduccion(String((Number(montoTexto) || 0) + (Number(texto) || 0)), TASA_CSS)
-        : "",
-    );
+    setCssTexto(mostrarDeducciones ? calcularCssConDecimo(montoTexto, texto) : "");
   }
 
   const colaboradorActual = opciones.find((c) => c.nombre === colaboradorSeleccionado);
@@ -655,11 +665,7 @@ export function PagoPlanillaForm({
               // CSS, que depende del Décimo.
               const { decimoTercerMes } = datosIniciales(colaboradorSeleccionado, nuevaFecha);
               setDecimoTexto(decimoTercerMes);
-              setCssTexto(
-                mostrarDeducciones
-                  ? calcularDeduccion(String((Number(montoTexto) || 0) + (Number(decimoTercerMes) || 0)), TASA_CSS)
-                  : "",
-              );
+              setCssTexto(mostrarDeducciones ? calcularCssConDecimo(montoTexto, decimoTercerMes) : "");
             }}
             required
           />
@@ -744,7 +750,7 @@ export function PagoPlanillaForm({
 
       {mostrarDecimo && (
         <Field
-          label="Décimo Tercer Mes (USD, 15 abr/ago/dic — lleva CSS pero no Seguro Educativo)"
+          label="Décimo Tercer Mes (USD, 15 abr/ago/dic — CSS 7.25%, sin Seguro Educativo)"
           name="decimoTercerMes"
           type="number"
           min={0}
