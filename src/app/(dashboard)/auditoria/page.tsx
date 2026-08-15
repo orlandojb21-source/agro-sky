@@ -3,7 +3,6 @@ import { requirePerfil } from "@/lib/session";
 import { esAuditor } from "@/lib/auditoria";
 import { createClient } from "@/lib/supabase/server";
 import { NAV } from "@/components/layout/nav-items";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { AuditoriaTabla, type EventoAuditoria } from "@/components/forms/AuditoriaTabla";
 
 const LIMITE = 500;
@@ -33,13 +32,5 @@ export default async function AuditoriaPage() {
     creadoEn: r.creado_en as string,
   }));
 
-  return (
-    <div>
-      <PageHeader
-        title="Auditoría"
-        description={`Registro de actividad de escritura por usuario, más reciente primero (últimas ${LIMITE}). Visible solo para esta cuenta.`}
-      />
-      <AuditoriaTabla eventos={eventos} />
-    </div>
-  );
+  return <AuditoriaTabla eventos={eventos} limite={LIMITE} />;
 }
