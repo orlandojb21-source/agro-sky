@@ -83,7 +83,7 @@ export default async function PagosPlanillaPage() {
     supabase
       .from("planilla_pagos")
       .select(
-        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion, decimo_tercer_mes, detalle_calculo",
+        "id, colaborador, fecha, fecha_desde, descripcion, monto, tipo_trabajo, jornada, css, seguro_educativo, bonificacion, decimo_tercer_mes, monto_prestamo, detalle_calculo",
       )
       .order("fecha", { ascending: false }),
   ]);
@@ -111,6 +111,7 @@ export default async function PagosPlanillaPage() {
       seguroEducativo: p.seguro_educativo === null ? null : Number(p.seguro_educativo),
       bonificacion: p.bonificacion === null ? null : Number(p.bonificacion),
       decimoTercerMes: p.decimo_tercer_mes === null ? null : Number(p.decimo_tercer_mes),
+      montoPrestamo: p.monto_prestamo === null ? null : Number(p.monto_prestamo),
       detalleCalculo: p.detalle_calculo as DetalleTalonarioCampo[] | null,
     };
   });

@@ -770,9 +770,12 @@ export async function exportarMovimientosPDF(
 // Talonario de pago de un colaborador Fijo: salario bruto + bonificacion +
 // decimoTercerMes (si tiene) menos las deducciones legales de Panama (CSS,
 // Seguro Educativo -- la bonificacion nunca las lleva, y el Decimo Tercer
-// Mes solo lleva CSS, nunca Seguro Educativo). Todos los montos llegan
-// aqui ya resueltos a un numero (0 si no se registraron para ese pago), el
-// neto se calcula aqui mismo, nunca se guarda en la base de datos.
+// Mes solo lleva CSS, nunca Seguro Educativo) y el abono a préstamo de ese
+// pago, si tuvo (aparte de las deducciones legales, para que se vea la
+// justificación completa de por qué el neto no coincide con el bruto).
+// Todos los montos llegan aqui ya resueltos a un numero (0 si no se
+// registraron para ese pago), el neto se calcula aqui mismo, nunca se
+// guarda en la base de datos.
 export type TalonarioExportable = {
   colaboradorNombre: string;
   fecha: string;
@@ -781,6 +784,7 @@ export type TalonarioExportable = {
   decimoTercerMes: number;
   css: number;
   seguroEducativo: number;
+  montoPrestamo: number;
 };
 
 export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
@@ -829,7 +833,11 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
 
   const totalDeducciones = talonario.css + talonario.seguroEducativo;
   const neto =
-    talonario.salarioBruto + talonario.bonificacion + talonario.decimoTercerMes - totalDeducciones;
+    talonario.salarioBruto +
+    talonario.bonificacion +
+    talonario.decimoTercerMes -
+    totalDeducciones -
+    talonario.montoPrestamo;
 
   const startY = Math.max(yColaborador, yEmpresa) + 6;
   const anchoResumen = 90;
@@ -848,6 +856,9 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
     ["Seguro Educativo", `-${formatMoney(talonario.seguroEducativo)}`, false],
     ["Total deducciones", `-${formatMoney(totalDeducciones)}`, false],
   );
+  if (talonario.montoPrestamo > 0) {
+    filas.push(["Abono a préstamo", `-${formatMoney(talonario.montoPrestamo)}`, false]);
+  }
   for (const [etiqueta, valor, negrita] of filas) {
     doc.setFont("helvetica", negrita ? "bold" : "normal");
     doc.text(etiqueta, xEtiqueta, y);

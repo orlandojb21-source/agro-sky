@@ -23,6 +23,7 @@ export type PagoFila = {
   seguroEducativo: number | null;
   bonificacion: number | null;
   decimoTercerMes: number | null;
+  montoPrestamo: number | null;
   detalleCalculo: DetalleTalonarioCampo[] | null;
 };
 
@@ -322,6 +323,7 @@ export function PagosPlanillaTabla({
                               decimoTercerMes: p.decimoTercerMes ?? 0,
                               css: p.css ?? 0,
                               seguroEducativo: p.seguroEducativo ?? 0,
+                              montoPrestamo: p.montoPrestamo ?? 0,
                             }}
                           />
                         ) : (
@@ -403,6 +405,7 @@ export function PagosPlanillaTabla({
                       decimoTercerMes: p.decimoTercerMes ?? 0,
                       css: p.css ?? 0,
                       seguroEducativo: p.seguroEducativo ?? 0,
+                      montoPrestamo: p.montoPrestamo ?? 0,
                     }}
                   />
                 ) : (
