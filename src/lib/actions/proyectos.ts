@@ -217,34 +217,6 @@ export async function eliminarInformeProyectoAction(id: string) {
   revalidatePath("/informes/proyecto");
 }
 
-// El nombre del proyecto (o del Cliente) suele traer un descriptor extra
-// entre paréntesis (ej. "Ingenio Santa Rosa (Semana 8 Granulado)") -- el
-// "nombre central" es la parte antes del paréntesis.
-function nombreCentral(texto: string): string {
-  const indice = texto.indexOf("(");
-  return (indice === -1 ? texto : texto.slice(0, indice)).trim().toLowerCase();
-}
-
-// Compara un texto libre (Descripción de un pago de planilla, o Concepto de
-// un movimiento de Caja Menuda) contra el nombre del Cliente del Proyecto,
-// de forma flexible en cualquier dirección: puede que el texto libre sea
-// solo el nombre del cliente, que el nombre completo aparezca dentro del
-// texto libre, o que el texto libre mezcle el nombre del cliente con otras
-// palabras (ej. "Ingenio Santa Rosa - comida") -- en ese último caso
-// ninguno de los dos contiene por completo al otro, así que se busca el
-// nombre central (sin el descriptor entre paréntesis) dentro del texto.
-function coincideConProyecto(textoLibre: string, referencia: string): boolean {
-  const texto = textoLibre.trim().toLowerCase();
-  if (texto === "") return false;
-  const referenciaCompleta = referencia.trim().toLowerCase();
-  const central = nombreCentral(referencia);
-  return (
-    referenciaCompleta.includes(texto) ||
-    texto.includes(referenciaCompleta) ||
-    (central !== "" && texto.includes(central))
-  );
-}
-
 // Mismo formato en el navegador (ProyectoInformeForm.tsx) y acá, para que
 // cada bloque de Gastos Operativos se pueda emparejar con su equipoKey al
 // guardar (ver crear_informe_proyecto/editar_informe_proyecto).
@@ -288,17 +260,20 @@ export type DatosProyecto = {
 //   cada fila.
 // - equipos: uno por cada combinación distinta de Operador+Ayudantes que
 //   aparezca en esos Informes de Campo, con Viáticos (Caja Menuda) ya
-//   sumados si hay movimientos que coincidan con el Cliente y con alguien
-//   del equipo, y Planilla calculada directo con las mismas tarifas que
-//   "Calcular pago sugerido" (lib/calculoIncentivos.ts) -- no depende de
-//   que ya exista un Pago registrado, el jefe puede no haber corrido esa
-//   quincena todavía.
+//   sumados si hay movimientos con este mismo Proyecto asociado (campo
+//   "Proyecto" de Caja Menuda) y el nombre de alguien del equipo, y
+//   Planilla calculada directo con las mismas tarifas que "Calcular pago
+//   sugerido" (lib/calculoIncentivos.ts) -- no depende de que ya exista un
+//   Pago registrado, el jefe puede no haber corrido esa quincena todavía.
 // - detallePlanilla: la misma Planilla sugerida, pero desglosada por
 //   trabajador individual y por día (no por equipo) -- ver
 //   calcularDetallePlanilla. Cada día es editable a mano por separado.
-// - gastosProyecto: gastos de Caja Menuda/Compras que ya traían este
-//   Proyecto asociado (ver mapearGastosProyecto) -- de solo lectura, no
-//   se encajan en los bloques por equipo ni se guardan aparte.
+// - gastosProyecto: el resto de gastos de Caja Menuda/Compras que ya
+//   traían este Proyecto asociado (ver mapearGastosProyecto) -- de solo
+//   lectura, no se encajan en los bloques por equipo ni se guardan aparte.
+//   Los de categoría Viáticos NO se repiten acá -- ya están arriba, en
+//   "equipos" (si no aparecieran en ninguno de los dos lados, es que ese
+//   movimiento de Caja Menuda todavía no tiene el Proyecto asociado).
 export async function obtenerDatosProyectoAction(proyectoId: string): Promise<DatosProyecto> {
   await requirePerfil();
   const supabase = await createClient();
@@ -313,21 +288,24 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const clienteNombre = (proyecto as unknown as { clientes: { nombre: string } | null }).clientes?.nombre ?? "—";
 
-  const [informes, { data: viaticosData }, { data: cajaGastosProyecto }, { data: gastosComprasProyecto }] =
-    await Promise.all([
-      obtenerInformesDelProyecto(supabase, proyectoId),
-      supabase.from("caja_gastos").select("concepto, monto, nombre").eq("categoria", "Viáticos"),
-      supabase
-        .from("caja_gastos")
-        .select("id, fecha, categoria, monto, concepto")
-        .eq("proyecto_id", proyectoId)
-        .order("fecha"),
-      supabase
-        .from("gastos")
-        .select("id, fecha, categoria, categoria_otro, monto, descripcion")
-        .eq("proyecto_id", proyectoId)
-        .order("fecha"),
-    ]);
+  const [informes, { data: cajaGastosProyecto }, { data: gastosComprasProyecto }] = await Promise.all([
+    obtenerInformesDelProyecto(supabase, proyectoId),
+    supabase
+      .from("caja_gastos")
+      .select("id, fecha, categoria, monto, concepto, nombre")
+      .eq("proyecto_id", proyectoId)
+      .order("fecha"),
+    supabase
+      .from("gastos")
+      .select("id, fecha, categoria, categoria_otro, monto, descripcion")
+      .eq("proyecto_id", proyectoId)
+      .order("fecha"),
+  ]);
+  // Viáticos se muestra por equipo (abajo), no en la lista general de
+  // gastosProyecto -- separarlo acá una sola vez evita mostrarlo (y
+  // sumarlo) dos veces.
+  const viaticosData = (cajaGastosProyecto ?? []).filter((g) => g.categoria === "Viáticos");
+  const otrosGastosCaja = (cajaGastosProyecto ?? []).filter((g) => g.categoria !== "Viáticos");
 
   const filas: FilaProyectoPreview[] = informes.map((informe) => ({
     informeCampoId: informe.id,
@@ -354,10 +332,7 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
   const equipos: EquipoProyectoPreview[] = Array.from(equiposMap.entries()).map(([key, { operador, ayudantes }]) => {
     const nombresEquipo = [operador, ...ayudantes];
 
-    const viaticosCoincidencias = (viaticosData ?? []).filter((g) => {
-      if (g.nombre && !nombresEquipo.includes(g.nombre)) return false;
-      return coincideConProyecto(g.concepto ?? "", clienteNombre);
-    });
+    const viaticosCoincidencias = viaticosData.filter((g) => g.nombre && nombresEquipo.includes(g.nombre));
 
     const entradasEquipo = planillaEntradas.filter((e) => nombresEquipo.includes(e.colaborador));
     const informesConPlanilla = new Set(entradasEquipo.map((e) => e.informeCampoId));
@@ -392,7 +367,7 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
     .sort((a, b) => a.colaborador.localeCompare(b.colaborador));
 
   const gastosProyecto = mapearGastosProyecto(
-    (cajaGastosProyecto ?? []) as {
+    otrosGastosCaja as {
       id: string;
       fecha: string;
       categoria: string | null;
