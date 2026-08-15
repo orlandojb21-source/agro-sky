@@ -25,9 +25,9 @@ type EntradaPlanilla = { informeCampoId: string; colaborador: string; fecha: str
 // cada Informe de Campo -- misma tarifa que "Calcular pago sugerido"
 // (lib/calculoIncentivos.ts), nunca se suman las hectáreas entre informes
 // distintos. Un informe sin tipo_proyecto clasificado todavía no se puede
-// calcular, se salta. Se usa tanto para la vista previa (agrupada por
-// trabajador en obtenerDatosProyectoAction) como para lo que se guarda de
-// verdad al crear/editar el informe.
+// calcular, se salta. Solo alimenta la vista previa (obtenerDatosProyectoAction)
+// -- el Monto que de verdad se guarda al crear/editar es el que traiga el
+// navegador (ver p_planilla_detalle), por si el jefe lo ajustó a mano.
 function calcularDetallePlanilla(informes: FilaInformeCampo[]): EntradaPlanilla[] {
   const entradas: EntradaPlanilla[] = [];
   for (const informe of informes) {
@@ -80,9 +80,11 @@ export async function crearInformeProyectoAction(
 
   let filas: unknown;
   let gastosOperativos: unknown;
+  let planillaDetalle: unknown;
   try {
     filas = JSON.parse(raw.filas || "[]");
     gastosOperativos = JSON.parse(raw.gastosOperativos || "[]");
+    planillaDetalle = JSON.parse(raw.planillaDetalle || "[]");
   } catch {
     return { error: "No se pudieron leer los datos del informe. Intenta de nuevo.", values: raw };
   }
@@ -93,6 +95,7 @@ export async function crearInformeProyectoAction(
     precio: raw.precio,
     filas,
     gastosOperativos,
+    planillaDetalle,
   });
 
   if (!parsed.success) {
@@ -100,8 +103,6 @@ export async function crearInformeProyectoAction(
   }
 
   const supabase = await createClient();
-  const informesProyecto = await obtenerInformesDelProyecto(supabase, parsed.data.proyectoId);
-  const planillaDetalle = calcularDetallePlanilla(informesProyecto);
 
   const { data: informeId, error } = await supabase.rpc("crear_informe_proyecto", {
     p_proyecto_id: parsed.data.proyectoId,
@@ -119,7 +120,11 @@ export async function crearInformeProyectoAction(
         precio: it.precio,
       })),
     })),
-    p_planilla_detalle: planillaDetalle,
+    p_planilla_detalle: parsed.data.planillaDetalle.map((d) => ({
+      informeCampoId: d.informeCampoId,
+      colaborador: d.colaborador,
+      monto: d.monto,
+    })),
   });
 
   if (error) {
@@ -142,9 +147,11 @@ export async function editarInformeProyectoAction(
 
   let filas: unknown;
   let gastosOperativos: unknown;
+  let planillaDetalle: unknown;
   try {
     filas = JSON.parse(raw.filas || "[]");
     gastosOperativos = JSON.parse(raw.gastosOperativos || "[]");
+    planillaDetalle = JSON.parse(raw.planillaDetalle || "[]");
   } catch {
     return { error: "No se pudieron leer los datos del informe. Intenta de nuevo.", values: raw };
   }
@@ -156,6 +163,7 @@ export async function editarInformeProyectoAction(
     precio: raw.precio,
     filas,
     gastosOperativos,
+    planillaDetalle,
   });
 
   if (!parsed.success) {
@@ -163,8 +171,6 @@ export async function editarInformeProyectoAction(
   }
 
   const supabase = await createClient();
-  const informesProyecto = await obtenerInformesDelProyecto(supabase, parsed.data.proyectoId);
-  const planillaDetalle = calcularDetallePlanilla(informesProyecto);
 
   const { error } = await supabase.rpc("editar_informe_proyecto", {
     p_informe_id: parsed.data.id,
@@ -183,7 +189,11 @@ export async function editarInformeProyectoAction(
         precio: it.precio,
       })),
     })),
-    p_planilla_detalle: planillaDetalle,
+    p_planilla_detalle: parsed.data.planillaDetalle.map((d) => ({
+      informeCampoId: d.informeCampoId,
+      colaborador: d.colaborador,
+      monto: d.monto,
+    })),
   });
 
   if (error) {
@@ -264,9 +274,12 @@ export type DatosProyecto = {
   detallePlanilla: PlanillaTrabajadorPreview[];
 };
 
-// Vista previa en el formulario al elegir un Proyecto -- el servidor
-// vuelve a calcular estos mismos valores al guardar (nunca se confía en lo
-// que muestre esta vista previa), así que acá solo importa que coincida.
+// Vista previa en el formulario al elegir un Proyecto. El set de filas/
+// equipos/días (CUÁLES existen) el servidor lo vuelve a derivar de los
+// Informes de Campo al guardar, nunca se confía en eso; los MONTOS
+// (Precio de cada fila, Cantidad/Precio de Gastos Operativos, Monto de
+// cada día de Planilla) sí viajan tal cual desde el navegador -- son
+// sugerencias editables, no valores fijos.
 // - filas: una por cada Informe de Campo del Proyecto (mismo Drone que
 //   aparezca en 2 Informes de Campo distintos sale 2 veces).
 // - equipos: uno por cada combinación distinta de Operador+Ayudantes que
@@ -275,10 +288,10 @@ export type DatosProyecto = {
 //   del equipo, y Planilla calculada directo con las mismas tarifas que
 //   "Calcular pago sugerido" (lib/calculoIncentivos.ts) -- no depende de
 //   que ya exista un Pago registrado, el jefe puede no haber corrido esa
-//   quincena todavía. Ambas siguen editables a mano.
-// - detallePlanilla: la misma Planilla calculada, pero desglosada por
+//   quincena todavía.
+// - detallePlanilla: la misma Planilla sugerida, pero desglosada por
 //   trabajador individual y por día (no por equipo) -- ver
-//   calcularDetallePlanilla. Es 100% calculado, no se edita a mano.
+//   calcularDetallePlanilla. Cada día es editable a mano por separado.
 export async function obtenerDatosProyectoAction(proyectoId: string): Promise<DatosProyecto> {
   await requirePerfil();
   const supabase = await createClient();

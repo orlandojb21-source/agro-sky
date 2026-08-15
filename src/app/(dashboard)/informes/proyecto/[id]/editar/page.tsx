@@ -25,24 +25,30 @@ export default async function EditarInformeProyectoPage({
   await requireWrite("informes");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: proyectosData }] = await Promise.all([
-    supabase
-      .from("proyecto_informes")
-      .select("id, proyecto_id, ubicacion, hectareas, precio, total, fecha")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("proyecto_filas")
-      .select("informe_campo_id, drone, hectareas, precio")
-      .eq("informe_id", id)
-      .order("id"),
-    supabase
-      .from("proyecto_gastos_operativos")
-      .select("operador, ayudantes, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
-      .eq("informe_id", id)
-      .order("id"),
-    supabase.from("proyectos").select("id, codigo, nombre, clientes ( nombre )").order("codigo"),
-  ]);
+  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: proyectosData }, { data: planillaDetalleData }] =
+    await Promise.all([
+      supabase
+        .from("proyecto_informes")
+        .select("id, proyecto_id, ubicacion, hectareas, precio, total, fecha")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("proyecto_filas")
+        .select("informe_campo_id, drone, hectareas, precio")
+        .eq("informe_id", id)
+        .order("id"),
+      supabase
+        .from("proyecto_gastos_operativos")
+        .select("operador, ayudantes, proyecto_gastos_operativos_items ( categoria, cantidad, precio )")
+        .eq("informe_id", id)
+        .order("id"),
+      supabase.from("proyectos").select("id, codigo, nombre, clientes ( nombre )").order("codigo"),
+      supabase
+        .from("proyecto_planilla_detalle")
+        .select("informe_campo_id, colaborador, fecha, monto")
+        .eq("informe_id", id)
+        .order("fecha"),
+    ]);
 
   if (!informe) notFound();
 
@@ -85,6 +91,12 @@ export default async function EditarInformeProyectoPage({
               cantidad: Number(it.cantidad),
               precio: Number(it.precio),
             })),
+          })),
+          detallePlanilla: (planillaDetalleData ?? []).map((d) => ({
+            informeCampoId: d.informe_campo_id as string,
+            colaborador: d.colaborador as string,
+            fecha: d.fecha as string,
+            monto: Number(d.monto),
           })),
         }}
       />

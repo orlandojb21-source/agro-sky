@@ -38,6 +38,16 @@ export const bloqueGastoOperativoSchema = z.object({
   items: z.array(itemGastoOperativoSchema).default([]),
 });
 
+// El set de filas (qué trabajador cobra por cuál Informe de Campo) se
+// recalcula siempre en el servidor a partir de los Informes de Campo del
+// Proyecto -- desde el navegador solo viaja el Monto de cada fila
+// (sugerido con la tarifa de "Calcular pago sugerido", pero editable).
+export const diaPlanillaSchema = z.object({
+  informeCampoId: z.string().uuid(),
+  colaborador: z.string().trim().min(1),
+  monto: z.number().min(0, "No puede ser negativo").default(0),
+});
+
 export const informeProyectoSchema = z.object({
   // El Proyecto se elige del catálogo -- Cliente, texto de encabezado,
   // Hectáreas y Total se derivan siempre en el servidor a partir de
@@ -49,6 +59,7 @@ export const informeProyectoSchema = z.object({
   precio: numeroOpcionalNoNegativo("El precio no puede ser negativo"),
   filas: z.array(filaProyectoSchema).default([]),
   gastosOperativos: z.array(bloqueGastoOperativoSchema).default([]),
+  planillaDetalle: z.array(diaPlanillaSchema).default([]),
 });
 
 export const informeProyectoEditSchema = informeProyectoSchema.extend({ id: z.string().uuid() });

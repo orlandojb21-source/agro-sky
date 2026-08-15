@@ -82,6 +82,7 @@ export type ValoresInforme = {
     ayudantes: string[];
     items: { categoria: string; cantidad: number; precio: number }[];
   }[];
+  detallePlanilla: { informeCampoId: string; colaborador: string; fecha: string; monto: number }[];
 };
 
 function bloqueDesdeInicial(inicial: ValoresInforme["gastosOperativos"][number]): BloqueGastoDraft {
@@ -141,8 +142,11 @@ export function ProyectoInformeForm({
   // corresponde esta vista -- mientras no coincida con el proyectoId
   // elegido, "cargandoProyecto" se deriva como true (sin necesidad de un
   // setState aparte dentro del efecto).
-  type DiaPlanillaTrabajador = { informeCampoId: string; fecha: string; monto: number };
-  type PlanillaTrabajador = { colaborador: string; dias: DiaPlanillaTrabajador[]; total: number };
+  // Un renglón por trabajador+Informe de Campo -- el Monto se sugiere solo
+  // (misma tarifa que "Calcular pago sugerido") pero es editable; la
+  // agrupación por trabajador (para mostrarlo) se arma al vuelo al
+  // renderizar, no vive en el estado.
+  type DiaPlanillaDraft = { informeCampoId: string; colaborador: string; fecha: string; monto: string };
 
   type VistaProyecto = {
     proyectoId: string;
@@ -151,7 +155,7 @@ export function ProyectoInformeForm({
     filas: FilaDraft[];
     gastosOperativos: BloqueGastoDraft[];
     infoAuto: InfoAutoPorEquipo;
-    detallePlanilla: PlanillaTrabajador[];
+    detallePlanilla: DiaPlanillaDraft[];
   };
 
   const [vista, setVista] = useState<VistaProyecto>(() => {
@@ -196,6 +200,28 @@ export function ProyectoInformeForm({
       gastosOperativos = valoresIniciales.gastosOperativos.map(bloqueDesdeInicial);
     }
 
+    let detallePlanilla: DiaPlanillaDraft[] = [];
+    if (v?.planillaDetalle) {
+      try {
+        const parsed = JSON.parse(v.planillaDetalle) as { informeCampoId: string; colaborador: string; monto: number }[];
+        detallePlanilla = parsed.map((d) => ({
+          informeCampoId: d.informeCampoId,
+          colaborador: d.colaborador,
+          fecha: "",
+          monto: String(d.monto),
+        }));
+      } catch {
+        // sigue abajo con los valores iniciales / vacío
+      }
+    } else if (valoresIniciales?.detallePlanilla) {
+      detallePlanilla = valoresIniciales.detallePlanilla.map((d) => ({
+        informeCampoId: d.informeCampoId,
+        colaborador: d.colaborador,
+        fecha: d.fecha,
+        monto: String(d.monto),
+      }));
+    }
+
     return {
       proyectoId: valoresIniciales?.proyectoId ?? v?.proyectoId ?? "",
       cliente: valoresIniciales?.cliente ?? "",
@@ -203,7 +229,7 @@ export function ProyectoInformeForm({
       filas,
       gastosOperativos,
       infoAuto: {},
-      detallePlanilla: [],
+      detallePlanilla,
     };
   });
   const { cliente, hectareas, filas, gastosOperativos, infoAuto, detallePlanilla } = vista;
@@ -250,7 +276,19 @@ export function ProyectoInformeForm({
           infoAuto: Object.fromEntries(
             datos.equipos.map((eq) => [eq.key, { viaticos: eq.viaticos, planilla: eq.planilla }]),
           ),
-          detallePlanilla: datos.detallePlanilla,
+          detallePlanilla: datos.detallePlanilla.flatMap((trabajador) =>
+            trabajador.dias.map((dia) => {
+              const anterior = prev.detallePlanilla.find(
+                (d) => d.informeCampoId === dia.informeCampoId && d.colaborador === trabajador.colaborador,
+              );
+              return {
+                informeCampoId: dia.informeCampoId,
+                colaborador: trabajador.colaborador,
+                fecha: dia.fecha,
+                monto: anterior ? anterior.monto : String(dia.monto),
+              };
+            }),
+          ),
         }));
       })
       .catch(() => {
@@ -268,6 +306,15 @@ export function ProyectoInformeForm({
     setVista((prev) => ({
       ...prev,
       filas: prev.filas.map((f, i) => (i === index ? { ...f, precio: valor } : f)),
+    }));
+  }
+
+  function actualizarMontoPlanilla(informeCampoId: string, colaborador: string, valor: string) {
+    setVista((prev) => ({
+      ...prev,
+      detallePlanilla: prev.detallePlanilla.map((d) =>
+        d.informeCampoId === informeCampoId && d.colaborador === colaborador ? { ...d, monto: valor } : d,
+      ),
     }));
   }
 
@@ -301,11 +348,35 @@ export function ProyectoInformeForm({
     })),
   }));
 
+  const planillaDetalleParaEnviar = detallePlanilla.map((d) => ({
+    informeCampoId: d.informeCampoId,
+    colaborador: d.colaborador,
+    monto: Number(d.monto) || 0,
+  }));
+
+  // La agrupación por trabajador es solo para mostrar -- el estado en sí
+  // (detallePlanilla) sigue siendo una lista plana de trabajador+Informe.
+  const gruposPlanilla = Array.from(
+    detallePlanilla
+      .reduce((mapa, dia) => {
+        const grupo = mapa.get(dia.colaborador) ?? [];
+        grupo.push(dia);
+        mapa.set(dia.colaborador, grupo);
+        return mapa;
+      }, new Map<string, DiaPlanillaDraft[]>())
+      .entries(),
+  ).map(([colaborador, dias]) => ({
+    colaborador,
+    dias,
+    total: dias.reduce((s, d) => s + (Number(d.monto) || 0), 0),
+  }));
+
   return (
     <form key={remountKey} action={formAction} className="flex flex-col gap-6">
       <FormError message={state.error} />
       <input type="hidden" name="filas" value={JSON.stringify(filasParaEnviar)} />
       <input type="hidden" name="gastosOperativos" value={JSON.stringify(gastosOperativosParaEnviar)} />
+      <input type="hidden" name="planillaDetalle" value={JSON.stringify(planillaDetalleParaEnviar)} />
       {esEdicion && <input type="hidden" name="id" value={valoresIniciales!.id} />}
 
       <div className="grid max-w-2xl grid-cols-1 gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm sm:grid-cols-2 dark:border-green-900/40 dark:bg-green-950/10">
@@ -531,7 +602,7 @@ export function ProyectoInformeForm({
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {detallePlanilla.map((trabajador) => (
+            {gruposPlanilla.map((trabajador) => (
               <div
                 key={trabajador.colaborador}
                 className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
@@ -549,8 +620,15 @@ export function ProyectoInformeForm({
                         <td className="px-4 py-2 text-green-800/80 dark:text-green-200/80">
                           {formatDateOnly(dia.fecha)}
                         </td>
-                        <td className="px-4 py-2 text-right text-green-900 dark:text-green-50">
-                          {formatMoney(dia.monto)}
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={dia.monto}
+                            onChange={(e) => actualizarMontoPlanilla(dia.informeCampoId, dia.colaborador, e.target.value)}
+                            className={`${CLASE_INPUT} text-right`}
+                          />
                         </td>
                       </tr>
                     ))}
