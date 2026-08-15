@@ -145,7 +145,11 @@ export function PrestamosTabla({
                     key={p.id}
                     className="border-b border-green-50 last:border-0 hover:bg-green-50/60 dark:border-green-900/30 dark:hover:bg-green-950/20"
                   >
-                    <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">{p.colaborador}</td>
+                    <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                      <Link href={`/planilla/prestamos/${p.id}`} className="hover:underline">
+                        {p.colaborador}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">{formatDateOnly(p.fecha)}</td>
                     <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">{formatMoney(p.monto)}</td>
                     <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
@@ -163,20 +167,28 @@ export function PrestamosTabla({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {puedeEscribir && (
-                        <div className="flex gap-3">
-                          <Link
-                            href={`/planilla/prestamos/${p.id}/editar`}
-                            className="text-sm text-green-700 hover:underline dark:text-green-300"
-                          >
-                            Editar
-                          </Link>
-                          <DeleteButton
-                            action={eliminarPrestamoAction.bind(null, p.id)}
-                            confirmMessage={`¿Eliminar el préstamo de ${p.colaborador}? Solo se puede si todavía no tiene abonos registrados.`}
-                          />
-                        </div>
-                      )}
+                      <div className="flex gap-3">
+                        <Link
+                          href={`/planilla/prestamos/${p.id}`}
+                          className="text-sm text-green-700 hover:underline dark:text-green-300"
+                        >
+                          Ver detalle
+                        </Link>
+                        {puedeEscribir && (
+                          <>
+                            <Link
+                              href={`/planilla/prestamos/${p.id}/editar`}
+                              className="text-sm text-green-700 hover:underline dark:text-green-300"
+                            >
+                              Editar
+                            </Link>
+                            <DeleteButton
+                              action={eliminarPrestamoAction.bind(null, p.id)}
+                              confirmMessage={`¿Eliminar el préstamo de ${p.colaborador}? Solo se puede si todavía no tiene abonos registrados.`}
+                            />
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -239,7 +251,9 @@ export function PrestamosTabla({
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-medium text-green-900 dark:text-green-50">{p.colaborador}</p>
+                  <Link href={`/planilla/prestamos/${p.id}`} className="font-medium text-green-900 hover:underline dark:text-green-50">
+                    {p.colaborador}
+                  </Link>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">{formatDateOnly(p.fecha)}</p>
                 </div>
                 {p.saldoPendiente <= 0 ? (
@@ -255,20 +269,28 @@ export function PrestamosTabla({
               <p className="mt-1 text-sm text-green-800/80 dark:text-green-200/80">
                 {formatMoney(p.monto)} · cuota {formatMoney(p.cuotaQuincenal)}
               </p>
-              {puedeEscribir && (
-                <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
-                  <Link
-                    href={`/planilla/prestamos/${p.id}/editar`}
-                    className="text-sm text-green-700 hover:underline dark:text-green-300"
-                  >
-                    Editar
-                  </Link>
-                  <DeleteButton
-                    action={eliminarPrestamoAction.bind(null, p.id)}
-                    confirmMessage={`¿Eliminar el préstamo de ${p.colaborador}? Solo se puede si todavía no tiene abonos registrados.`}
-                  />
-                </div>
-              )}
+              <div className="mt-3 flex gap-4 border-t border-green-50 pt-3 dark:border-green-900/30">
+                <Link
+                  href={`/planilla/prestamos/${p.id}`}
+                  className="text-sm text-green-700 hover:underline dark:text-green-300"
+                >
+                  Ver detalle
+                </Link>
+                {puedeEscribir && (
+                  <>
+                    <Link
+                      href={`/planilla/prestamos/${p.id}/editar`}
+                      className="text-sm text-green-700 hover:underline dark:text-green-300"
+                    >
+                      Editar
+                    </Link>
+                    <DeleteButton
+                      action={eliminarPrestamoAction.bind(null, p.id)}
+                      confirmMessage={`¿Eliminar el préstamo de ${p.colaborador}? Solo se puede si todavía no tiene abonos registrados.`}
+                    />
+                  </>
+                )}
+              </div>
             </div>
           ))
         )}
