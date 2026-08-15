@@ -169,12 +169,24 @@ export function CorrectivoMantenimientoForm({
                           className={CLASE_INPUT}
                         >
                           <option value="">Selecciona...</option>
-                          {productos.map((prod) => (
-                            <option key={prod.id} value={prod.id}>
-                              {prod.numeroParte} — {prod.descripcion} ({prod.tipo === "nuevo" ? "Nuevo" : "Usado"},
-                              stock: {prod.cantidad})
-                            </option>
-                          ))}
+                          <optgroup label="Nuevos">
+                            {productos
+                              .filter((prod) => prod.tipo === "nuevo")
+                              .map((prod) => (
+                                <option key={prod.id} value={prod.id}>
+                                  {prod.numeroParte} — {prod.descripcion} (stock: {prod.cantidad})
+                                </option>
+                              ))}
+                          </optgroup>
+                          <optgroup label="Usados">
+                            {productos
+                              .filter((prod) => prod.tipo === "usado")
+                              .map((prod) => (
+                                <option key={prod.id} value={prod.id}>
+                                  {prod.numeroParte} — {prod.descripcion} (stock: {prod.cantidad})
+                                </option>
+                              ))}
+                          </optgroup>
                         </select>
                       </td>
                       <td className="px-2 py-2">
