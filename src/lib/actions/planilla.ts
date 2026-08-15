@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireWrite } from "@/lib/session";
+import { requireSection, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { pagoSchema, pagoEditSchema, parseDetalleCalculo } from "@/lib/validation/planilla";
 import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
@@ -97,7 +97,7 @@ export async function editarPagoAction(
       css: parsed.data.css ? Number(parsed.data.css) : null,
       seguro_educativo: parsed.data.seguroEducativo ? Number(parsed.data.seguroEducativo) : null,
       bonificacion: parsed.data.bonificacion ? Number(parsed.data.bonificacion) : null,
-    decimo_tercer_mes: parsed.data.decimoTercerMes ? Number(parsed.data.decimoTercerMes) : null,
+      decimo_tercer_mes: parsed.data.decimoTercerMes ? Number(parsed.data.decimoTercerMes) : null,
       prestamo_id: parsed.data.prestamoId || null,
       monto_prestamo: parsed.data.montoPrestamo ? Number(parsed.data.montoPrestamo) : null,
       detalle_calculo: parseDetalleCalculo(parsed.data.detalleCalculo),
@@ -116,4 +116,76 @@ export async function eliminarPagoAction(id: string) {
   const { error } = await supabase.from("planilla_pagos").delete().eq("id", id);
   if (error) throw new Error("No se pudo eliminar el pago.");
   revalidatePath("/planilla/pagos");
+}
+
+export type FilaReportePlanilla = { nombre: string; monto: number };
+export type SeccionReportePlanilla = { etiqueta: string; filas: FilaReportePlanilla[]; total: number };
+export type ReportePlanilla = {
+  quincena1: SeccionReportePlanilla;
+  quincena2: SeccionReportePlanilla;
+  mes: SeccionReportePlanilla;
+};
+
+const MESES_REPORTE = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+// Detalle de todo lo pagado en Planilla (Fijo y Campo) en un mes elegido,
+// separado por quincena -- "monto" es lo que cada persona recibió de
+// verdad esa vez (Monto + Bonificación + Décimo Tercer Mes − CSS − Seguro
+// Educativo − abono de préstamo), no el gasto bruto de la empresa (eso ya
+// lo calcula Balance con otro criterio, ver PagoPlanillaBalance en
+// balance/page.tsx -- ahí sí cuenta el CSS/Seguro Educativo porque es
+// plata que la empresa igual gastó, solo que no llegó al colaborador).
+// RLS ya filtra los pagos de Fijo para quien no deba verlos
+// (administrador), igual que en el resto de esta sección.
+export async function obtenerReportePlanillaAction(anio: number, mes: number): Promise<ReportePlanilla> {
+  await requireSection("planilla");
+  const supabase = await createClient();
+
+  const fechaDesde = `${anio}-${String(mes).padStart(2, "0")}-01`;
+  const ultimoDia = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+  const fechaHasta = `${anio}-${String(mes).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+
+  const { data } = await supabase
+    .from("planilla_pagos")
+    .select("colaborador, fecha, monto, bonificacion, decimo_tercer_mes, css, seguro_educativo, monto_prestamo")
+    .gte("fecha", fechaDesde)
+    .lte("fecha", fechaHasta);
+
+  const porQuincena: [Map<string, number>, Map<string, number>] = [new Map(), new Map()];
+  for (const p of data ?? []) {
+    const nombre = p.colaborador as string;
+    const dia = Number((p.fecha as string).slice(8, 10));
+    const neto =
+      Number(p.monto) +
+      Number(p.bonificacion ?? 0) +
+      Number(p.decimo_tercer_mes ?? 0) -
+      Number(p.css ?? 0) -
+      Number(p.seguro_educativo ?? 0) -
+      Number(p.monto_prestamo ?? 0);
+    const mapa = porQuincena[dia <= 15 ? 0 : 1];
+    mapa.set(nombre, (mapa.get(nombre) ?? 0) + neto);
+  }
+
+  function aSeccion(mapa: Map<string, number>, etiqueta: string): SeccionReportePlanilla {
+    const filas = Array.from(mapa.entries())
+      .map(([nombre, monto]) => ({ nombre, monto: Math.round(monto * 100) / 100 }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return { etiqueta, filas, total: Math.round(filas.reduce((s, f) => s + f.monto, 0) * 100) / 100 };
+  }
+
+  const mapaMes = new Map<string, number>();
+  for (const mapa of porQuincena) {
+    for (const [nombre, monto] of mapa.entries()) {
+      mapaMes.set(nombre, (mapaMes.get(nombre) ?? 0) + monto);
+    }
+  }
+
+  return {
+    quincena1: aSeccion(porQuincena[0], `1 al 15 de ${MESES_REPORTE[mes - 1]}`),
+    quincena2: aSeccion(porQuincena[1], `16 al ${ultimoDia} de ${MESES_REPORTE[mes - 1]}`),
+    mes: aSeccion(mapaMes, `${MESES_REPORTE[mes - 1]} ${anio}`),
+  };
 }

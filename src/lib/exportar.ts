@@ -866,6 +866,95 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
   doc.save(`agro-sky-talonario-${nombreSlug}-${talonario.fecha}.pdf`);
 }
 
+// Detalle de todo lo pagado en Planilla (Fijo y Campo) en un mes, por
+// quincena y por mes completo -- "monto" de cada fila ya viene neto (lo
+// que la persona recibió de verdad), calculado en
+// obtenerReportePlanillaAction (lib/actions/planilla.ts), nunca aquí.
+export type FilaReportePlanillaExportable = { nombre: string; monto: number };
+export type SeccionReportePlanillaExportable = {
+  etiqueta: string;
+  filas: FilaReportePlanillaExportable[];
+  total: number;
+};
+export type ReportePlanillaExportable = {
+  quincena1: SeccionReportePlanillaExportable;
+  quincena2: SeccionReportePlanillaExportable;
+  mes: SeccionReportePlanillaExportable;
+};
+
+export async function exportarReportePlanillaPDF(reporte: ReportePlanillaExportable) {
+  const doc = new jsPDF({ orientation: "portrait" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+  const altoPagina = doc.internal.pageSize.getHeight();
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Reporte de Planilla — ${reporte.mes.etiqueta}`, 14, 20);
+
+  let y = Math.max(30, yEmpresa) + 6;
+
+  function dibujarSeccion(titulo: string, seccion: SeccionReportePlanillaExportable) {
+    if (y > altoPagina - 50) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(titulo, 14, y);
+    y += 6;
+
+    if (seccion.filas.length === 0) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Sin pagos registrados.", 14, y);
+      y += 10;
+      return;
+    }
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Nombre", "Monto"]],
+      body: seccion.filas.map((f) => [f.nombre, formatMoney(f.monto)]),
+      foot: [["total", formatMoney(seccion.total)]],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+      footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  }
+
+  dibujarSeccion(`Quincena — ${reporte.quincena1.etiqueta}`, reporte.quincena1);
+  dibujarSeccion(`Quincena — ${reporte.quincena2.etiqueta}`, reporte.quincena2);
+  dibujarSeccion(`Total del mes — ${reporte.mes.etiqueta}`, reporte.mes);
+
+  doc.save(`agro-sky-reporte-planilla-${reporte.mes.etiqueta.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`);
+}
+
 // Una fila por cada Informe de Campo (o día de Oficina) que entró en el
 // cálculo del pago -- misma forma que DetalleDiaAsistencia en
 // lib/actions/asistencia.ts, pero es una foto guardada con el pago
