@@ -31,7 +31,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-green-50/40 dark:bg-[#0a0f0c]">
-      <Nav nombreCompleto={perfil.nombreCompleto} rol={perfil.rol} userId={perfil.id} />
+      <Nav nombreCompleto={perfil.nombreCompleto} rol={perfil.rol} userId={perfil.id} correo={perfil.email} />
       <main className="flex-1 px-4 pt-20 pb-24 sm:px-6 sm:pt-24 sm:pb-8">
         <BiometricoAviso userId={perfil.id} />
         <SincronizadorInformesCampo />

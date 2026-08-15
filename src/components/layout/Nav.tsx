@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 import { NAV } from "./nav-items";
 import { canAccess, ROL_LABEL, type Rol } from "@/lib/roles";
+import { esAuditor } from "@/lib/auditoria";
 import { Logo } from "@/components/ui/Logo";
 
 function EnlaceNav({
@@ -34,13 +35,20 @@ export function Nav({
   nombreCompleto,
   rol,
   userId,
+  correo,
 }: {
   nombreCompleto: string;
   rol: Rol;
   userId: string;
+  correo: string;
 }) {
   const pathname = usePathname();
-  const items = NAV.filter((item) => canAccess(rol, item.seccion));
+  const items: { href: string; label: string }[] = NAV.filter((item) => canAccess(rol, item.seccion));
+  // Auditoría no es una Seccion del sistema de roles -- se gatilla por
+  // correo, no por rol, así que se agrega aparte (ver src/lib/auditoria.ts).
+  if (esAuditor(correo)) {
+    items.push({ href: "/auditoria", label: "Auditoría" });
+  }
 
   return (
     <>

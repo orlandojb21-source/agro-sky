@@ -11,6 +11,14 @@ export function formatDate(value: string): string {
   );
 }
 
+// Para timestamps reales (ej: creado_en de Auditoría) donde también
+// importa la hora, no solo el día.
+export function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("es-PA", { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(value),
+  );
+}
+
 // Para columnas "date" de Postgres sin hora (ej: fecha de un gasto), que
 // llegan como "2026-07-08". new Date() las interpreta como medianoche UTC;
 // formatearlas en la hora local (Panama, UTC-5) las hace retroceder un dia.

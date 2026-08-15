@@ -9,10 +9,12 @@ import {
   HandCoins,
   ShoppingCart,
   UserCog,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { requirePerfil } from "@/lib/session";
 import { canAccess, type Seccion } from "@/lib/roles";
+import { esAuditor } from "@/lib/auditoria";
 import { NAV } from "@/components/layout/nav-items";
 import { Logo } from "@/components/ui/Logo";
 
@@ -46,9 +48,17 @@ const ICONOS_INICIO: Record<Seccion, LucideIcon> = {
 export default async function InicioPage() {
   const perfil = await requirePerfil();
 
-  const accesos = SECCIONES_INICIO.map((seccion) => NAV.find((item) => item.seccion === seccion)).filter(
-    (item): item is (typeof NAV)[number] => item !== undefined && canAccess(perfil.rol, item.seccion),
-  );
+  const accesos: { href: string; label: string; Icono: LucideIcon }[] = SECCIONES_INICIO.map((seccion) =>
+    NAV.find((item) => item.seccion === seccion),
+  )
+    .filter((item): item is (typeof NAV)[number] => item !== undefined && canAccess(perfil.rol, item.seccion))
+    .map((item) => ({ href: item.href, label: item.label, Icono: ICONOS_INICIO[item.seccion] }));
+
+  // Auditoría no es una Seccion del sistema de roles -- se gatilla por
+  // correo, no por rol, así que se agrega aparte (ver src/lib/auditoria.ts).
+  if (esAuditor(perfil.email)) {
+    accesos.push({ href: "/auditoria", label: "Auditoría", Icono: ShieldCheck });
+  }
 
   return (
     <div className="flex flex-col items-center gap-8 py-6">
@@ -62,19 +72,16 @@ export default async function InicioPage() {
       </div>
 
       <div className="flex w-full max-w-2xl flex-wrap justify-center gap-3">
-        {accesos.map((item) => {
-          const Icono = ICONOS_INICIO[item.seccion];
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex w-40 flex-col items-center justify-center gap-2 rounded-xl border border-green-100 bg-white p-6 text-center font-medium text-green-900 shadow-sm transition hover:border-green-300 hover:shadow-md dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-50 dark:hover:border-green-700"
-            >
-              <Icono className="h-11 w-11 text-green-600 dark:text-green-400" strokeWidth={1.75} />
-              {item.label}
-            </Link>
-          );
-        })}
+        {accesos.map(({ href, label, Icono }) => (
+          <Link
+            key={href}
+            href={href}
+            className="flex w-40 flex-col items-center justify-center gap-2 rounded-xl border border-green-100 bg-white p-6 text-center font-medium text-green-900 shadow-sm transition hover:border-green-300 hover:shadow-md dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-50 dark:hover:border-green-700"
+          >
+            <Icono className="h-11 w-11 text-green-600 dark:text-green-400" strokeWidth={1.75} />
+            {label}
+          </Link>
+        ))}
       </div>
     </div>
   );
