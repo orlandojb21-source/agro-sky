@@ -165,14 +165,20 @@ export function PagoPlanillaForm({
   function datosIniciales(nombreColaborador: string) {
     const colaborador = opciones.find((c) => c.nombre === nombreColaborador);
     const esFijoColab = colaborador?.tipo === "fijo";
+    // CSS/Seguro Educativo no aplican a todos los Fijos -- depende de la
+    // marca "Aplica Deducciones" de cada colaborador (mismo criterio que
+    // mostrarDeducciones más abajo). Si no aplica, nunca se sugiere un
+    // valor nuevo (aunque sí se respeta uno histórico ya guardado, ver
+    // cssHistorico/seguroHistorico).
+    const aplicaDeduccionesColab = esFijoColab && (colaborador?.aplicaDeducciones ?? false);
     const montoSugerido = !esEdicion && esFijoColab ? mitadTexto(colaborador!.salario) : "";
     const monto =
       v?.monto ?? (valoresIniciales?.monto != null ? String(valoresIniciales.monto) : montoSugerido);
     const cssHistorico = v?.css ?? (valoresIniciales?.css != null ? String(valoresIniciales.css) : null);
     const seguroHistorico =
       v?.seguroEducativo ?? (valoresIniciales?.seguroEducativo != null ? String(valoresIniciales.seguroEducativo) : null);
-    const css = cssHistorico ?? (esFijoColab ? calcularDeduccion(monto, TASA_CSS) : "");
-    const seguroEducativo = seguroHistorico ?? (esFijoColab ? calcularDeduccion(monto, TASA_SEGURO_EDUCATIVO) : "");
+    const css = cssHistorico ?? (aplicaDeduccionesColab ? calcularDeduccion(monto, TASA_CSS) : "");
+    const seguroEducativo = seguroHistorico ?? (aplicaDeduccionesColab ? calcularDeduccion(monto, TASA_SEGURO_EDUCATIVO) : "");
     const bonificacionSugerida = !esEdicion && esFijoColab ? mitadTexto(colaborador!.bonificacion) : "";
     const bonificacion =
       v?.bonificacion ??
@@ -358,14 +364,16 @@ export function PagoPlanillaForm({
     setMontoTexto(String(Math.round(total * 100) / 100));
   }
 
-  // Las deducciones siempre siguen al monto mientras se está escribiendo --
-  // si el monto cambia (ej. un ajuste manual), CSS/Seguro Educativo se
+  // Las deducciones siguen al monto mientras se está escribiendo -- si el
+  // monto cambia (ej. un ajuste manual), CSS/Seguro Educativo se
   // recalculan al 9.75%/1.25% del nuevo monto, sin quedarse ancladas al
-  // salario original. Siguen siendo editables a mano después de esto.
+  // salario original. Siguen siendo editables a mano después de esto. Pero
+  // solo para colaboradores a los que de verdad les aplica (mostrarDeducciones)
+  // -- si no, quedan en "" para no sugerir un descuento que no corresponde.
   function cambiarMonto(texto: string) {
     setMontoTexto(texto);
-    setCssTexto(calcularDeduccion(texto, TASA_CSS));
-    setSeguroTexto(calcularDeduccion(texto, TASA_SEGURO_EDUCATIVO));
+    setCssTexto(mostrarDeducciones ? calcularDeduccion(texto, TASA_CSS) : "");
+    setSeguroTexto(mostrarDeducciones ? calcularDeduccion(texto, TASA_SEGURO_EDUCATIVO) : "");
   }
 
   const colaboradorActual = opciones.find((c) => c.nombre === colaboradorSeleccionado);
@@ -709,8 +717,8 @@ export function PagoPlanillaForm({
                 Math.round(
                   ((Number(montoTexto) || 0) +
                     (Number(bonifTexto) || 0) -
-                    (Number(cssTexto) || 0) -
-                    (Number(seguroTexto) || 0) -
+                    (mostrarDeducciones ? Number(cssTexto) || 0 : 0) -
+                    (mostrarDeducciones ? Number(seguroTexto) || 0 : 0) -
                     (Number(montoPrestamoTexto) || 0)) *
                     100,
                 ) / 100,
