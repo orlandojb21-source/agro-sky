@@ -141,6 +141,9 @@ export function ProyectoInformeForm({
   // corresponde esta vista -- mientras no coincida con el proyectoId
   // elegido, "cargandoProyecto" se deriva como true (sin necesidad de un
   // setState aparte dentro del efecto).
+  type DiaPlanillaTrabajador = { informeCampoId: string; fecha: string; monto: number };
+  type PlanillaTrabajador = { colaborador: string; dias: DiaPlanillaTrabajador[]; total: number };
+
   type VistaProyecto = {
     proyectoId: string;
     cliente: string;
@@ -148,6 +151,7 @@ export function ProyectoInformeForm({
     filas: FilaDraft[];
     gastosOperativos: BloqueGastoDraft[];
     infoAuto: InfoAutoPorEquipo;
+    detallePlanilla: PlanillaTrabajador[];
   };
 
   const [vista, setVista] = useState<VistaProyecto>(() => {
@@ -199,9 +203,10 @@ export function ProyectoInformeForm({
       filas,
       gastosOperativos,
       infoAuto: {},
+      detallePlanilla: [],
     };
   });
-  const { cliente, hectareas, filas, gastosOperativos, infoAuto } = vista;
+  const { cliente, hectareas, filas, gastosOperativos, infoAuto, detallePlanilla } = vista;
   const cargandoProyecto = proyectoId !== "" && vista.proyectoId !== proyectoId;
 
   // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente, las
@@ -245,6 +250,7 @@ export function ProyectoInformeForm({
           infoAuto: Object.fromEntries(
             datos.equipos.map((eq) => [eq.key, { viaticos: eq.viaticos, planilla: eq.planilla }]),
           ),
+          detallePlanilla: datos.detallePlanilla,
         }));
       })
       .catch(() => {
@@ -312,7 +318,15 @@ export function ProyectoInformeForm({
               const valor = e.target.value;
               setProyectoId(valor);
               if (!valor)
-                setVista({ proyectoId: "", cliente: "", hectareas: null, filas: [], gastosOperativos: [], infoAuto: {} });
+                setVista({
+                  proyectoId: "",
+                  cliente: "",
+                  hectareas: null,
+                  filas: [],
+                  gastosOperativos: [],
+                  infoAuto: {},
+                  detallePlanilla: [],
+                });
             }}
             required
           >
@@ -502,6 +516,58 @@ export function ProyectoInformeForm({
             </div>
           );
         })}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Detalle de pago de Planilla</h2>
+
+        {detallePlanilla.length === 0 ? (
+          <p className="rounded-xl border border-green-100 bg-white px-4 py-6 text-center text-sm text-green-700/70 shadow-sm dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-200/70">
+            {cargandoProyecto
+              ? "Cargando..."
+              : proyectoId
+                ? "Este proyecto todavía no tiene Informes de Campo clasificados (Ingenio Santa Rosa/Particular)."
+                : "Elige un Proyecto para ver el detalle de pago por trabajador."}
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {detallePlanilla.map((trabajador) => (
+              <div
+                key={trabajador.colaborador}
+                className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
+              >
+                <h3 className="border-b border-green-100 bg-green-50 px-4 py-2 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+                  {trabajador.colaborador}
+                </h3>
+                <table className="w-full text-left text-sm">
+                  <tbody>
+                    {trabajador.dias.map((dia) => (
+                      <tr
+                        key={dia.informeCampoId}
+                        className="border-b border-green-50 last:border-0 dark:border-green-900/30"
+                      >
+                        <td className="px-4 py-2 text-green-800/80 dark:text-green-200/80">
+                          {formatDateOnly(dia.fecha)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-green-900 dark:text-green-50">
+                          {formatMoney(dia.monto)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
+                      <td className="px-4 py-2 text-green-900 dark:text-green-50">total</td>
+                      <td className="px-4 py-2 text-right text-green-700 dark:text-green-400">
+                        {formatMoney(trabajador.total)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3">

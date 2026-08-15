@@ -28,25 +28,31 @@ export default async function DetalleInformeProyectoPage({
   const puedeEscribir = canWrite(perfil.rol, "informes");
 
   const supabase = await createClient();
-  const [{ data: informe }, { data: filasData }, { data: gastosData }] = await Promise.all([
-    supabase
-      .from("proyecto_informes")
-      .select("id, proyecto, ubicacion, hectareas, precio, total, fecha")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("proyecto_filas")
-      .select("id, drone, hectareas, precio, total")
-      .eq("informe_id", id)
-      .order("id"),
-    supabase
-      .from("proyecto_gastos_operativos")
-      .select(
-        "id, operador, ayudantes, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )",
-      )
-      .eq("informe_id", id)
-      .order("id"),
-  ]);
+  const [{ data: informe }, { data: filasData }, { data: gastosData }, { data: planillaDetalleData }] =
+    await Promise.all([
+      supabase
+        .from("proyecto_informes")
+        .select("id, proyecto, ubicacion, hectareas, precio, total, fecha")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("proyecto_filas")
+        .select("id, drone, hectareas, precio, total")
+        .eq("informe_id", id)
+        .order("id"),
+      supabase
+        .from("proyecto_gastos_operativos")
+        .select(
+          "id, operador, ayudantes, proyecto_gastos_operativos_items ( id, categoria, cantidad, precio, total )",
+        )
+        .eq("informe_id", id)
+        .order("id"),
+      supabase
+        .from("proyecto_planilla_detalle")
+        .select("id, colaborador, fecha, monto")
+        .eq("informe_id", id)
+        .order("fecha"),
+    ]);
 
   if (!informe) notFound();
 
@@ -88,6 +94,24 @@ export default async function DetalleInformeProyectoPage({
     };
   });
 
+  // Un grupo por trabajador (Operador o Ayudante), con cada Informe de
+  // Campo en que participó y lo que le corresponde ese día -- ver
+  // calcularDetallePlanilla en lib/actions/proyectos.ts (mismo cálculo que
+  // llenó esta tabla al guardar el informe).
+  const detallePorTrabajador = new Map<string, { fecha: string; monto: number }[]>();
+  for (const fila of planillaDetalleData ?? []) {
+    const dias = detallePorTrabajador.get(fila.colaborador as string) ?? [];
+    dias.push({ fecha: fila.fecha as string, monto: Number(fila.monto) });
+    detallePorTrabajador.set(fila.colaborador as string, dias);
+  }
+  const detallePlanilla = Array.from(detallePorTrabajador.entries())
+    .map(([colaborador, dias]) => ({
+      colaborador,
+      dias,
+      total: dias.reduce((s, d) => s + d.monto, 0),
+    }))
+    .sort((a, b) => a.colaborador.localeCompare(b.colaborador));
+
   const informeExportable: InformeProyectoExportable = {
     proyecto: informe.proyecto as string,
     ubicacion: informe.ubicacion as string | null,
@@ -107,6 +131,7 @@ export default async function DetalleInformeProyectoPage({
         total: it.total,
       })),
     })),
+    detallePlanilla,
   };
 
   return (
@@ -250,6 +275,46 @@ export default async function DetalleInformeProyectoPage({
           </div>
         </div>
       ))}
+
+      {detallePlanilla.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Detalle de pago de Planilla</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {detallePlanilla.map((trabajador) => (
+              <div
+                key={trabajador.colaborador}
+                className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
+              >
+                <h3 className="border-b border-green-100 bg-green-50 px-4 py-2 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+                  {trabajador.colaborador}
+                </h3>
+                <table className="w-full text-left text-sm">
+                  <tbody>
+                    {trabajador.dias.map((dia, i) => (
+                      <tr key={i} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                        <td className="px-4 py-2 text-green-800/80 dark:text-green-200/80">
+                          {formatDateOnly(dia.fecha)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-green-900 dark:text-green-50">
+                          {formatMoney(dia.monto)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
+                      <td className="px-4 py-2 text-green-900 dark:text-green-50">total</td>
+                      <td className="px-4 py-2 text-right text-green-700 dark:text-green-400">
+                        {formatMoney(trabajador.total)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {puedeEscribir && (
         <div>

@@ -5,8 +5,71 @@ import { redirect } from "next/navigation";
 import { requirePerfil, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeProyectoSchema, informeProyectoEditSchema } from "@/lib/validation/proyectos";
-import { calcularPagoProyecto, type RolDia, type Jornada, type TipoProyecto } from "@/lib/calculoIncentivos";
+import { calcularPagoProyecto, type Jornada, type TipoProyecto } from "@/lib/calculoIncentivos";
 import type { ActionState } from "./types";
+
+type FilaInformeCampo = {
+  id: string;
+  fecha: string;
+  modelo_drone: string;
+  operador: string;
+  ayudantes: string[] | null;
+  tipo_proyecto: TipoProyecto | null;
+  jornada: Jornada;
+  informe_campo_parcelas: { hectareas: number }[] | null;
+};
+
+type EntradaPlanilla = { informeCampoId: string; colaborador: string; fecha: string; monto: number };
+
+// Cuánto le corresponde a cada trabajador (Operador y cada Ayudante) por
+// cada Informe de Campo -- misma tarifa que "Calcular pago sugerido"
+// (lib/calculoIncentivos.ts), nunca se suman las hectáreas entre informes
+// distintos. Un informe sin tipo_proyecto clasificado todavía no se puede
+// calcular, se salta. Se usa tanto para la vista previa (agrupada por
+// trabajador en obtenerDatosProyectoAction) como para lo que se guarda de
+// verdad al crear/editar el informe.
+function calcularDetallePlanilla(informes: FilaInformeCampo[]): EntradaPlanilla[] {
+  const entradas: EntradaPlanilla[] = [];
+  for (const informe of informes) {
+    if (!informe.tipo_proyecto) continue;
+    const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce((s, p) => s + Number(p.hectareas), 0);
+    const operador = informe.operador.trim();
+    const ayudantes = (informe.ayudantes ?? []).map((a) => a.trim()).filter((a) => a !== "");
+
+    entradas.push({
+      informeCampoId: informe.id,
+      colaborador: operador,
+      fecha: informe.fecha,
+      monto: calcularPagoProyecto("operador", informe.tipo_proyecto, hectareasInforme, informe.jornada),
+    });
+    for (const ayudante of ayudantes) {
+      entradas.push({
+        informeCampoId: informe.id,
+        colaborador: ayudante,
+        fecha: informe.fecha,
+        monto: calcularPagoProyecto("ayudante", informe.tipo_proyecto, hectareasInforme, informe.jornada),
+      });
+    }
+  }
+  return entradas;
+}
+
+// Trae los Informes de Campo del Proyecto con todo lo necesario para
+// calcular Hectáreas/Drone/Planilla -- una sola consulta, reusada por el
+// preview (obtenerDatosProyectoAction) y por crear/editar (para no
+// confiar en lo que mande el navegador).
+async function obtenerInformesDelProyecto(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  proyectoId: string,
+): Promise<FilaInformeCampo[]> {
+  const { data } = await supabase
+    .from("informes_campo")
+    .select("id, fecha, modelo_drone, operador, ayudantes, tipo_proyecto, jornada, informe_campo_parcelas ( hectareas )")
+    .eq("proyecto_id", proyectoId)
+    .order("fecha")
+    .order("creado_en");
+  return (data ?? []) as unknown as FilaInformeCampo[];
+}
 
 export async function crearInformeProyectoAction(
   _prev: ActionState,
@@ -37,6 +100,9 @@ export async function crearInformeProyectoAction(
   }
 
   const supabase = await createClient();
+  const informesProyecto = await obtenerInformesDelProyecto(supabase, parsed.data.proyectoId);
+  const planillaDetalle = calcularDetallePlanilla(informesProyecto);
+
   const { data: informeId, error } = await supabase.rpc("crear_informe_proyecto", {
     p_proyecto_id: parsed.data.proyectoId,
     p_ubicacion: parsed.data.ubicacion || null,
@@ -53,6 +119,7 @@ export async function crearInformeProyectoAction(
         precio: it.precio,
       })),
     })),
+    p_planilla_detalle: planillaDetalle,
   });
 
   if (error) {
@@ -96,6 +163,9 @@ export async function editarInformeProyectoAction(
   }
 
   const supabase = await createClient();
+  const informesProyecto = await obtenerInformesDelProyecto(supabase, parsed.data.proyectoId);
+  const planillaDetalle = calcularDetallePlanilla(informesProyecto);
+
   const { error } = await supabase.rpc("editar_informe_proyecto", {
     p_informe_id: parsed.data.id,
     p_proyecto_id: parsed.data.proyectoId,
@@ -113,6 +183,7 @@ export async function editarInformeProyectoAction(
         precio: it.precio,
       })),
     })),
+    p_planilla_detalle: planillaDetalle,
   });
 
   if (error) {
@@ -183,21 +254,14 @@ export type EquipoProyectoPreview = {
   viaticos: BusquedaAuto;
   planilla: BusquedaAuto;
 };
+export type DiaPlanillaTrabajador = { informeCampoId: string; fecha: string; monto: number };
+export type PlanillaTrabajadorPreview = { colaborador: string; dias: DiaPlanillaTrabajador[]; total: number };
 export type DatosProyecto = {
   cliente: string;
   hectareas: number;
   filas: FilaProyectoPreview[];
   equipos: EquipoProyectoPreview[];
-};
-
-type FilaInformeCampo = {
-  id: string;
-  modelo_drone: string;
-  operador: string;
-  ayudantes: string[] | null;
-  tipo_proyecto: TipoProyecto | null;
-  jornada: Jornada;
-  informe_campo_parcelas: { hectareas: number }[] | null;
+  detallePlanilla: PlanillaTrabajadorPreview[];
 };
 
 // Vista previa en el formulario al elegir un Proyecto -- el servidor
@@ -212,6 +276,9 @@ type FilaInformeCampo = {
 //   "Calcular pago sugerido" (lib/calculoIncentivos.ts) -- no depende de
 //   que ya exista un Pago registrado, el jefe puede no haber corrido esa
 //   quincena todavía. Ambas siguen editables a mano.
+// - detallePlanilla: la misma Planilla calculada, pero desglosada por
+//   trabajador individual y por día (no por equipo) -- ver
+//   calcularDetallePlanilla. Es 100% calculado, no se edita a mano.
 export async function obtenerDatosProyectoAction(proyectoId: string): Promise<DatosProyecto> {
   await requirePerfil();
   const supabase = await createClient();
@@ -226,17 +293,10 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const clienteNombre = (proyecto as unknown as { clientes: { nombre: string } | null }).clientes?.nombre ?? "—";
 
-  const [{ data: informesData }, { data: viaticosData }] = await Promise.all([
-    supabase
-      .from("informes_campo")
-      .select("id, modelo_drone, operador, ayudantes, tipo_proyecto, jornada, informe_campo_parcelas ( hectareas )")
-      .eq("proyecto_id", proyectoId)
-      .order("fecha")
-      .order("creado_en"),
+  const [informes, { data: viaticosData }] = await Promise.all([
+    obtenerInformesDelProyecto(supabase, proyectoId),
     supabase.from("caja_gastos").select("concepto, monto, nombre").eq("categoria", "Viáticos"),
   ]);
-
-  const informes = (informesData ?? []) as unknown as FilaInformeCampo[];
 
   const filas: FilaProyectoPreview[] = informes.map((informe) => ({
     informeCampoId: informe.id,
@@ -249,61 +309,61 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const hectareas = filas.reduce((s, f) => s + f.hectareas, 0);
 
-  const equiposMap = new Map<string, { operador: string; ayudantes: string[]; informes: FilaInformeCampo[] }>();
+  const planillaEntradas = calcularDetallePlanilla(informes);
+
+  const equiposMap = new Map<string, { operador: string; ayudantes: string[] }>();
   for (const informe of informes) {
     const operador = informe.operador.trim();
     const ayudantes = (informe.ayudantes ?? []).map((a) => a.trim()).filter((a) => a !== "");
     const key = claveEquipo(operador, ayudantes);
-    const equipo = equiposMap.get(key);
-    if (equipo) {
-      equipo.informes.push(informe);
-    } else {
-      equiposMap.set(key, { operador, ayudantes, informes: [informe] });
-    }
+    if (!equiposMap.has(key)) equiposMap.set(key, { operador, ayudantes });
   }
 
-  const equipos: EquipoProyectoPreview[] = Array.from(equiposMap.entries()).map(
-    ([key, { operador, ayudantes, informes: informesEquipo }]) => {
-      const nombresEquipo = [operador, ...ayudantes];
+  const equipos: EquipoProyectoPreview[] = Array.from(equiposMap.entries()).map(([key, { operador, ayudantes }]) => {
+    const nombresEquipo = [operador, ...ayudantes];
 
-      const viaticosCoincidencias = (viaticosData ?? []).filter((g) => {
-        if (g.nombre && !nombresEquipo.includes(g.nombre)) return false;
-        return coincideConProyecto(g.concepto ?? "", clienteNombre);
-      });
+    const viaticosCoincidencias = (viaticosData ?? []).filter((g) => {
+      if (g.nombre && !nombresEquipo.includes(g.nombre)) return false;
+      return coincideConProyecto(g.concepto ?? "", clienteNombre);
+    });
 
-      // Planilla no depende de que ya exista un Pago registrado -- se
-      // calcula directo con la misma tarifa que "Calcular pago sugerido"
-      // (lib/calculoIncentivos.ts): el Operador y cada Ayudante cobran por
-      // separado, por cada Informe de Campo (nunca se suman las hectáreas
-      // entre informes distintos). Un informe sin tipo_proyecto clasificado
-      // todavía no se puede calcular, se salta.
-      let planillaCantidad = 0;
-      let planillaTotal = 0;
-      for (const informe of informesEquipo) {
-        if (!informe.tipo_proyecto) continue;
-        const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce((s, p) => s + Number(p.hectareas), 0);
-        const roles: RolDia[] = ["operador", ...ayudantes.map(() => "ayudante" as RolDia)];
-        for (const rol of roles) {
-          planillaTotal += calcularPagoProyecto(rol, informe.tipo_proyecto, hectareasInforme, informe.jornada);
-        }
-        planillaCantidad += 1;
-      }
+    const entradasEquipo = planillaEntradas.filter((e) => nombresEquipo.includes(e.colaborador));
+    const informesConPlanilla = new Set(entradasEquipo.map((e) => e.informeCampoId));
 
-      return {
-        key,
-        operador,
-        ayudantes,
-        viaticos: {
-          cantidad: viaticosCoincidencias.length,
-          total: Math.round(viaticosCoincidencias.reduce((s, g) => s + Number(g.monto), 0) * 100) / 100,
-        },
-        planilla: {
-          cantidad: planillaCantidad,
-          total: Math.round(planillaTotal * 100) / 100,
-        },
-      };
-    },
-  );
+    return {
+      key,
+      operador,
+      ayudantes,
+      viaticos: {
+        cantidad: viaticosCoincidencias.length,
+        total: Math.round(viaticosCoincidencias.reduce((s, g) => s + Number(g.monto), 0) * 100) / 100,
+      },
+      planilla: {
+        cantidad: informesConPlanilla.size,
+        total: Math.round(entradasEquipo.reduce((s, e) => s + e.monto, 0) * 100) / 100,
+      },
+    };
+  });
 
-  return { cliente: clienteNombre, hectareas: Math.round(hectareas * 100) / 100, filas, equipos };
+  const detallePorTrabajador = new Map<string, DiaPlanillaTrabajador[]>();
+  for (const entrada of planillaEntradas) {
+    const dias = detallePorTrabajador.get(entrada.colaborador) ?? [];
+    dias.push({ informeCampoId: entrada.informeCampoId, fecha: entrada.fecha, monto: entrada.monto });
+    detallePorTrabajador.set(entrada.colaborador, dias);
+  }
+  const detallePlanilla: PlanillaTrabajadorPreview[] = Array.from(detallePorTrabajador.entries())
+    .map(([colaborador, dias]) => ({
+      colaborador,
+      dias,
+      total: Math.round(dias.reduce((s, d) => s + d.monto, 0) * 100) / 100,
+    }))
+    .sort((a, b) => a.colaborador.localeCompare(b.colaborador));
+
+  return {
+    cliente: clienteNombre,
+    hectareas: Math.round(hectareas * 100) / 100,
+    filas,
+    equipos,
+    detallePlanilla,
+  };
 }

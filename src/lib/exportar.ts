@@ -423,6 +423,9 @@ export type BloqueGastoOperativoExportable = {
   items: ItemGastoOperativoExportable[];
 };
 
+export type DiaPlanillaExportable = { fecha: string; monto: number };
+export type PlanillaTrabajadorExportable = { colaborador: string; dias: DiaPlanillaExportable[]; total: number };
+
 export type InformeProyectoExportable = {
   proyecto: string;
   ubicacion: string | null;
@@ -432,6 +435,7 @@ export type InformeProyectoExportable = {
   fecha: string;
   filas: FilaInformeExportable[];
   gastosOperativos: BloqueGastoOperativoExportable[];
+  detallePlanilla: PlanillaTrabajadorExportable[];
 };
 
 function nombreArchivoProyecto(proyecto: string): string {
@@ -543,6 +547,40 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
       footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
     });
     yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  }
+
+  if (informe.detallePlanilla.length > 0) {
+    if (yGastos > altoPagina - 40) {
+      doc.addPage();
+      yGastos = 15;
+    }
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("Detalle de pago de Planilla", 14, yGastos);
+    yGastos += 8;
+
+    for (const trabajador of informe.detallePlanilla) {
+      if (yGastos > altoPagina - 40) {
+        doc.addPage();
+        yGastos = 15;
+      }
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(trabajador.colaborador, 14, yGastos);
+      yGastos += 5;
+
+      autoTable(doc, {
+        startY: yGastos,
+        head: [["Fecha", "Monto"]],
+        body: trabajador.dias.map((d) => [formatDateOnly(d.fecha), formatMoney(d.monto)]),
+        foot: [["total", formatMoney(trabajador.total)]],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [21, 128, 61] },
+        footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+        tableWidth: 90,
+      });
+      yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+    }
   }
 
   doc.save(`${nombreArchivoProyecto(informe.proyecto)}.pdf`);
