@@ -71,8 +71,11 @@ export default async function DetalleInformeProyectoPage({
       .eq("proyecto_id", informe.proyecto_id as string)
       .order("fecha"),
   ]);
+  // Viáticos ya se ve arriba, en el bloque de Gastos Operativos por equipo
+  // -- se deja fuera de esta lista general para no mostrarlo (ni sumarlo
+  // al Total Gastos Operativos) dos veces.
   const gastosProyecto = mapearGastosProyecto(
-    (cajaGastosProyecto ?? []) as {
+    (cajaGastosProyecto ?? []).filter((g) => g.categoria !== "Viáticos") as {
       id: string;
       fecha: string;
       categoria: string | null;
