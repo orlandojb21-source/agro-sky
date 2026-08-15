@@ -39,7 +39,7 @@ export default async function BalancePage() {
       .order("fecha", { ascending: false }),
     supabase
       .from("planilla_pagos")
-      .select("fecha, colaborador, monto, bonificacion, monto_prestamo")
+      .select("fecha, colaborador, monto, bonificacion, decimo_tercer_mes, monto_prestamo")
       .order("fecha", { ascending: false }),
     supabase.from("colaboradores").select("nombre").order("nombre"),
     supabase
@@ -97,13 +97,14 @@ export default async function BalancePage() {
     return {
       fecha: p.fecha as string,
       colaborador: p.colaborador as string,
-      // La bonificacion tambien es un costo real de planilla, aunque no
-      // tenga CSS/Seguro Educativo -- se incluye en el total pagado. El
+      // La bonificacion y el Decimo Tercer Mes tambien son costo real de
+      // planilla, aunque no tengan CSS/Seguro Educativo (bonificacion) o
+      // solo lleven CSS (Decimo) -- se incluyen en el total pagado. El
       // descuento de préstamo, en cambio, NO es plata que vuelve a salir
       // de la empresa esta quincena -- ya salió cuando se dio el préstamo
       // (se ve aparte, en la sección Préstamos), así que se resta acá para
       // que el total de Planilla refleje el gasto real de esta quincena.
-      monto: Number(p.monto) + Number(p.bonificacion ?? 0) - montoPrestamo,
+      monto: Number(p.monto) + Number(p.bonificacion ?? 0) + Number(p.decimo_tercer_mes ?? 0) - montoPrestamo,
       montoPrestamo,
     };
   });
