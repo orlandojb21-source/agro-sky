@@ -1283,13 +1283,25 @@ export async function exportarInformeDiarioPDF(informe: InformeDiarioExportable)
     y += lineasNota.length * 6;
   }
 
-  // Copia del Informe de Campo -- siempre en una página nueva, es un
-  // documento completo aparte (parcelas, productos, firmas).
-  doc.addPage();
+  // Copia del Informe de Campo -- los campos de arriba (llenados a mano
+  // por el administrador) casi siempre dejan mucho espacio libre en la
+  // primera hoja, así que la copia arranca en esa misma hoja si alcanza
+  // el espacio (título + sus líneas de info, antes de la tabla de
+  // parcelas -- esa y las firmas ya se paginan solas dentro de
+  // dibujarCuerpoInformeCampo). Solo se fuerza una hoja nueva si de
+  // verdad no cabe.
+  const altoPagina = doc.internal.pageSize.getHeight();
+  const espacioMinimoCopia = 90;
+  if (altoPagina - y < espacioMinimoCopia) {
+    doc.addPage();
+    y = 18;
+  } else {
+    y += 10;
+  }
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Copia del Informe de Campo", 14, 18);
-  await dibujarCuerpoInformeCampo(doc, informe.informeCampo, 28, 0);
+  doc.text("Copia del Informe de Campo", 14, y);
+  await dibujarCuerpoInformeCampo(doc, informe.informeCampo, y + 10, 0);
 
   doc.save(`${nombreArchivoInformeDiario(informe.cliente, informe.fecha)}.pdf`);
 }
