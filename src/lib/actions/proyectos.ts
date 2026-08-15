@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requirePerfil, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeProyectoSchema, informeProyectoEditSchema } from "@/lib/validation/proyectos";
+import { calcularPagoProyecto, type RolDia, type Jornada, type TipoProyecto } from "@/lib/calculoIncentivos";
 import type { ActionState } from "./types";
 
 export async function crearInformeProyectoAction(
@@ -194,6 +195,8 @@ type FilaInformeCampo = {
   modelo_drone: string;
   operador: string;
   ayudantes: string[] | null;
+  tipo_proyecto: TipoProyecto | null;
+  jornada: Jornada;
   informe_campo_parcelas: { hectareas: number }[] | null;
 };
 
@@ -203,9 +206,12 @@ type FilaInformeCampo = {
 // - filas: una por cada Informe de Campo del Proyecto (mismo Drone que
 //   aparezca en 2 Informes de Campo distintos sale 2 veces).
 // - equipos: uno por cada combinación distinta de Operador+Ayudantes que
-//   aparezca en esos Informes de Campo, con Viáticos (Caja Menuda) y
-//   Planilla ya sumados si hay movimientos/pagos que coincidan con el
-//   Cliente y con alguien del equipo -- sigue siendo editable a mano.
+//   aparezca en esos Informes de Campo, con Viáticos (Caja Menuda) ya
+//   sumados si hay movimientos que coincidan con el Cliente y con alguien
+//   del equipo, y Planilla calculada directo con las mismas tarifas que
+//   "Calcular pago sugerido" (lib/calculoIncentivos.ts) -- no depende de
+//   que ya exista un Pago registrado, el jefe puede no haber corrido esa
+//   quincena todavía. Ambas siguen editables a mano.
 export async function obtenerDatosProyectoAction(proyectoId: string): Promise<DatosProyecto> {
   await requirePerfil();
   const supabase = await createClient();
@@ -220,15 +226,14 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const clienteNombre = (proyecto as unknown as { clientes: { nombre: string } | null }).clientes?.nombre ?? "—";
 
-  const [{ data: informesData }, { data: viaticosData }, { data: planillaData }] = await Promise.all([
+  const [{ data: informesData }, { data: viaticosData }] = await Promise.all([
     supabase
       .from("informes_campo")
-      .select("id, modelo_drone, operador, ayudantes, informe_campo_parcelas ( hectareas )")
+      .select("id, modelo_drone, operador, ayudantes, tipo_proyecto, jornada, informe_campo_parcelas ( hectareas )")
       .eq("proyecto_id", proyectoId)
       .order("fecha")
       .order("creado_en"),
     supabase.from("caja_gastos").select("concepto, monto, nombre").eq("categoria", "Viáticos"),
-    supabase.from("planilla_pagos").select("descripcion, monto, colaborador").eq("tipo_trabajo", "proyecto"),
   ]);
 
   const informes = (informesData ?? []) as unknown as FilaInformeCampo[];
@@ -244,39 +249,61 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const hectareas = filas.reduce((s, f) => s + f.hectareas, 0);
 
-  const equiposMap = new Map<string, { operador: string; ayudantes: string[] }>();
+  const equiposMap = new Map<string, { operador: string; ayudantes: string[]; informes: FilaInformeCampo[] }>();
   for (const informe of informes) {
     const operador = informe.operador.trim();
     const ayudantes = (informe.ayudantes ?? []).map((a) => a.trim()).filter((a) => a !== "");
     const key = claveEquipo(operador, ayudantes);
-    if (!equiposMap.has(key)) equiposMap.set(key, { operador, ayudantes });
+    const equipo = equiposMap.get(key);
+    if (equipo) {
+      equipo.informes.push(informe);
+    } else {
+      equiposMap.set(key, { operador, ayudantes, informes: [informe] });
+    }
   }
 
-  const equipos: EquipoProyectoPreview[] = Array.from(equiposMap.entries()).map(([key, { operador, ayudantes }]) => {
-    const nombresEquipo = [operador, ...ayudantes];
+  const equipos: EquipoProyectoPreview[] = Array.from(equiposMap.entries()).map(
+    ([key, { operador, ayudantes, informes: informesEquipo }]) => {
+      const nombresEquipo = [operador, ...ayudantes];
 
-    const viaticosCoincidencias = (viaticosData ?? []).filter((g) => {
-      if (g.nombre && !nombresEquipo.includes(g.nombre)) return false;
-      return coincideConProyecto(g.concepto ?? "", clienteNombre);
-    });
-    const planillaCoincidencias = (planillaData ?? []).filter(
-      (g) => nombresEquipo.includes(g.colaborador) && coincideConProyecto(g.descripcion ?? "", clienteNombre),
-    );
+      const viaticosCoincidencias = (viaticosData ?? []).filter((g) => {
+        if (g.nombre && !nombresEquipo.includes(g.nombre)) return false;
+        return coincideConProyecto(g.concepto ?? "", clienteNombre);
+      });
 
-    return {
-      key,
-      operador,
-      ayudantes,
-      viaticos: {
-        cantidad: viaticosCoincidencias.length,
-        total: Math.round(viaticosCoincidencias.reduce((s, g) => s + Number(g.monto), 0) * 100) / 100,
-      },
-      planilla: {
-        cantidad: planillaCoincidencias.length,
-        total: Math.round(planillaCoincidencias.reduce((s, g) => s + Number(g.monto), 0) * 100) / 100,
-      },
-    };
-  });
+      // Planilla no depende de que ya exista un Pago registrado -- se
+      // calcula directo con la misma tarifa que "Calcular pago sugerido"
+      // (lib/calculoIncentivos.ts): el Operador y cada Ayudante cobran por
+      // separado, por cada Informe de Campo (nunca se suman las hectáreas
+      // entre informes distintos). Un informe sin tipo_proyecto clasificado
+      // todavía no se puede calcular, se salta.
+      let planillaCantidad = 0;
+      let planillaTotal = 0;
+      for (const informe of informesEquipo) {
+        if (!informe.tipo_proyecto) continue;
+        const hectareasInforme = (informe.informe_campo_parcelas ?? []).reduce((s, p) => s + Number(p.hectareas), 0);
+        const roles: RolDia[] = ["operador", ...ayudantes.map(() => "ayudante" as RolDia)];
+        for (const rol of roles) {
+          planillaTotal += calcularPagoProyecto(rol, informe.tipo_proyecto, hectareasInforme, informe.jornada);
+        }
+        planillaCantidad += 1;
+      }
+
+      return {
+        key,
+        operador,
+        ayudantes,
+        viaticos: {
+          cantidad: viaticosCoincidencias.length,
+          total: Math.round(viaticosCoincidencias.reduce((s, g) => s + Number(g.monto), 0) * 100) / 100,
+        },
+        planilla: {
+          cantidad: planillaCantidad,
+          total: Math.round(planillaTotal * 100) / 100,
+        },
+      };
+    },
+  );
 
   return { cliente: clienteNombre, hectareas: Math.round(hectareas * 100) / 100, filas, equipos };
 }

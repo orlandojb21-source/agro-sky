@@ -45,11 +45,12 @@ type BloqueGastoDraft = { key: string; operador: string; ayudantes: string[]; it
 type BusquedaAuto = { cantidad: number; total: number };
 type InfoAutoPorEquipo = Record<string, { viaticos: BusquedaAuto; planilla: BusquedaAuto }>;
 
-// Viáticos y Planilla se sugieren solos (cantidad 1, precio = lo
-// encontrado en Caja Menuda/Planilla) cuando hay coincidencias y todavía
-// no se había escrito nada a mano en esa categoría; el resto de
-// categorías siempre arranca vacío. Si ya había un valor (edición, o tras
-// reintentar por un error), ese valor se conserva.
+// Viáticos (de Caja Menuda) y Planilla (calculada, ver
+// obtenerDatosProyectoAction) se sugieren solos (cantidad 1, precio = el
+// monto encontrado/calculado) cuando hay algo que sugerir y todavía no se
+// había escrito nada a mano en esa categoría; el resto de categorías
+// siempre arranca vacío. Si ya había un valor (edición, o tras reintentar
+// por un error), ese valor se conserva.
 function itemsAutoPara(equipo: { viaticos: BusquedaAuto; planilla: BusquedaAuto }, anteriores?: ItemGastoDraft[]): ItemGastoDraft[] {
   return CATEGORIAS_GASTO_OPERATIVO.map((c) => {
     const anterior = anteriores?.find((it) => it.categoria === c.valor);
@@ -206,9 +207,10 @@ export function ProyectoInformeForm({
   // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente, las
   // Hectáreas, el cuadro Drone/HA (una fila por Informe de Campo) y los
   // bloques de Gastos Operativos (uno por Operador+Ayudantes, con Viáticos
-  // y Planilla ya sugeridos desde Caja Menuda/Planilla si hay
-  // coincidencias) -- el servidor vuelve a calcular estos mismos valores
-  // al guardar, esto es solo la vista previa. Lo que ya se haya escrito a
+  // sugeridos desde Caja Menuda y Planilla calculada con la misma tarifa
+  // de "Calcular pago sugerido" -- no depende de que ya exista un Pago
+  // registrado) -- el servidor vuelve a calcular estos mismos valores al
+  // guardar, esto es solo la vista previa. Lo que ya se haya escrito a
   // mano por fila/categoría se conserva (se busca por informeCampoId o por
   // equipoKey), tanto al reintentar tras un error como al recargar el
   // mismo Proyecto.
@@ -453,8 +455,10 @@ export function ProyectoInformeForm({
                             {etiqueta}
                             {autoDe && autoDe.cantidad > 0 && (
                               <span className="block text-xs font-normal text-green-700/70 dark:text-green-300/70">
-                                {autoDe.cantidad} en {item.categoria === "viaticos" ? "Caja Menuda" : "Planilla"} (
-                                {formatMoney(autoDe.total)})
+                                {item.categoria === "viaticos"
+                                  ? `${autoDe.cantidad} en Caja Menuda`
+                                  : `calculado de ${autoDe.cantidad} Informe${autoDe.cantidad === 1 ? "" : "s"} de Campo`}{" "}
+                                ({formatMoney(autoDe.total)})
                               </span>
                             )}
                           </td>
