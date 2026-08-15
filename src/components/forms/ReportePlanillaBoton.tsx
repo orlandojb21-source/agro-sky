@@ -65,14 +65,19 @@ export function ReportePlanillaBoton({ anioActual, mesActual }: { anioActual: nu
           ))}
         </select>
       </label>
-      <button
-        type="button"
-        onClick={generarPDF}
-        disabled={generando}
-        className="rounded-lg border border-green-300 px-3 py-2 text-sm text-green-800 hover:bg-green-50 disabled:opacity-50 dark:border-green-700 dark:text-green-200 dark:hover:bg-green-950/40"
-      >
-        {generando ? "Generando..." : "Generar PDF de Planilla"}
-      </button>
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={generarPDF}
+          disabled={generando}
+          className="rounded-lg border border-green-300 px-3 py-2 text-sm text-green-800 hover:bg-green-50 disabled:opacity-50 dark:border-green-700 dark:text-green-200 dark:hover:bg-green-950/40"
+        >
+          {generando ? "Generando..." : "Generar PDF de Planilla"}
+        </button>
+        <span className="text-[11px] text-green-700/60 dark:text-green-300/60">
+          Montos netos, ya restado CSS/Seguro Educativo/préstamo.
+        </span>
+      </div>
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );

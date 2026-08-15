@@ -121,21 +121,26 @@ export default async function PagosPlanillaPage() {
         <div className={`grid grid-cols-1 gap-4 ${puedeVerFijos ? "lg:grid-cols-2" : ""}`}>
           {puedeVerFijos && (
             <TarjetaResumen
-              titulo="Fijos — pagado este mes"
+              titulo="Fijos — pagado este mes (bruto)"
               colaboradores={fijos}
               porColaborador={totalesMes.porColaborador}
             />
           )}
           <TarjetaResumen
-            titulo="Campo — pagado este mes"
+            titulo="Campo — pagado este mes (bruto)"
             colaboradores={campo}
             porColaborador={totalesMes.porColaborador}
           />
         </div>
+        <p className="max-w-2xl text-xs text-green-700/60 dark:text-green-300/60">
+          &ldquo;Bruto&rdquo; = Monto + Bonificación + Décimo Tercer Mes, sin restar CSS ni Seguro Educativo
+          (sigue siendo gasto real de la empresa, aunque no llegue a la mano del colaborador). Para lo que cada
+          quien recibió de verdad, usa el PDF de abajo.
+        </p>
         <div className="flex flex-wrap items-center gap-4">
           <div className="inline-block self-start rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-center dark:border-blue-900/40 dark:bg-blue-950/20">
             <p className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
-              Total pagado este mes
+              Total pagado este mes (bruto)
             </p>
             <p className="text-lg font-semibold text-blue-900 dark:text-blue-100">
               {formatMoney(totalesMes.total)}

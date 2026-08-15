@@ -118,7 +118,20 @@ export async function eliminarPagoAction(id: string) {
   revalidatePath("/planilla/pagos");
 }
 
-export type FilaReportePlanilla = { nombre: string; monto: number };
+// Desglose completo, no solo el neto -- para que cada cifra del PDF se
+// pueda verificar a simple vista (Monto + Bonificación + Décimo − CSS −
+// Seguro Educativo − Préstamo = Neto) sin tener que preguntar de dónde
+// salió.
+export type FilaReportePlanilla = {
+  nombre: string;
+  monto: number;
+  bonificacion: number;
+  decimoTercerMes: number;
+  css: number;
+  seguroEducativo: number;
+  montoPrestamo: number;
+  neto: number;
+};
 export type SeccionReportePlanilla = { etiqueta: string; filas: FilaReportePlanilla[]; total: number };
 export type ReportePlanilla = {
   quincena1: SeccionReportePlanilla;
@@ -131,15 +144,57 @@ const MESES_REPORTE = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
+type AcumuladoPersona = {
+  monto: number;
+  bonificacion: number;
+  decimoTercerMes: number;
+  css: number;
+  seguroEducativo: number;
+  montoPrestamo: number;
+};
+
+function acumuladoVacio(): AcumuladoPersona {
+  return { monto: 0, bonificacion: 0, decimoTercerMes: 0, css: 0, seguroEducativo: 0, montoPrestamo: 0 };
+}
+
+function sumarAcumulado(a: AcumuladoPersona, b: AcumuladoPersona): AcumuladoPersona {
+  return {
+    monto: a.monto + b.monto,
+    bonificacion: a.bonificacion + b.bonificacion,
+    decimoTercerMes: a.decimoTercerMes + b.decimoTercerMes,
+    css: a.css + b.css,
+    seguroEducativo: a.seguroEducativo + b.seguroEducativo,
+    montoPrestamo: a.montoPrestamo + b.montoPrestamo,
+  };
+}
+
+function redondear(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function aFila(nombre: string, a: AcumuladoPersona): FilaReportePlanilla {
+  const neto = a.monto + a.bonificacion + a.decimoTercerMes - a.css - a.seguroEducativo - a.montoPrestamo;
+  return {
+    nombre,
+    monto: redondear(a.monto),
+    bonificacion: redondear(a.bonificacion),
+    decimoTercerMes: redondear(a.decimoTercerMes),
+    css: redondear(a.css),
+    seguroEducativo: redondear(a.seguroEducativo),
+    montoPrestamo: redondear(a.montoPrestamo),
+    neto: redondear(neto),
+  };
+}
+
 // Detalle de todo lo pagado en Planilla (Fijo y Campo) en un mes elegido,
-// separado por quincena -- "monto" es lo que cada persona recibió de
-// verdad esa vez (Monto + Bonificación + Décimo Tercer Mes − CSS − Seguro
-// Educativo − abono de préstamo), no el gasto bruto de la empresa (eso ya
-// lo calcula Balance con otro criterio, ver PagoPlanillaBalance en
-// balance/page.tsx -- ahí sí cuenta el CSS/Seguro Educativo porque es
-// plata que la empresa igual gastó, solo que no llegó al colaborador).
-// RLS ya filtra los pagos de Fijo para quien no deba verlos
-// (administrador), igual que en el resto de esta sección.
+// separado por quincena -- "neto" de cada fila es lo que cada persona
+// recibió de verdad esa vez (Monto + Bonificación + Décimo Tercer Mes −
+// CSS − Seguro Educativo − abono de préstamo), no el gasto bruto de la
+// empresa (eso ya lo calcula Balance con otro criterio, ver
+// PagoPlanillaBalance en balance/page.tsx -- ahí sí cuenta el CSS/Seguro
+// Educativo porque es plata que la empresa igual gastó, solo que no
+// llegó al colaborador). RLS ya filtra los pagos de Fijo para quien no
+// deba verlos (administrador), igual que en el resto de esta sección.
 export async function obtenerReportePlanillaAction(anio: number, mes: number): Promise<ReportePlanilla> {
   await requireSection("planilla");
   const supabase = await createClient();
@@ -154,32 +209,33 @@ export async function obtenerReportePlanillaAction(anio: number, mes: number): P
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
 
-  const porQuincena: [Map<string, number>, Map<string, number>] = [new Map(), new Map()];
+  const porQuincena: [Map<string, AcumuladoPersona>, Map<string, AcumuladoPersona>] = [new Map(), new Map()];
   for (const p of data ?? []) {
     const nombre = p.colaborador as string;
     const dia = Number((p.fecha as string).slice(8, 10));
-    const neto =
-      Number(p.monto) +
-      Number(p.bonificacion ?? 0) +
-      Number(p.decimo_tercer_mes ?? 0) -
-      Number(p.css ?? 0) -
-      Number(p.seguro_educativo ?? 0) -
-      Number(p.monto_prestamo ?? 0);
     const mapa = porQuincena[dia <= 15 ? 0 : 1];
-    mapa.set(nombre, (mapa.get(nombre) ?? 0) + neto);
+    const fila: AcumuladoPersona = {
+      monto: Number(p.monto),
+      bonificacion: Number(p.bonificacion ?? 0),
+      decimoTercerMes: Number(p.decimo_tercer_mes ?? 0),
+      css: Number(p.css ?? 0),
+      seguroEducativo: Number(p.seguro_educativo ?? 0),
+      montoPrestamo: Number(p.monto_prestamo ?? 0),
+    };
+    mapa.set(nombre, sumarAcumulado(mapa.get(nombre) ?? acumuladoVacio(), fila));
   }
 
-  function aSeccion(mapa: Map<string, number>, etiqueta: string): SeccionReportePlanilla {
+  function aSeccion(mapa: Map<string, AcumuladoPersona>, etiqueta: string): SeccionReportePlanilla {
     const filas = Array.from(mapa.entries())
-      .map(([nombre, monto]) => ({ nombre, monto: Math.round(monto * 100) / 100 }))
+      .map(([nombre, a]) => aFila(nombre, a))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
-    return { etiqueta, filas, total: Math.round(filas.reduce((s, f) => s + f.monto, 0) * 100) / 100 };
+    return { etiqueta, filas, total: redondear(filas.reduce((s, f) => s + f.neto, 0)) };
   }
 
-  const mapaMes = new Map<string, number>();
+  const mapaMes = new Map<string, AcumuladoPersona>();
   for (const mapa of porQuincena) {
-    for (const [nombre, monto] of mapa.entries()) {
-      mapaMes.set(nombre, (mapaMes.get(nombre) ?? 0) + monto);
+    for (const [nombre, a] of mapa.entries()) {
+      mapaMes.set(nombre, sumarAcumulado(mapaMes.get(nombre) ?? acumuladoVacio(), a));
     }
   }
 

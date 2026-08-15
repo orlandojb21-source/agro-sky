@@ -867,10 +867,20 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
 }
 
 // Detalle de todo lo pagado en Planilla (Fijo y Campo) en un mes, por
-// quincena y por mes completo -- "monto" de cada fila ya viene neto (lo
-// que la persona recibió de verdad), calculado en
-// obtenerReportePlanillaAction (lib/actions/planilla.ts), nunca aquí.
-export type FilaReportePlanillaExportable = { nombre: string; monto: number };
+// quincena y por mes completo -- el desglose completo de cada fila
+// (Monto/Bonificación/Décimo/CSS/Seguro Educativo/Préstamo/Neto) ya viene
+// calculado de obtenerReportePlanillaAction (lib/actions/planilla.ts),
+// nunca aquí -- así cada cifra del PDF se puede verificar a simple vista.
+export type FilaReportePlanillaExportable = {
+  nombre: string;
+  monto: number;
+  bonificacion: number;
+  decimoTercerMes: number;
+  css: number;
+  seguroEducativo: number;
+  montoPrestamo: number;
+  neto: number;
+};
 export type SeccionReportePlanillaExportable = {
   etiqueta: string;
   filas: FilaReportePlanillaExportable[];
@@ -882,8 +892,15 @@ export type ReportePlanillaExportable = {
   mes: SeccionReportePlanillaExportable;
 };
 
+// "—" en vez de "USD 0.00" para que las columnas que no aplican (ej. nadie
+// tuvo Décimo o préstamo esa quincena) salten a la vista de una, sin
+// llenar la tabla de ceros.
+function formatMoneyOGuion(valor: number): string {
+  return valor === 0 ? "—" : formatMoney(valor);
+}
+
 export async function exportarReportePlanillaPDF(reporte: ReportePlanillaExportable) {
-  const doc = new jsPDF({ orientation: "portrait" });
+  const doc = new jsPDF({ orientation: "landscape" });
   const anchoPagina = doc.internal.pageSize.getWidth();
   const margenDerecho = anchoPagina - 14;
   const altoPagina = doc.internal.pageSize.getHeight();
@@ -915,8 +932,11 @@ export async function exportarReportePlanillaPDF(reporte: ReportePlanillaExporta
   doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
   doc.text(`Reporte de Planilla — ${reporte.mes.etiqueta}`, 14, 20);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Neto = Monto + Bonificación + Décimo Tercer Mes − CSS − Seguro Educativo − Préstamo.", 14, 26);
 
-  let y = Math.max(30, yEmpresa) + 6;
+  let y = Math.max(32, yEmpresa) + 6;
 
   function dibujarSeccion(titulo: string, seccion: SeccionReportePlanillaExportable) {
     if (y > altoPagina - 50) {
@@ -938,12 +958,22 @@ export async function exportarReportePlanillaPDF(reporte: ReportePlanillaExporta
 
     autoTable(doc, {
       startY: y,
-      head: [["Nombre", "Monto"]],
-      body: seccion.filas.map((f) => [f.nombre, formatMoney(f.monto)]),
-      foot: [["total", formatMoney(seccion.total)]],
+      head: [["Nombre", "Monto", "Bonificación", "Décimo", "CSS", "Seguro Educ.", "Préstamo", "Neto"]],
+      body: seccion.filas.map((f) => [
+        f.nombre,
+        formatMoneyOGuion(f.monto),
+        formatMoneyOGuion(f.bonificacion),
+        formatMoneyOGuion(f.decimoTercerMes),
+        formatMoneyOGuion(f.css),
+        formatMoneyOGuion(f.seguroEducativo),
+        formatMoneyOGuion(f.montoPrestamo),
+        formatMoney(f.neto),
+      ]),
+      foot: [["total", "", "", "", "", "", "", formatMoney(seccion.total)]],
       styles: { fontSize: 9 },
       headStyles: { fillColor: [21, 128, 61] },
       footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+      columnStyles: { 7: { fontStyle: "bold" } },
     });
     y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
   }

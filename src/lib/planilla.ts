@@ -86,7 +86,7 @@ export async function calcularTotalesMesActual(
 
   const { data } = await supabase
     .from("planilla_pagos")
-    .select("colaborador, monto, bonificacion")
+    .select("colaborador, monto, bonificacion, decimo_tercer_mes")
     .gte("fecha", fechaDesde)
     .lte("fecha", fechaHasta);
 
@@ -97,9 +97,13 @@ export async function calcularTotalesMesActual(
   let total = 0;
   for (const fila of data ?? []) {
     const nombre = fila.colaborador as string;
-    // La bonificacion tambien es dinero que la empresa paga, aunque no
-    // tenga CSS/Seguro Educativo -- cuenta igual para "cuanto se pago".
-    const monto = Number(fila.monto) + Number(fila.bonificacion ?? 0);
+    // La bonificacion y el Decimo Tercer Mes tambien son dinero que la
+    // empresa paga, aunque no tengan CSS/Seguro Educativo (bonificacion) o
+    // solo lleven CSS (Decimo) -- cuentan igual para "cuanto se pago". CSS
+    // y Seguro Educativo NO se restan aqui a proposito: siguen siendo
+    // gasto real de la empresa, solo que no llegan al bolsillo del
+    // colaborador (mismo criterio que Balance, ver PagoPlanillaBalance).
+    const monto = Number(fila.monto) + Number(fila.bonificacion ?? 0) + Number(fila.decimo_tercer_mes ?? 0);
     if (nombre in porColaborador) porColaborador[nombre] += monto;
     total += monto;
   }
