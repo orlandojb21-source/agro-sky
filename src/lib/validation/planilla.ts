@@ -30,6 +30,10 @@ const pagoBase = z.object({
   css: z.string().trim().optional().default(""),
   seguroEducativo: z.string().trim().optional().default(""),
   bonificacion: z.string().trim().optional().default(""),
+  // Décimo Tercer Mes (15 abr/ago/dic) -- a diferencia de bonificacion, SÍ
+  // entra en la base de cálculo de CSS, pero nunca en la de Seguro
+  // Educativo (ver migración 0099 y PagoPlanillaForm.tsx).
+  decimoTercerMes: z.string().trim().optional().default(""),
   // Descuento de un préstamo activo del colaborador (Fijo o Campo) --
   // prestamoId identifica a cuál préstamo pertenece este abono; llegan
   // vacíos si el colaborador no tiene préstamo activo. Se validan juntos
@@ -55,6 +59,7 @@ function montoOpcionalValido(valor: string): boolean {
 function prestamoNoDejaPagoNegativo(data: {
   monto: number;
   bonificacion: string;
+  decimoTercerMes: string;
   css: string;
   seguroEducativo: string;
   montoPrestamo: string;
@@ -63,7 +68,12 @@ function prestamoNoDejaPagoNegativo(data: {
   const prestamo = Number(data.montoPrestamo);
   if (Number.isNaN(prestamo)) return true; // lo atrapa montoOpcionalValido
   const neto =
-    data.monto + (Number(data.bonificacion) || 0) - (Number(data.css) || 0) - (Number(data.seguroEducativo) || 0) - prestamo;
+    data.monto +
+    (Number(data.bonificacion) || 0) +
+    (Number(data.decimoTercerMes) || 0) -
+    (Number(data.css) || 0) -
+    (Number(data.seguroEducativo) || 0) -
+    prestamo;
   return neto >= -0.005; // tolerancia de redondeo
 }
 
@@ -94,6 +104,10 @@ export const pagoSchema = pagoBase
   .refine((data) => montoOpcionalValido(data.bonificacion), {
     message: "La bonificación debe ser un número mayor o igual a cero",
     path: ["bonificacion"],
+  })
+  .refine((data) => montoOpcionalValido(data.decimoTercerMes), {
+    message: "El Décimo Tercer Mes debe ser un número mayor o igual a cero",
+    path: ["decimoTercerMes"],
   })
   .refine((data) => montoOpcionalValido(data.montoPrestamo), {
     message: "El descuento de préstamo debe ser un número mayor o igual a cero",
@@ -153,6 +167,10 @@ export const pagoEditSchema = pagoBase
   .refine((data) => montoOpcionalValido(data.bonificacion), {
     message: "La bonificación debe ser un número mayor o igual a cero",
     path: ["bonificacion"],
+  })
+  .refine((data) => montoOpcionalValido(data.decimoTercerMes), {
+    message: "El Décimo Tercer Mes debe ser un número mayor o igual a cero",
+    path: ["decimoTercerMes"],
   })
   .refine((data) => montoOpcionalValido(data.montoPrestamo), {
     message: "El descuento de préstamo debe ser un número mayor o igual a cero",

@@ -35,6 +35,7 @@ export async function crearColaboradorAction(
     bonificacion:
       parsed.data.tipo === "fijo" && parsed.data.bonificacion !== "" ? Number(parsed.data.bonificacion) : null,
     aplica_deducciones: parsed.data.tipo === "fijo" ? parsed.data.aplicaDeducciones : true,
+    aplica_decimo_tercer_mes: parsed.data.tipo === "fijo" ? parsed.data.aplicaDecimoTercerMes : false,
     cedula: parsed.data.cedula || null,
     correo: parsed.data.correo || null,
     telefono: parsed.data.telefono || null,
@@ -73,6 +74,7 @@ export async function editarColaboradorAction(
       bonificacion:
         parsed.data.tipo === "fijo" && parsed.data.bonificacion !== "" ? Number(parsed.data.bonificacion) : null,
       aplica_deducciones: parsed.data.tipo === "fijo" ? parsed.data.aplicaDeducciones : true,
+    aplica_decimo_tercer_mes: parsed.data.tipo === "fijo" ? parsed.data.aplicaDecimoTercerMes : false,
       cedula: parsed.data.cedula || null,
       correo: parsed.data.correo || null,
       telefono: parsed.data.telefono || null,

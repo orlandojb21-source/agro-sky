@@ -15,6 +15,7 @@ type ValoresColaborador = {
   salario: number | null;
   bonificacion: number | null;
   aplicaDeducciones: boolean;
+  aplicaDecimoTercerMes: boolean;
   cedula: string | null;
   correo: string | null;
   telefono: string | null;
@@ -47,6 +48,9 @@ export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: Valor
   const aplicaDeduccionesInicial = state.values
     ? state.values.aplicaDeducciones === "on"
     : (valoresIniciales?.aplicaDeducciones ?? true);
+  const aplicaDecimoTercerMesInicial = state.values
+    ? state.values.aplicaDecimoTercerMes === "on"
+    : (valoresIniciales?.aplicaDecimoTercerMes ?? false);
 
   const [fotoRuta, setFotoRuta] = useState(valoresIniciales?.fotoRuta ?? "");
   const [fotoPreviewUrl, setFotoPreviewUrl] = useState<string | null>(valoresIniciales?.fotoUrl ?? null);
@@ -154,6 +158,15 @@ export function ColaboradorForm({ valoresIniciales }: { valoresIniciales?: Valor
                 className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-600"
               />
               Aplica CSS / Seguro Educativo (9.75% / 1.25%)
+            </label>
+            <label className="flex items-center gap-2 pb-2.5 text-sm text-green-900 dark:text-green-100">
+              <input
+                type="checkbox"
+                name="aplicaDecimoTercerMes"
+                defaultChecked={aplicaDecimoTercerMesInicial}
+                className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-600"
+              />
+              Recibe Décimo Tercer Mes (15 abr/ago/dic, solo CSS)
             </label>
           </>
         )}

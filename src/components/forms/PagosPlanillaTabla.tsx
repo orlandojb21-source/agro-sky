@@ -22,6 +22,7 @@ export type PagoFila = {
   css: number | null;
   seguroEducativo: number | null;
   bonificacion: number | null;
+  decimoTercerMes: number | null;
   detalleCalculo: DetalleTalonarioCampo[] | null;
 };
 
@@ -37,7 +38,11 @@ const ETIQUETA_JORNADA: Record<"completo" | "medio" | "proyecto", string> = {
 
 function detalleTrabajo(p: PagoFila): string {
   if (p.esFijo) {
-    return p.bonificacion ? `Bonificación: ${formatMoney(p.bonificacion)}` : "—";
+    const partes = [
+      p.bonificacion ? `Bonificación: ${formatMoney(p.bonificacion)}` : null,
+      p.decimoTercerMes ? `Décimo: ${formatMoney(p.decimoTercerMes)}` : null,
+    ].filter((v): v is string => v !== null);
+    return partes.length > 0 ? partes.join(" · ") : "—";
   }
   // Un pago de Campo nuevo (quincena) cubre un rango -- ya no tiene
   // tipoTrabajo/jornada (eso vive en Asistencia), así que se muestra el
@@ -314,6 +319,7 @@ export function PagosPlanillaTabla({
                               fecha: p.fecha,
                               salarioBruto: p.monto,
                               bonificacion: p.bonificacion ?? 0,
+                              decimoTercerMes: p.decimoTercerMes ?? 0,
                               css: p.css ?? 0,
                               seguroEducativo: p.seguroEducativo ?? 0,
                             }}
@@ -394,6 +400,7 @@ export function PagosPlanillaTabla({
                       fecha: p.fecha,
                       salarioBruto: p.monto,
                       bonificacion: p.bonificacion ?? 0,
+                      decimoTercerMes: p.decimoTercerMes ?? 0,
                       css: p.css ?? 0,
                       seguroEducativo: p.seguroEducativo ?? 0,
                     }}

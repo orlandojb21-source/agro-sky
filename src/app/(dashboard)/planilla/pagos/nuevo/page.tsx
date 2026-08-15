@@ -9,7 +9,7 @@ export default async function NuevoPagoPlanillaPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("colaboradores")
-    .select("nombre, tipo, salario, bonificacion, aplica_deducciones")
+    .select("nombre, tipo, salario, bonificacion, aplica_deducciones, aplica_decimo_tercer_mes")
     .order("nombre");
   let colaboradores = (data ?? []).map((c) => ({
     nombre: c.nombre as string,
@@ -17,6 +17,7 @@ export default async function NuevoPagoPlanillaPage() {
     salario: c.salario === null ? null : Number(c.salario),
     bonificacion: c.bonificacion === null ? null : Number(c.bonificacion),
     aplicaDeducciones: c.aplica_deducciones as boolean,
+    aplicaDecimoTercerMes: c.aplica_decimo_tercer_mes as boolean,
   }));
 
   // El administrador solo gestiona pagos de Campo -- ni siquiera aparecen

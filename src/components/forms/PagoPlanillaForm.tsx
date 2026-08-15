@@ -26,6 +26,7 @@ export type ColaboradorOpcion = {
   salario: number | null;
   bonificacion: number | null;
   aplicaDeducciones: boolean;
+  aplicaDecimoTercerMes: boolean;
 };
 
 type DetalleDiaEditable = {
@@ -84,6 +85,7 @@ type ValoresPago = {
   css?: number | null;
   seguroEducativo?: number | null;
   bonificacion?: number | null;
+  decimoTercerMes?: number | null;
   prestamoId?: string | null;
   montoPrestamo?: number | null;
   // Foto del detalle guardada con el pago (planilla_pagos.detalle_calculo)
@@ -105,6 +107,15 @@ function calcularDeduccion(montoTexto: string, tasa: number): string {
 function mitadTexto(valorMensual: number | null): string {
   if (valorMensual === null) return "";
   return String(Math.round((valorMensual / 2) * 100) / 100);
+}
+
+// Las 3 partidas de ley del Décimo Tercer Mes en Panamá: 15 de abril,
+// agosto y diciembre. "fecha" llega en formato de <input type="date">
+// (YYYY-MM-DD).
+function esFechaDecimo(fecha: string): boolean {
+  if (!fecha) return false;
+  const [, mes, dia] = fecha.split("-");
+  return (mes === "04" || mes === "08" || mes === "12") && dia === "15";
 }
 
 export function PagoPlanillaForm({
@@ -148,6 +159,7 @@ export function PagoPlanillaForm({
           salario: null,
           bonificacion: null,
           aplicaDeducciones: true,
+          aplicaDecimoTercerMes: false,
         },
         ...colaboradores,
       ];
@@ -157,12 +169,14 @@ export function PagoPlanillaForm({
 
   const colaboradorInicial = v?.colaborador ?? valoresIniciales?.colaborador ?? opciones[0]?.nombre ?? "";
 
-  // Calcula el monto/CSS/Seguro Educativo con los que arrancar el formulario
-  // para un colaborador dado: si ya se intentó enviar (v) o se está
-  // editando un pago con deducciones ya guardadas, se respeta eso tal cual;
-  // si no, se sugiere el salario y sus deducciones al 9.75%/1.25% -- pero
-  // solo si el colaborador es Fijo.
-  function datosIniciales(nombreColaborador: string) {
+  // Calcula el monto/CSS/Seguro Educativo/Décimo con los que arrancar el
+  // formulario para un colaborador y una fecha dados: si ya se intentó
+  // enviar (v) o se está editando un pago con deducciones ya guardadas, se
+  // respeta eso tal cual; si no, se sugiere el salario y sus deducciones
+  // al 9.75%/1.25% -- pero solo si el colaborador es Fijo. "fecha" solo se
+  // usa para decidir si corresponde sugerir Décimo Tercer Mes (15
+  // abr/ago/dic) -- el resto de la sugerencia no depende de ella.
+  function datosIniciales(nombreColaborador: string, fecha: string) {
     const colaborador = opciones.find((c) => c.nombre === nombreColaborador);
     const esFijoColab = colaborador?.tipo === "fijo";
     // CSS/Seguro Educativo no aplican a todos los Fijos -- depende de la
@@ -174,16 +188,37 @@ export function PagoPlanillaForm({
     const montoSugerido = !esEdicion && esFijoColab ? mitadTexto(colaborador!.salario) : "";
     const monto =
       v?.monto ?? (valoresIniciales?.monto != null ? String(valoresIniciales.monto) : montoSugerido);
+
+    // Décimo Tercer Mes: solo se sugiere para un colaborador marcado
+    // "Aplica Decimo Tercer Mes", en una de las 3 fechas de ley, y como
+    // sugerencia nueva (no en edición) -- un tercio del salario mensual,
+    // igual que las otras 2 partidas del año. Se respeta un valor ya
+    // guardado (edición) igual que el resto de los campos de este pago.
+    const decimoHistorico =
+      v?.decimoTercerMes ??
+      (valoresIniciales?.decimoTercerMes != null ? String(valoresIniciales.decimoTercerMes) : null);
+    const aplicaDecimoColab = esFijoColab && (colaborador?.aplicaDecimoTercerMes ?? false);
+    const decimoSugerido =
+      !esEdicion && aplicaDecimoColab && esFechaDecimo(fecha) && colaborador!.salario != null
+        ? String(Math.round((colaborador!.salario / 3) * 100) / 100)
+        : "";
+    const decimoTercerMes = decimoHistorico ?? decimoSugerido;
+
     const cssHistorico = v?.css ?? (valoresIniciales?.css != null ? String(valoresIniciales.css) : null);
     const seguroHistorico =
       v?.seguroEducativo ?? (valoresIniciales?.seguroEducativo != null ? String(valoresIniciales.seguroEducativo) : null);
-    const css = cssHistorico ?? (aplicaDeduccionesColab ? calcularDeduccion(monto, TASA_CSS) : "");
+    // El Décimo SÍ entra en la base de CSS, pero nunca en la de Seguro
+    // Educativo (pedido explícito del usuario, 2026-08-15).
+    const css = cssHistorico ??
+      (aplicaDeduccionesColab
+        ? calcularDeduccion(String((Number(monto) || 0) + (Number(decimoTercerMes) || 0)), TASA_CSS)
+        : "");
     const seguroEducativo = seguroHistorico ?? (aplicaDeduccionesColab ? calcularDeduccion(monto, TASA_SEGURO_EDUCATIVO) : "");
     const bonificacionSugerida = !esEdicion && esFijoColab ? mitadTexto(colaborador!.bonificacion) : "";
     const bonificacion =
       v?.bonificacion ??
       (valoresIniciales?.bonificacion != null ? String(valoresIniciales.bonificacion) : bonificacionSugerida);
-    return { monto, css, seguroEducativo, bonificacion };
+    return { monto, css, seguroEducativo, bonificacion, decimoTercerMes };
   }
 
   const fechaHastaInicial = v?.fecha ?? valoresIniciales?.fecha ?? fechaHoy;
@@ -215,10 +250,17 @@ export function PagoPlanillaForm({
   }
 
   const [colaboradorSeleccionado, setColaboradorSeleccionado] = useState(colaboradorInicial);
-  const [montoTexto, setMontoTexto] = useState(() => datosIniciales(colaboradorInicial).monto);
-  const [cssTexto, setCssTexto] = useState(() => datosIniciales(colaboradorInicial).css);
-  const [seguroTexto, setSeguroTexto] = useState(() => datosIniciales(colaboradorInicial).seguroEducativo);
-  const [bonifTexto, setBonifTexto] = useState(() => datosIniciales(colaboradorInicial).bonificacion);
+  const [montoTexto, setMontoTexto] = useState(() => datosIniciales(colaboradorInicial, fechaHastaInicial).monto);
+  const [cssTexto, setCssTexto] = useState(() => datosIniciales(colaboradorInicial, fechaHastaInicial).css);
+  const [seguroTexto, setSeguroTexto] = useState(
+    () => datosIniciales(colaboradorInicial, fechaHastaInicial).seguroEducativo,
+  );
+  const [bonifTexto, setBonifTexto] = useState(
+    () => datosIniciales(colaboradorInicial, fechaHastaInicial).bonificacion,
+  );
+  const [decimoTexto, setDecimoTexto] = useState(
+    () => datosIniciales(colaboradorInicial, fechaHastaInicial).decimoTercerMes,
+  );
   const [fechaDesdeTexto, setFechaDesdeTexto] = useState(fechaDesdeInicial);
   const [fechaHastaTexto, setFechaHastaTexto] = useState(fechaHastaInicial);
   const [resumenAsistencia, setResumenAsistencia] = useState<ResumenAsistencia | null>(null);
@@ -269,12 +311,13 @@ export function PagoPlanillaForm({
   if (state !== prevState) {
     setPrevState(state);
     setRemountKey((k) => k + 1);
-    const iniciales = datosIniciales(colaboradorInicial);
+    const iniciales = datosIniciales(colaboradorInicial, fechaHastaInicial);
     setColaboradorSeleccionado(colaboradorInicial);
     setMontoTexto(iniciales.monto);
     setCssTexto(iniciales.css);
     setSeguroTexto(iniciales.seguroEducativo);
     setBonifTexto(iniciales.bonificacion);
+    setDecimoTexto(iniciales.decimoTercerMes);
     setFechaDesdeTexto(fechaDesdeInicial);
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
@@ -288,11 +331,12 @@ export function PagoPlanillaForm({
 
   function cambiarColaborador(nombre: string) {
     setColaboradorSeleccionado(nombre);
-    const iniciales = datosIniciales(nombre);
+    const iniciales = datosIniciales(nombre, fechaHastaInicial);
     setMontoTexto(iniciales.monto);
     setCssTexto(iniciales.css);
     setSeguroTexto(iniciales.seguroEducativo);
     setBonifTexto(iniciales.bonificacion);
+    setDecimoTexto(iniciales.decimoTercerMes);
     setFechaDesdeTexto(fechaDesdeInicial);
     setFechaHastaTexto(fechaHastaInicial);
     setResumenAsistencia(null);
@@ -370,10 +414,27 @@ export function PagoPlanillaForm({
   // salario original. Siguen siendo editables a mano después de esto. Pero
   // solo para colaboradores a los que de verdad les aplica (mostrarDeducciones)
   // -- si no, quedan en "" para no sugerir un descuento que no corresponde.
+  // El CSS se calcula sobre monto + Décimo (si lo hay); el Seguro
+  // Educativo, solo sobre el monto.
   function cambiarMonto(texto: string) {
     setMontoTexto(texto);
-    setCssTexto(mostrarDeducciones ? calcularDeduccion(texto, TASA_CSS) : "");
+    setCssTexto(
+      mostrarDeducciones
+        ? calcularDeduccion(String((Number(texto) || 0) + (Number(decimoTexto) || 0)), TASA_CSS)
+        : "",
+    );
     setSeguroTexto(mostrarDeducciones ? calcularDeduccion(texto, TASA_SEGURO_EDUCATIVO) : "");
+  }
+
+  // Igual que cambiarMonto, pero para el campo Décimo Tercer Mes -- solo
+  // recalcula CSS (el Décimo nunca lleva Seguro Educativo).
+  function cambiarDecimo(texto: string) {
+    setDecimoTexto(texto);
+    setCssTexto(
+      mostrarDeducciones
+        ? calcularDeduccion(String((Number(montoTexto) || 0) + (Number(texto) || 0)), TASA_CSS)
+        : "",
+    );
   }
 
   const colaboradorActual = opciones.find((c) => c.nombre === colaboradorSeleccionado);
@@ -396,6 +457,12 @@ export function PagoPlanillaForm({
     esEdicion && (valoresIniciales?.css != null || valoresIniciales?.seguroEducativo != null);
   const mostrarDeducciones =
     esFijo && ((colaboradorActual?.aplicaDeducciones ?? false) || tieneDeduccionesHistoricas);
+  // Décimo Tercer Mes: mismo criterio (colaborador marcado + histórico ya
+  // guardado se sigue mostrando), más la fecha -- ver esFechaDecimo.
+  const tieneDecimoHistorico = esEdicion && valoresIniciales?.decimoTercerMes != null;
+  const mostrarDecimo =
+    (esFijo && (colaboradorActual?.aplicaDecimoTercerMes ?? false) && esFechaDecimo(fechaHastaTexto)) ||
+    tieneDecimoHistorico;
 
   return (
     <form
@@ -579,9 +646,20 @@ export function PagoPlanillaForm({
             type="date"
             value={fechaHastaTexto}
             onChange={(e) => {
-              setFechaHastaTexto(e.target.value);
+              const nuevaFecha = e.target.value;
+              setFechaHastaTexto(nuevaFecha);
               setResumenControlHorario(null);
               setEtiquetaQuincenaFijo(null);
+              // Al cambiar la fecha puede entrar (o salir) de una de las 3
+              // partidas de Décimo Tercer Mes -- se recalcula junto con el
+              // CSS, que depende del Décimo.
+              const { decimoTercerMes } = datosIniciales(colaboradorSeleccionado, nuevaFecha);
+              setDecimoTexto(decimoTercerMes);
+              setCssTexto(
+                mostrarDeducciones
+                  ? calcularDeduccion(String((Number(montoTexto) || 0) + (Number(decimoTercerMes) || 0)), TASA_CSS)
+                  : "",
+              );
             }}
             required
           />
@@ -664,6 +742,18 @@ export function PagoPlanillaForm({
         />
       )}
 
+      {mostrarDecimo && (
+        <Field
+          label="Décimo Tercer Mes (USD, 15 abr/ago/dic — lleva CSS pero no Seguro Educativo)"
+          name="decimoTercerMes"
+          type="number"
+          min={0}
+          step="0.01"
+          value={decimoTexto}
+          onChange={(e) => cambiarDecimo(e.target.value)}
+        />
+      )}
+
       {mostrarDeducciones && (
         <div className="grid grid-cols-2 gap-4">
           <Field
@@ -716,7 +806,8 @@ export function PagoPlanillaForm({
               {formatMoney(
                 Math.round(
                   ((Number(montoTexto) || 0) +
-                    (Number(bonifTexto) || 0) -
+                    (Number(bonifTexto) || 0) +
+                    (mostrarDecimo ? Number(decimoTexto) || 0 : 0) -
                     (mostrarDeducciones ? Number(cssTexto) || 0 : 0) -
                     (mostrarDeducciones ? Number(seguroTexto) || 0 : 0) -
                     (Number(montoPrestamoTexto) || 0)) *

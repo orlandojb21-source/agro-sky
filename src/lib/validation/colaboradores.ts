@@ -18,6 +18,14 @@ const colaboradorBase = z.object({
     .string()
     .optional()
     .transform((v) => v === "on"),
+  // Solo aplica a Fijo -- Décimo Tercer Mes (15 abr/ago/dic), con
+  // descuento de CSS pero no de Seguro Educativo. No todos los
+  // colaboradores Fijos lo reciben registrado acá, por eso empieza
+  // destildado (ver migración 0099).
+  aplicaDecimoTercerMes: z
+    .string()
+    .optional()
+    .transform((v) => v === "on"),
   // Datos personales, todos opcionales (igual que perfiles.telefono) -- no
   // bloquean registrar un colaborador si todavia no se tienen a mano.
   cedula: z.string().trim().optional().default(""),

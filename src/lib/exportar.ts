@@ -767,9 +767,10 @@ export async function exportarMovimientosPDF(
   doc.save(`${nombreArchivo}.pdf`);
 }
 
-// Talonario de pago de un colaborador Fijo: salario bruto + bonificacion
-// (si tiene) menos las deducciones legales de Panama (CSS, Seguro
-// Educativo -- la bonificacion nunca las lleva). Todos los montos llegan
+// Talonario de pago de un colaborador Fijo: salario bruto + bonificacion +
+// decimoTercerMes (si tiene) menos las deducciones legales de Panama (CSS,
+// Seguro Educativo -- la bonificacion nunca las lleva, y el Decimo Tercer
+// Mes solo lleva CSS, nunca Seguro Educativo). Todos los montos llegan
 // aqui ya resueltos a un numero (0 si no se registraron para ese pago), el
 // neto se calcula aqui mismo, nunca se guarda en la base de datos.
 export type TalonarioExportable = {
@@ -777,6 +778,7 @@ export type TalonarioExportable = {
   fecha: string;
   salarioBruto: number;
   bonificacion: number;
+  decimoTercerMes: number;
   css: number;
   seguroEducativo: number;
 };
@@ -826,7 +828,8 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
   }
 
   const totalDeducciones = talonario.css + talonario.seguroEducativo;
-  const neto = talonario.salarioBruto + talonario.bonificacion - totalDeducciones;
+  const neto =
+    talonario.salarioBruto + talonario.bonificacion + talonario.decimoTercerMes - totalDeducciones;
 
   const startY = Math.max(yColaborador, yEmpresa) + 6;
   const anchoResumen = 90;
@@ -836,6 +839,9 @@ export async function exportarTalonarioPDF(talonario: TalonarioExportable) {
   const filas: [string, string, boolean][] = [["Salario bruto", formatMoney(talonario.salarioBruto), false]];
   if (talonario.bonificacion > 0) {
     filas.push(["Bonificación", formatMoney(talonario.bonificacion), false]);
+  }
+  if (talonario.decimoTercerMes > 0) {
+    filas.push(["Décimo Tercer Mes", formatMoney(talonario.decimoTercerMes), false]);
   }
   filas.push(
     ["CSS", `-${formatMoney(talonario.css)}`, false],
