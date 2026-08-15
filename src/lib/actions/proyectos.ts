@@ -256,7 +256,7 @@ function claveEquipo(operador: string, ayudantes: string[]): string {
   return `${operador.trim()}||${ayudantesOrdenados.join(",")}`;
 }
 
-export type FilaProyectoPreview = { informeCampoId: string; drone: string; hectareas: number };
+export type FilaProyectoPreview = { informeCampoId: string; operador: string; drone: string; hectareas: number };
 export type BusquedaAuto = { cantidad: number; total: number };
 export type EquipoProyectoPreview = {
   key: string;
@@ -283,7 +283,9 @@ export type DatosProyecto = {
 // cada día de Planilla) sí viajan tal cual desde el navegador -- son
 // sugerencias editables, no valores fijos.
 // - filas: una por cada Informe de Campo del Proyecto (mismo Drone que
-//   aparezca en 2 Informes de Campo distintos sale 2 veces).
+//   aparezca en 2 Informes de Campo distintos sale 2 veces), con el
+//   Operador de ese Informe de Campo -- solo para mostrar, de dónde salió
+//   cada fila.
 // - equipos: uno por cada combinación distinta de Operador+Ayudantes que
 //   aparezca en esos Informes de Campo, con Viáticos (Caja Menuda) ya
 //   sumados si hay movimientos que coincidan con el Cliente y con alguien
@@ -329,6 +331,7 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const filas: FilaProyectoPreview[] = informes.map((informe) => ({
     informeCampoId: informe.id,
+    operador: informe.operador.trim(),
     drone: informe.modelo_drone,
     hectareas:
       Math.round(

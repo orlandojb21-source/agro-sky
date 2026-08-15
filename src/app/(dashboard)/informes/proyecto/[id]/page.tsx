@@ -37,7 +37,7 @@ export default async function DetalleInformeProyectoPage({
         .maybeSingle(),
       supabase
         .from("proyecto_filas")
-        .select("id, drone, hectareas, precio, total")
+        .select("id, drone, hectareas, precio, total, informes_campo ( operador )")
         .eq("informe_id", id)
         .order("id"),
       supabase
@@ -92,6 +92,7 @@ export default async function DetalleInformeProyectoPage({
 
   const filas = (filasData ?? []).map((f) => ({
     id: f.id as string,
+    operador: (f.informes_campo as unknown as { operador: string } | null)?.operador ?? "",
     drone: f.drone as string,
     hectareas: Number(f.hectareas),
     precio: Number(f.precio),
@@ -158,7 +159,13 @@ export default async function DetalleInformeProyectoPage({
     precio: informe.precio === null ? null : Number(informe.precio),
     total: informe.total === null ? null : Number(informe.total),
     fecha: informe.fecha as string,
-    filas: filas.map((f) => ({ drone: f.drone, hectareas: f.hectareas, precio: f.precio, total: f.total })),
+    filas: filas.map((f) => ({
+      operador: f.operador,
+      drone: f.drone,
+      hectareas: f.hectareas,
+      precio: f.precio,
+      total: f.total,
+    })),
     gastosOperativos: gastosOperativos.map((b) => ({
       operador: b.operador,
       ayudantes: b.ayudantes,
@@ -227,6 +234,7 @@ export default async function DetalleInformeProyectoPage({
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
+                <th className="px-3 py-2 font-medium">Operador</th>
                 <th className="px-3 py-2 font-medium">Drone</th>
                 <th className="px-3 py-2 font-medium">HA</th>
                 <th className="px-3 py-2 font-medium">Precio</th>
@@ -236,13 +244,14 @@ export default async function DetalleInformeProyectoPage({
             <tbody>
               {filas.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-green-700/70 dark:text-green-200/70">
+                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-green-700/70 dark:text-green-200/70">
                     Este informe no tiene filas.
                   </td>
                 </tr>
               ) : (
                 filas.map((f) => (
                   <tr key={f.id} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                    <td className="px-3 py-3 text-green-900 dark:text-green-50">{f.operador}</td>
                     <td className="px-3 py-3 text-green-900 dark:text-green-50">{f.drone}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{f.hectareas}</td>
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
@@ -258,6 +267,7 @@ export default async function DetalleInformeProyectoPage({
             {filas.length > 0 && (
               <tfoot>
                 <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
+                  <td></td>
                   <td className="px-3 py-2 text-green-900 dark:text-green-50">total</td>
                   <td className="px-3 py-2 text-green-900 dark:text-green-50">{hectareasFilas}</td>
                   <td></td>

@@ -407,7 +407,13 @@ export async function exportarOrdenCompraPDF(orden: OrdenCompraExportable) {
   doc.save(`agro-sky-orden-compra-${String(orden.numeroOrden).padStart(4, "0")}.pdf`);
 }
 
-export type FilaInformeExportable = { drone: string; hectareas: number; precio: number; total: number };
+export type FilaInformeExportable = {
+  operador: string;
+  drone: string;
+  hectareas: number;
+  precio: number;
+  total: number;
+};
 
 export type ItemGastoOperativoExportable = {
   categoria: string;
@@ -509,14 +515,15 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
 
   autoTable(doc, {
     startY,
-    head: [["Drone", "HA", "Precio", "Total"]],
+    head: [["Operador", "Drone", "HA", "Precio", "Total"]],
     body: informe.filas.map((f) => [
+      f.operador,
       f.drone,
       String(f.hectareas),
       formatMoney(f.precio),
       formatMoney(f.total),
     ]),
-    foot: [["total", String(hectareasFilas), "", formatMoney(totalFilas)]],
+    foot: [["", "total", String(hectareasFilas), "", formatMoney(totalFilas)]],
     styles: { fontSize: 9 },
     headStyles: { fillColor: [21, 128, 61] },
     footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },

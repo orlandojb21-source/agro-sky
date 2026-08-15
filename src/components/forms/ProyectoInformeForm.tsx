@@ -32,10 +32,10 @@ function claveEquipo(operador: string, ayudantes: string[]): string {
   return `${operador.trim()}||${ordenados.join(",")}`;
 }
 
-// Drone y Hectáreas son de solo lectura (una fila por Informe de Campo del
-// Proyecto, ver obtenerDatosProyectoAction) -- solo el Precio se llena a
-// mano, por fila.
-type FilaDraft = { informeCampoId: string; drone: string; hectareas: number; precio: string };
+// Operador, Drone y Hectáreas son de solo lectura (una fila por Informe de
+// Campo del Proyecto, ver obtenerDatosProyectoAction) -- solo el Precio se
+// llena a mano, por fila.
+type FilaDraft = { informeCampoId: string; operador: string; drone: string; hectareas: number; precio: string };
 
 type ItemGastoDraft = { categoria: string; cantidad: string; precio: string };
 // Un bloque por cada Operador+Ayudantes que aparezca en los Informes de
@@ -76,7 +76,7 @@ export type ValoresInforme = {
   precio: number | null;
   total: number | null;
   fecha: string;
-  filas: { informeCampoId: string; drone: string; hectareas: number; precio: number }[];
+  filas: { informeCampoId: string; operador: string; drone: string; hectareas: number; precio: number }[];
   gastosOperativos: {
     operador: string | null;
     ayudantes: string[];
@@ -164,13 +164,20 @@ export function ProyectoInformeForm({
     if (v?.filas) {
       try {
         const parsed = JSON.parse(v.filas) as { informeCampoId: string; precio: number }[];
-        filas = parsed.map((f) => ({ informeCampoId: f.informeCampoId, drone: "", hectareas: 0, precio: String(f.precio) }));
+        filas = parsed.map((f) => ({
+          informeCampoId: f.informeCampoId,
+          operador: "",
+          drone: "",
+          hectareas: 0,
+          precio: String(f.precio),
+        }));
       } catch {
         // sigue abajo con los valores iniciales / vacío
       }
     } else if (valoresIniciales?.filas) {
       filas = valoresIniciales.filas.map((f) => ({
         informeCampoId: f.informeCampoId,
+        operador: f.operador,
         drone: f.drone,
         hectareas: f.hectareas,
         precio: String(f.precio),
@@ -261,6 +268,7 @@ export function ProyectoInformeForm({
             const anterior = prev.filas.find((p) => p.informeCampoId === f.informeCampoId);
             return {
               informeCampoId: f.informeCampoId,
+              operador: f.operador,
               drone: f.drone,
               hectareas: f.hectareas,
               precio: anterior ? anterior.precio : "",
@@ -451,6 +459,7 @@ export function ProyectoInformeForm({
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                <th className="px-2 py-2 font-medium">Operador</th>
                 <th className="px-2 py-2 font-medium">Drone</th>
                 <th className="px-2 py-2 font-medium">HA</th>
                 <th className="px-2 py-2 font-medium">Precio</th>
@@ -460,7 +469,7 @@ export function ProyectoInformeForm({
             <tbody>
               {filas.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-2 py-6 text-center text-sm text-green-700/70 dark:text-green-200/70">
+                  <td colSpan={5} className="px-2 py-6 text-center text-sm text-green-700/70 dark:text-green-200/70">
                     {cargandoProyecto
                       ? "Cargando..."
                       : proyectoId
@@ -473,6 +482,7 @@ export function ProyectoInformeForm({
                   const total = f.hectareas * (Number(f.precio) || 0);
                   return (
                     <tr key={f.informeCampoId} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                      <td className="px-2 py-2 text-green-900 dark:text-green-50">{f.operador}</td>
                       <td className="px-2 py-2 text-green-900 dark:text-green-50">{f.drone}</td>
                       <td className="px-2 py-2 text-green-900 dark:text-green-50">{f.hectareas}</td>
                       <td className="px-2 py-2">

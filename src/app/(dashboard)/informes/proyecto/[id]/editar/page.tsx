@@ -34,7 +34,7 @@ export default async function EditarInformeProyectoPage({
         .maybeSingle(),
       supabase
         .from("proyecto_filas")
-        .select("informe_campo_id, drone, hectareas, precio")
+        .select("informe_campo_id, drone, hectareas, precio, informes_campo ( operador )")
         .eq("informe_id", id)
         .order("id"),
       supabase
@@ -79,6 +79,7 @@ export default async function EditarInformeProyectoPage({
           fecha: informe.fecha as string,
           filas: (filasData ?? []).map((f) => ({
             informeCampoId: f.informe_campo_id as string,
+            operador: (f.informes_campo as unknown as { operador: string } | null)?.operador ?? "",
             drone: f.drone as string,
             hectareas: Number(f.hectareas),
             precio: Number(f.precio),
