@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 import { NAV } from "./nav-items";
+import { BuscadorMenu } from "./BuscadorMenu";
 import { canAccess, ROL_LABEL, type Rol } from "@/lib/roles";
 import { esAuditor } from "@/lib/auditoria";
 import { Logo } from "@/components/ui/Logo";
@@ -71,6 +72,7 @@ export function Nav({
                 />
               ))}
             </nav>
+            <BuscadorMenu rol={rol} correo={correo} />
           </div>
 
           <div className="flex items-center gap-3">
