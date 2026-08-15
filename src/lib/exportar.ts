@@ -426,6 +426,14 @@ export type BloqueGastoOperativoExportable = {
 export type DiaPlanillaExportable = { fecha: string; monto: number };
 export type PlanillaTrabajadorExportable = { colaborador: string; dias: DiaPlanillaExportable[]; total: number };
 
+export type GastoProyectoExportable = {
+  origen: "caja_menuda" | "compras";
+  fecha: string;
+  categoria: string;
+  descripcion: string;
+  monto: number;
+};
+
 export type InformeProyectoExportable = {
   proyecto: string;
   ubicacion: string | null;
@@ -436,6 +444,7 @@ export type InformeProyectoExportable = {
   filas: FilaInformeExportable[];
   gastosOperativos: BloqueGastoOperativoExportable[];
   detallePlanilla: PlanillaTrabajadorExportable[];
+  gastosProyecto: GastoProyectoExportable[];
 };
 
 function nombreArchivoProyecto(proyecto: string): string {
@@ -547,6 +556,55 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
       footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
     });
     yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  }
+
+  const totalGastosEquipos = informe.gastosOperativos.reduce(
+    (s, b) => s + b.items.reduce((si, it) => si + it.total, 0),
+    0,
+  );
+  const totalGastosProyectoRegistrados = informe.gastosProyecto.reduce((s, g) => s + g.monto, 0);
+
+  if (informe.gastosProyecto.length > 0) {
+    if (yGastos > altoPagina - 60) {
+      doc.addPage();
+      yGastos = 15;
+    }
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Gastos registrados para este proyecto (Caja Menuda / Compras)", 14, yGastos);
+    yGastos += 5;
+
+    autoTable(doc, {
+      startY: yGastos,
+      head: [["Fecha", "Origen", "Categoría", "Descripción", "Monto"]],
+      body: informe.gastosProyecto.map((g) => [
+        formatDateOnly(g.fecha),
+        g.origen === "caja_menuda" ? "Caja Menuda" : "Compras",
+        g.categoria,
+        g.descripcion || "—",
+        formatMoney(g.monto),
+      ]),
+      foot: [["total", "", "", "", formatMoney(totalGastosProyectoRegistrados)]],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+      footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+    });
+    yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  }
+
+  if (informe.gastosOperativos.length > 0 || informe.gastosProyecto.length > 0) {
+    if (yGastos > altoPagina - 20) {
+      doc.addPage();
+      yGastos = 15;
+    }
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Total Gastos Operativos: ${formatMoney(totalGastosEquipos + totalGastosProyectoRegistrados)}`,
+      14,
+      yGastos,
+    );
+    yGastos += 10;
   }
 
   if (informe.detallePlanilla.length > 0) {

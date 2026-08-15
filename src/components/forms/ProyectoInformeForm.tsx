@@ -7,7 +7,7 @@ import { Field, SelectField } from "@/components/ui/Field";
 import { FormError } from "@/components/ui/FormError";
 import { SubmitButton, LinkButton } from "@/components/ui/Button";
 import { formatMoney, formatDateOnly } from "@/lib/format";
-import { CATEGORIAS_GASTO_OPERATIVO, textoEquipoDeCampo } from "@/lib/proyectoGastos";
+import { CATEGORIAS_GASTO_OPERATIVO, textoEquipoDeCampo, type GastoProyectoRegistrado } from "@/lib/proyectoGastos";
 
 const CLASE_INPUT =
   "w-full rounded-lg border border-green-200 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30";
@@ -156,6 +156,7 @@ export function ProyectoInformeForm({
     gastosOperativos: BloqueGastoDraft[];
     infoAuto: InfoAutoPorEquipo;
     detallePlanilla: DiaPlanillaDraft[];
+    gastosProyecto: GastoProyectoRegistrado[];
   };
 
   const [vista, setVista] = useState<VistaProyecto>(() => {
@@ -230,9 +231,10 @@ export function ProyectoInformeForm({
       gastosOperativos,
       infoAuto: {},
       detallePlanilla,
+      gastosProyecto: [],
     };
   });
-  const { cliente, hectareas, filas, gastosOperativos, infoAuto, detallePlanilla } = vista;
+  const { cliente, hectareas, filas, gastosOperativos, infoAuto, detallePlanilla, gastosProyecto } = vista;
   const cargandoProyecto = proyectoId !== "" && vista.proyectoId !== proyectoId;
 
   // Al elegir (o cambiar) el Proyecto se cargan solos el Cliente, las
@@ -289,6 +291,7 @@ export function ProyectoInformeForm({
               };
             }),
           ),
+          gastosProyecto: datos.gastosProyecto,
         }));
       })
       .catch(() => {
@@ -301,6 +304,13 @@ export function ProyectoInformeForm({
   }, [proyectoId]);
 
   const total = (hectareas ?? 0) * (Number(precio) || 0);
+
+  const totalEquiposGastos = gastosOperativos.reduce(
+    (s, b) => s + b.items.reduce((si, it) => si + (Number(it.cantidad) || 0) * (Number(it.precio) || 0), 0),
+    0,
+  );
+  const totalGastosProyectoRegistrados = gastosProyecto.reduce((s, g) => s + g.monto, 0);
+  const totalGastosOperativos = totalEquiposGastos + totalGastosProyectoRegistrados;
 
   function actualizarPrecioFila(index: number, valor: string) {
     setVista((prev) => ({
@@ -397,6 +407,7 @@ export function ProyectoInformeForm({
                   gastosOperativos: [],
                   infoAuto: {},
                   detallePlanilla: [],
+                  gastosProyecto: [],
                 });
             }}
             required
@@ -587,6 +598,61 @@ export function ProyectoInformeForm({
             </div>
           );
         })}
+
+        {gastosProyecto.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+            <h3 className="border-b border-green-100 bg-green-50 px-4 py-2 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+              Gastos registrados para este proyecto (Caja Menuda / Compras)
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                    <th className="px-3 py-2 font-medium">Fecha</th>
+                    <th className="px-3 py-2 font-medium">Origen</th>
+                    <th className="px-3 py-2 font-medium">Categoría</th>
+                    <th className="px-3 py-2 font-medium">Descripción</th>
+                    <th className="px-3 py-2 font-medium">Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gastosProyecto.map((g) => (
+                    <tr key={`${g.origen}-${g.id}`} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                      <td className="px-3 py-2 text-green-800/80 dark:text-green-200/80">{formatDateOnly(g.fecha)}</td>
+                      <td className="px-3 py-2 text-green-800/80 dark:text-green-200/80">
+                        {g.origen === "caja_menuda" ? "Caja Menuda" : "Compras"}
+                      </td>
+                      <td className="px-3 py-2 text-green-900 dark:text-green-50">{g.categoria}</td>
+                      <td className="px-3 py-2 text-green-800/80 dark:text-green-200/80">{g.descripcion || "—"}</td>
+                      <td className="px-3 py-2 font-medium text-green-900 dark:text-green-50">
+                        {formatMoney(g.monto)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
+                    <td className="px-3 py-2 text-green-900 dark:text-green-50" colSpan={4}>
+                      total
+                    </td>
+                    <td className="px-3 py-2 text-green-700 dark:text-green-400">
+                      {formatMoney(totalGastosProyectoRegistrados)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {(gastosOperativos.length > 0 || gastosProyecto.length > 0) && (
+          <div className="rounded-xl border border-green-100 bg-green-50/60 px-6 py-4 text-right dark:border-green-900/40 dark:bg-green-950/20">
+            <span className="text-sm font-medium text-green-900 dark:text-green-50">Total Gastos Operativos: </span>
+            <span className="text-lg font-semibold text-green-700 dark:text-green-400">
+              {formatMoney(totalGastosOperativos)}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-4">

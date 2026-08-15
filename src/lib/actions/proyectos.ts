@@ -6,6 +6,7 @@ import { requirePerfil, requireWrite } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { informeProyectoSchema, informeProyectoEditSchema } from "@/lib/validation/proyectos";
 import { calcularPagoProyecto, type Jornada, type TipoProyecto } from "@/lib/calculoIncentivos";
+import { mapearGastosProyecto, type GastoProyectoRegistrado } from "@/lib/proyectoGastos";
 import type { ActionState } from "./types";
 
 type FilaInformeCampo = {
@@ -272,6 +273,7 @@ export type DatosProyecto = {
   filas: FilaProyectoPreview[];
   equipos: EquipoProyectoPreview[];
   detallePlanilla: PlanillaTrabajadorPreview[];
+  gastosProyecto: GastoProyectoRegistrado[];
 };
 
 // Vista previa en el formulario al elegir un Proyecto. El set de filas/
@@ -292,6 +294,9 @@ export type DatosProyecto = {
 // - detallePlanilla: la misma Planilla sugerida, pero desglosada por
 //   trabajador individual y por día (no por equipo) -- ver
 //   calcularDetallePlanilla. Cada día es editable a mano por separado.
+// - gastosProyecto: gastos de Caja Menuda/Compras que ya traían este
+//   Proyecto asociado (ver mapearGastosProyecto) -- de solo lectura, no
+//   se encajan en los bloques por equipo ni se guardan aparte.
 export async function obtenerDatosProyectoAction(proyectoId: string): Promise<DatosProyecto> {
   await requirePerfil();
   const supabase = await createClient();
@@ -306,10 +311,21 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
 
   const clienteNombre = (proyecto as unknown as { clientes: { nombre: string } | null }).clientes?.nombre ?? "—";
 
-  const [informes, { data: viaticosData }] = await Promise.all([
-    obtenerInformesDelProyecto(supabase, proyectoId),
-    supabase.from("caja_gastos").select("concepto, monto, nombre").eq("categoria", "Viáticos"),
-  ]);
+  const [informes, { data: viaticosData }, { data: cajaGastosProyecto }, { data: gastosComprasProyecto }] =
+    await Promise.all([
+      obtenerInformesDelProyecto(supabase, proyectoId),
+      supabase.from("caja_gastos").select("concepto, monto, nombre").eq("categoria", "Viáticos"),
+      supabase
+        .from("caja_gastos")
+        .select("id, fecha, categoria, monto, concepto")
+        .eq("proyecto_id", proyectoId)
+        .order("fecha"),
+      supabase
+        .from("gastos")
+        .select("id, fecha, categoria, categoria_otro, monto, descripcion")
+        .eq("proyecto_id", proyectoId)
+        .order("fecha"),
+    ]);
 
   const filas: FilaProyectoPreview[] = informes.map((informe) => ({
     informeCampoId: informe.id,
@@ -372,11 +388,30 @@ export async function obtenerDatosProyectoAction(proyectoId: string): Promise<Da
     }))
     .sort((a, b) => a.colaborador.localeCompare(b.colaborador));
 
+  const gastosProyecto = mapearGastosProyecto(
+    (cajaGastosProyecto ?? []) as {
+      id: string;
+      fecha: string;
+      categoria: string | null;
+      monto: number;
+      concepto: string | null;
+    }[],
+    (gastosComprasProyecto ?? []) as {
+      id: string;
+      fecha: string;
+      categoria: string;
+      categoria_otro: string | null;
+      monto: number;
+      descripcion: string | null;
+    }[],
+  );
+
   return {
     cliente: clienteNombre,
     hectareas: Math.round(hectareas * 100) / 100,
     filas,
     equipos,
     detallePlanilla,
+    gastosProyecto,
   };
 }

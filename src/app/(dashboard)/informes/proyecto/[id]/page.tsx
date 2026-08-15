@@ -7,7 +7,7 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { BotonExportarInforme } from "@/components/forms/BotonExportarInforme";
 import { eliminarInformeProyectoAction } from "@/lib/actions/proyectos";
 import { formatMoney, formatDateOnly } from "@/lib/format";
-import { CATEGORIAS_GASTO_OPERATIVO, textoEquipoDeCampo } from "@/lib/proyectoGastos";
+import { CATEGORIAS_GASTO_OPERATIVO, textoEquipoDeCampo, mapearGastosProyecto } from "@/lib/proyectoGastos";
 import type { InformeProyectoExportable } from "@/lib/exportar";
 
 type ItemGastoFila = { id: string; categoria: string; cantidad: number; precio: number; total: number };
@@ -32,7 +32,7 @@ export default async function DetalleInformeProyectoPage({
     await Promise.all([
       supabase
         .from("proyecto_informes")
-        .select("id, proyecto, ubicacion, hectareas, precio, total, fecha")
+        .select("id, proyecto_id, proyecto, ubicacion, hectareas, precio, total, fecha")
         .eq("id", id)
         .maybeSingle(),
       supabase
@@ -56,6 +56,40 @@ export default async function DetalleInformeProyectoPage({
 
   if (!informe) notFound();
 
+  // En vivo, no una copia guardada al crear el análisis (ver
+  // mapearGastosProyecto) -- gastos de Caja Menuda/Compras que ya traían
+  // este Proyecto asociado.
+  const [{ data: cajaGastosProyecto }, { data: gastosComprasProyecto }] = await Promise.all([
+    supabase
+      .from("caja_gastos")
+      .select("id, fecha, categoria, monto, concepto")
+      .eq("proyecto_id", informe.proyecto_id as string)
+      .order("fecha"),
+    supabase
+      .from("gastos")
+      .select("id, fecha, categoria, categoria_otro, monto, descripcion")
+      .eq("proyecto_id", informe.proyecto_id as string)
+      .order("fecha"),
+  ]);
+  const gastosProyecto = mapearGastosProyecto(
+    (cajaGastosProyecto ?? []) as {
+      id: string;
+      fecha: string;
+      categoria: string | null;
+      monto: number;
+      concepto: string | null;
+    }[],
+    (gastosComprasProyecto ?? []) as {
+      id: string;
+      fecha: string;
+      categoria: string;
+      categoria_otro: string | null;
+      monto: number;
+      descripcion: string | null;
+    }[],
+  );
+  const totalGastosProyectoRegistrados = gastosProyecto.reduce((s, g) => s + g.monto, 0);
+
   const filas = (filasData ?? []).map((f) => ({
     id: f.id as string,
     drone: f.drone as string,
@@ -66,6 +100,11 @@ export default async function DetalleInformeProyectoPage({
 
   const totalFilas = filas.reduce((s, f) => s + f.total, 0);
   const hectareasFilas = filas.reduce((s, f) => s + f.hectareas, 0);
+  const totalGastosOperativos =
+    ((gastosData ?? []) as unknown as BloqueGastoFila[]).reduce(
+      (s, b) => s + (b.proyecto_gastos_operativos_items ?? []).reduce((si, it) => si + Number(it.total), 0),
+      0,
+    ) + totalGastosProyectoRegistrados;
 
   // Cada bloque siempre trae sus 7 categorías (garantizado por
   // crear_informe_proyecto/editar_informe_proyecto), pero se ordenan aquí
@@ -132,6 +171,7 @@ export default async function DetalleInformeProyectoPage({
       })),
     })),
     detallePlanilla,
+    gastosProyecto,
   };
 
   return (
@@ -275,6 +315,61 @@ export default async function DetalleInformeProyectoPage({
           </div>
         </div>
       ))}
+
+      {gastosProyecto.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <h2 className="border-b border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+            Gastos registrados para este proyecto (Caja Menuda / Compras)
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-3 py-2 font-medium">Fecha</th>
+                  <th className="px-3 py-2 font-medium">Origen</th>
+                  <th className="px-3 py-2 font-medium">Categoría</th>
+                  <th className="px-3 py-2 font-medium">Descripción</th>
+                  <th className="px-3 py-2 font-medium">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gastosProyecto.map((g) => (
+                  <tr key={`${g.origen}-${g.id}`} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{formatDateOnly(g.fecha)}</td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {g.origen === "caja_menuda" ? "Caja Menuda" : "Compras"}
+                    </td>
+                    <td className="px-3 py-3 text-green-900 dark:text-green-50">{g.categoria}</td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">{g.descripcion || "—"}</td>
+                    <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
+                      {formatMoney(g.monto)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-green-200/60 font-semibold dark:border-green-800/60">
+                  <td className="px-3 py-2 text-green-900 dark:text-green-50" colSpan={4}>
+                    total
+                  </td>
+                  <td className="px-3 py-2 text-green-700 dark:text-green-400">
+                    {formatMoney(totalGastosProyectoRegistrados)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {(gastosOperativos.length > 0 || gastosProyecto.length > 0) && (
+        <div className="rounded-xl border border-green-100 bg-green-50/60 px-6 py-4 text-right dark:border-green-900/40 dark:bg-green-950/20">
+          <span className="text-sm font-medium text-green-900 dark:text-green-50">Total Gastos Operativos: </span>
+          <span className="text-lg font-semibold text-green-700 dark:text-green-400">
+            {formatMoney(totalGastosOperativos)}
+          </span>
+        </div>
+      )}
 
       {detallePlanilla.length > 0 && (
         <div className="flex flex-col gap-4">
