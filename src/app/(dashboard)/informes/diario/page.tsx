@@ -12,16 +12,27 @@ export default async function InformeDiarioPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("informes_diarios")
-    .select("id, cliente, fecha, hectareas_aplicadas, informes_campo ( operador )")
+    .select(
+      "id, cliente, fecha, hectareas_aplicadas, informes_campo ( operador, proyectos ( codigo, nombre ) )",
+    )
     .order("fecha", { ascending: false });
 
-  const informes: InformeDiarioFila[] = (data ?? []).map((row) => ({
-    id: row.id as string,
-    cliente: row.cliente as string,
-    fecha: row.fecha as string,
-    hectareasAplicadas: Number(row.hectareas_aplicadas),
-    operadorInformeCampo: (row.informes_campo as unknown as { operador: string } | null)?.operador ?? "—",
-  }));
+  const informes: InformeDiarioFila[] = (data ?? []).map((row) => {
+    const informeCampo = row.informes_campo as unknown as {
+      operador: string;
+      proyectos: { codigo: string; nombre: string } | null;
+    } | null;
+    const proyecto = informeCampo?.proyectos;
+
+    return {
+      id: row.id as string,
+      cliente: row.cliente as string,
+      fecha: row.fecha as string,
+      hectareasAplicadas: Number(row.hectareas_aplicadas),
+      operadorInformeCampo: informeCampo?.operador ?? "—",
+      proyecto: proyecto ? `${proyecto.codigo} — ${proyecto.nombre}` : "—",
+    };
+  });
 
   return (
     <div>

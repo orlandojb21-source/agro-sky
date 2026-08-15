@@ -12,6 +12,7 @@ export type InformeDiarioFila = {
   fecha: string;
   hectareasAplicadas: number;
   operadorInformeCampo: string;
+  proyecto: string;
 };
 
 type Filtros = {
@@ -44,7 +45,8 @@ export function InformesDiariosTabla({
       if (
         texto &&
         !i.cliente.toLowerCase().includes(texto) &&
-        !i.operadorInformeCampo.toLowerCase().includes(texto)
+        !i.operadorInformeCampo.toLowerCase().includes(texto) &&
+        !i.proyecto.toLowerCase().includes(texto)
       )
         return false;
       if (filtros.fechaDesde && i.fecha < filtros.fechaDesde) return false;
@@ -77,6 +79,7 @@ export function InformesDiariosTabla({
             <thead>
               <tr className="border-b border-green-100 bg-green-50 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300">
                 <th className="px-3 py-2 font-medium">Fecha</th>
+                <th className="px-3 py-2 font-medium">Proyecto</th>
                 <th className="px-3 py-2 font-medium">Nombre (Cliente)</th>
                 <th className="px-3 py-2 font-medium">Operador</th>
                 <th className="px-3 py-2 font-medium">Hectáreas Aplicadas</th>
@@ -99,12 +102,12 @@ export function InformesDiariosTabla({
                     />
                   </div>
                 </th>
-                <th className="px-3 py-2" colSpan={2}>
+                <th className="px-3 py-2" colSpan={3}>
                   <input
                     type="text"
                     value={filtros.texto}
                     onChange={(e) => setFiltro("texto", e.target.value)}
-                    placeholder="Buscar cliente u operador..."
+                    placeholder="Buscar cliente, proyecto u operador..."
                     className={inputFiltro}
                   />
                 </th>
@@ -115,7 +118,7 @@ export function InformesDiariosTabla({
               {filtrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-6 py-10 text-center text-sm text-green-700/70 dark:text-green-200/70"
                   >
                     {informes.length === 0
@@ -131,6 +134,9 @@ export function InformesDiariosTabla({
                   >
                     <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
                       {formatDateOnly(i.fecha)}
+                    </td>
+                    <td className="px-3 py-3 text-green-800/80 dark:text-green-200/80">
+                      {i.proyecto}
                     </td>
                     <td className="px-3 py-3 font-medium text-green-900 dark:text-green-50">
                       {i.cliente}
@@ -181,7 +187,7 @@ export function InformesDiariosTabla({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
-                    {formatDateOnly(i.fecha)}
+                    {formatDateOnly(i.fecha)} — {i.proyecto}
                   </p>
                   <p className="font-medium text-green-900 dark:text-green-50">{i.cliente}</p>
                   <p className="text-xs text-green-700/60 dark:text-green-300/60">
