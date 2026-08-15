@@ -23,7 +23,11 @@ export function InformesSubNav({ rol }: { rol: Rol }) {
   return (
     <div className="flex flex-wrap gap-2">
       {tabs.map((tab) => {
-        const activo = pathname.startsWith(tab.href);
+        // "startsWith" a secas confundía "/informes/proyecto" (Análisis de
+        // Proyecto) con "/informes/proyectos" (Proyectos) -- son prefijo
+        // uno del otro. Exigir "/" después del href evita que un tab
+        // marque activo el de otro.
+        const activo = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         return (
           <Link
             key={tab.href}
