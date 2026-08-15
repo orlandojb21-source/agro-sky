@@ -70,7 +70,7 @@ export default async function InicioPage() {
               href={item.href}
               className="flex w-40 flex-col items-center justify-center gap-2 rounded-xl border border-green-100 bg-white p-6 text-center font-medium text-green-900 shadow-sm transition hover:border-green-300 hover:shadow-md dark:border-green-900/40 dark:bg-green-950/10 dark:text-green-50 dark:hover:border-green-700"
             >
-              <Icono className="h-8 w-8 text-green-600 dark:text-green-400" strokeWidth={1.75} />
+              <Icono className="h-11 w-11 text-green-600 dark:text-green-400" strokeWidth={1.75} />
               {item.label}
             </Link>
           );

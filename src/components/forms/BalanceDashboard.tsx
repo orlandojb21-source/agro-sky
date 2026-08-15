@@ -41,34 +41,6 @@ const NOMBRES_MES_LARGO = [
   "Diciembre",
 ];
 
-type Periodo = "semana" | "mes" | "año" | "vida" | "rango";
-
-const OPCIONES_PERIODO: { valor: Periodo; label: string }[] = [
-  { valor: "semana", label: "Semana Actual" },
-  { valor: "mes", label: "Mes" },
-  { valor: "año", label: "Año" },
-  { valor: "vida", label: "Vida Completa" },
-  { valor: "rango", label: "Seleccione fecha" },
-];
-
-// Fecha local en formato "YYYY-MM-DD" -- deliberadamente NO usa
-// toISOString() (que convierte a UTC y puede correr la fecha un dia, el
-// mismo bug que se corrigio en formatDateOnly()).
-function aISO(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dia = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dia}`;
-}
-
-function inicioSemana(hoy: Date): Date {
-  const d = new Date(hoy);
-  const dia = d.getDay();
-  const diff = (dia === 0 ? -6 : 1) - dia; // retrocede al lunes
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
 // El ingreso real de una venta es subtotal_gravado + subtotal_exento -- el
 // ITBMS cobrado NO cuenta como ingreso del negocio (es dinero que se cobra
 // para el gobierno, no ganancia de Agro Sky), se muestra solo como
@@ -116,11 +88,11 @@ export type GastoCompraBalance = {
 
 type BarraDatos = { nombre: string; monto: number; color: string };
 
-function GraficaDosBarras({ datos }: { datos: BarraDatos[] }) {
+function GraficaDosBarras({ datos, altura = "h-64" }: { datos: BarraDatos[]; altura?: string }) {
   return (
-    <div className="h-64">
+    <div className={altura}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={datos}>
+        <BarChart data={datos} margin={{ top: 24, right: 5, left: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="nombre" />
           <YAxis tickFormatter={(v: number) => formatMoney(v)} width={90} />
@@ -251,9 +223,6 @@ export function BalanceDashboard({
   categoriasCajaMenuda: string[];
   categoriasCompras: { nombre: string; tipo: "fijo" | "variable" }[];
 }) {
-  const [periodo, setPeriodo] = useState<Periodo>("mes");
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
 
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
@@ -404,33 +373,13 @@ export function BalanceDashboard({
 
   const hayDatosLineaAnual = datosLineaAnual.some((d) => d.ingresos > 0 || d.egresos > 0);
 
-  // --- Resto del dashboard (gobernado por el filtro de período de arriba) --
-
-  const { fechaDesde, fechaHasta, listo } = useMemo(() => {
-    const hoy = new Date();
-    switch (periodo) {
-      case "semana": {
-        const inicio = inicioSemana(hoy);
-        const fin = new Date(inicio);
-        fin.setDate(fin.getDate() + 6);
-        return { fechaDesde: aISO(inicio), fechaHasta: aISO(fin), listo: true };
-      }
-      case "mes": {
-        const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        const fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
-        return { fechaDesde: aISO(inicio), fechaHasta: aISO(fin), listo: true };
-      }
-      case "año": {
-        const inicio = new Date(hoy.getFullYear(), 0, 1);
-        const fin = new Date(hoy.getFullYear(), 11, 31);
-        return { fechaDesde: aISO(inicio), fechaHasta: aISO(fin), listo: true };
-      }
-      case "rango":
-        return { fechaDesde: desde, fechaHasta: hasta, listo: Boolean(desde && hasta) };
-      case "vida":
-        return { fechaDesde: "", fechaHasta: "", listo: true };
-    }
-  }, [periodo, desde, hasta]);
+  // --- Resto del dashboard --
+  // Antes había un selector de Período arriba (semana/mes/año/vida/rango) --
+  // se quitó (pedido del usuario): estas secciones ahora siempre muestran
+  // la vida completa, sin filtro de fecha.
+  const fechaDesde: string = "";
+  const fechaHasta: string = "";
+  const listo = true;
 
   const movimientosFiltrados = useMemo(() => {
     if (!listo) return [];
@@ -486,19 +435,9 @@ export function BalanceDashboard({
   const totalVentas = ventasFiltradas.reduce((suma, v) => suma + v.ingreso, 0);
   const totalItbms = ventasFiltradas.reduce((suma, v) => suma + v.itbms, 0);
   const totalPlanilla = pagosFiltrados.reduce((suma, p) => suma + p.monto, 0);
-  const totalGastosCompras = gastosComprasFiltrados.reduce((suma, g) => suma + g.monto, 0);
   const totalPrestado = prestamosFiltrados.reduce((suma, p) => suma + p.monto, 0);
   const totalAbonado = pagosFiltrados.reduce((suma, p) => suma + p.montoPrestamo, 0);
   const abonosFiltrados = pagosFiltrados.filter((p) => p.montoPrestamo > 0);
-
-  // Reponer la caja menuda no es un ingreso de la empresa -- es plata que
-  // la empresa ya tenia (banco, ventas, capital del dueno) movida a otro
-  // "bolsillo" interno para gastos del dia a dia. Contarla como ingreso
-  // duplicaria esa plata en el resumen general (ver Ventas como el ingreso
-  // real y Gastos/Planilla/Compras como el egreso real).
-  const totalIngresos = totalVentas;
-  const totalEgresos = totalGastosCaja + totalPlanilla + totalGastosCompras;
-  const gananciaNeta = totalIngresos - totalEgresos;
 
   const totalesPorCategoriaCompras = categoriasCompras.map((c) => ({
     categoria: c.nombre,
@@ -526,8 +465,20 @@ export function BalanceDashboard({
   const totalSinCategoria = movimientosFiltrados
     .filter((m) => m.tipo === "gasto" && !m.categoria)
     .reduce((suma, m) => suma + m.monto, 0);
+  // categoriasConDatos = solo Caja Menuda (alimenta el filtro/desglose de
+  // esta tarjeta Y el nuevo gráfico de la tarjeta "Caja Menuda"). El
+  // gráfico de esta tarjeta, en cambio, muestra TODAS las categorías de
+  // gasto que tengan datos -- Caja Menuda + Compras (pedido del usuario:
+  // ya no hay una tarjeta aparte de "Compras — Gastos").
   const categoriasConDatos = totalesPorCategoria.filter((c) => c.monto > 0);
-  const hayGastosCategorizados = categoriasConDatos.length > 0 || totalSinCategoria > 0;
+  const barrasCajaMenuda = categoriasConDatos.map((c) => ({ nombre: c.categoria, monto: c.monto, color: c.color }));
+  const barrasCompras = totalesPorCategoriaCompras.map((c, i) => ({
+    nombre: c.etiqueta,
+    monto: c.monto,
+    color: COLORES_CATEGORIA[(categoriasConDatos.length + i) % COLORES_CATEGORIA.length],
+  }));
+  const barrasTodasCategorias = [...barrasCajaMenuda, ...barrasCompras];
+  const hayGastosCategorizados = barrasTodasCategorias.length > 0 || totalSinCategoria > 0;
   const montoCategoriaSeleccionada =
     totalesPorCategoria.find((c) => c.categoria === categoriaFiltro)?.monto ?? 0;
   const detalleGastosPorCategoria = movimientosFiltrados.filter(
@@ -535,7 +486,6 @@ export function BalanceDashboard({
   );
 
   const hayDatosCaja = listo && movimientosFiltrados.length > 0;
-  const hayDatosCompras = listo && gastosComprasFiltrados.length > 0;
   const hayDatosPrestamos = listo && (prestamosFiltrados.length > 0 || totalAbonado > 0);
   const hayAlgunDato =
     listo &&
@@ -544,59 +494,10 @@ export function BalanceDashboard({
       pagosFiltrados.length > 0 ||
       gastosComprasFiltrados.length > 0 ||
       hayDatosPrestamos);
-  const nombreArchivoCaja = `agro-sky-balance-caja-menuda-${periodo}`;
-
-  const filasResumen: { concepto: string; monto: number; tipo: "ingreso" | "egreso" }[] = [
-    { concepto: "Ventas (ingreso, sin ITBMS)", monto: totalVentas, tipo: "ingreso" },
-    { concepto: "Gastos de Caja Menuda", monto: totalGastosCaja, tipo: "egreso" },
-    { concepto: "Planilla", monto: totalPlanilla, tipo: "egreso" },
-    { concepto: "Gastos de Compras", monto: totalGastosCompras, tipo: "egreso" },
-  ];
+  const nombreArchivoCaja = "agro-sky-balance-caja-menuda";
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
-            Período
-            <select
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value as Periodo)}
-              className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-            >
-              {OPCIONES_PERIODO.map((op) => (
-                <option key={op.valor} value={op.valor}>
-                  {op.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {periodo === "rango" && (
-            <>
-              <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
-                Desde
-                <input
-                  type="date"
-                  value={desde}
-                  onChange={(e) => setDesde(e.target.value)}
-                  className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm text-green-900 dark:text-green-100">
-                Hasta
-                <input
-                  type="date"
-                  value={hasta}
-                  onChange={(e) => setHasta(e.target.value)}
-                  className="rounded-lg border border-green-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-600 dark:border-green-800 dark:bg-green-950/30"
-                />
-              </label>
-            </>
-          )}
-        </div>
-      </div>
-
       <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -874,90 +775,6 @@ export function BalanceDashboard({
       ) : (
         <>
           <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <div className="mb-4 flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">
-                Resumen general — todo lo que entra y sale
-              </h2>
-              <BotonDesplegable abierto={Boolean(abiertos.resumen)} onClick={() => alternar("resumen")} />
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 sm:max-w-lg">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-                  Ingresos
-                </p>
-                <p className="text-xl font-semibold text-green-700 dark:text-green-400">
-                  {formatMoney(totalIngresos)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-                  Egresos
-                </p>
-                <p className="text-xl font-semibold text-red-700 dark:text-red-400">
-                  {formatMoney(totalEgresos)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-                  Ganancia neta
-                </p>
-                <p
-                  className={
-                    gananciaNeta >= 0
-                      ? "text-xl font-semibold text-green-700 dark:text-green-400"
-                      : "text-xl font-semibold text-red-700 dark:text-red-400"
-                  }
-                >
-                  {formatMoney(gananciaNeta)}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <GraficaDosBarras
-                datos={[
-                  { nombre: "Ingresos", monto: totalIngresos, color: "#16a34a" },
-                  { nombre: "Egresos", monto: totalEgresos, color: "#dc2626" },
-                ]}
-              />
-            </div>
-
-            <p className="mt-3 text-xs text-green-700/60 dark:text-green-300/60">
-              Ingresos = Ventas (sin ITBMS). Egresos = Gastos de Caja Menuda + Planilla + Gastos de
-              Compras. Las reposiciones de Caja Menuda y los préstamos a colaboradores no cuentan aquí
-              porque no son dinero nuevo, es plata que la empresa ya tenía movida a otro lado (se ven
-              aparte, más abajo).
-              {totalItbms > 0
-                ? ` ITBMS cobrado en ventas de este período (no incluido arriba, se le debe al gobierno): ${formatMoney(totalItbms)}.`
-                : ""}
-            </p>
-
-            {abiertos.resumen && (
-              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
-                <TablaDetalle
-                  columnas={[
-                    { header: "Concepto", render: (f: (typeof filasResumen)[number]) => f.concepto },
-                    {
-                      header: "Monto",
-                      render: (f: (typeof filasResumen)[number]) => (
-                        <span className={f.tipo === "ingreso" ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}>
-                          {f.tipo === "ingreso" ? "+" : "−"}
-                          {formatMoney(f.monto)}
-                        </span>
-                      ),
-                      alinDerecha: true,
-                    },
-                  ]}
-                  filas={filasResumen}
-                  clave={(f) => f.concepto}
-                  vacio="No hay movimientos para este período."
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">
@@ -993,13 +810,7 @@ export function BalanceDashboard({
               ) : (
                 <>
                   <div className="mt-4">
-                    <GraficaDosBarras
-                      datos={categoriasConDatos.map((c) => ({
-                        nombre: c.categoria,
-                        monto: c.monto,
-                        color: c.color,
-                      }))}
-                    />
+                    <GraficaDosBarras datos={barrasTodasCategorias} altura="h-48" />
                   </div>
                   {totalSinCategoria > 0 && (
                     <p className="mt-3 text-xs text-green-700/60 dark:text-green-300/60">
@@ -1088,14 +899,14 @@ export function BalanceDashboard({
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <GraficaDosBarras
-                    datos={[
-                      { nombre: "Reposiciones", monto: totalReposiciones, color: "#16a34a" },
-                      { nombre: "Gastos", monto: totalGastosCaja, color: "#dc2626" },
-                    ]}
-                  />
-                </div>
+                {barrasCajaMenuda.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                      Gastos por categoría
+                    </p>
+                    <GraficaDosBarras datos={barrasCajaMenuda} altura="h-56" />
+                  </div>
+                )}
               </>
             )}
 
@@ -1240,65 +1051,6 @@ export function BalanceDashboard({
                   filas={pagosFiltrados}
                   clave={(p, i) => `${p.fecha}-${p.colaborador}-${i}`}
                   vacio="No hay pagos de planilla para este período."
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Compras — Gastos</h2>
-              {hayDatosCompras && (
-                <BotonDesplegable abierto={Boolean(abiertos.comprasGastos)} onClick={() => alternar("comprasGastos")} />
-              )}
-            </div>
-            <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
-              Gastos operativos (alquiler, luz, agua, internet, celulares, etc.), registrados en
-              Compras &gt; Gastos.
-            </p>
-
-            {!hayDatosCompras ? (
-              <p className="mt-4 text-sm text-green-700/70 dark:text-green-300/70">
-                No hay gastos de Compras para este período.
-              </p>
-            ) : (
-              <>
-                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {totalesPorCategoriaCompras.map((c) => (
-                    <div key={c.categoria}>
-                      <p className="text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-                        {c.etiqueta}
-                      </p>
-                      <p className="text-lg font-semibold text-green-900 dark:text-green-50">
-                        {formatMoney(c.monto)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 inline-block rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-center dark:border-red-900/40 dark:bg-red-950/20">
-                  <p className="text-xs font-medium uppercase tracking-wide text-red-700 dark:text-red-400">
-                    Total gastos de Compras
-                  </p>
-                  <p className="text-lg font-semibold text-red-900 dark:text-red-100">
-                    {formatMoney(totalGastosCompras)}
-                  </p>
-                </div>
-              </>
-            )}
-
-            {abiertos.comprasGastos && hayDatosCompras && (
-              <div className="mt-4 border-t border-green-100 pt-4 dark:border-green-900/40">
-                <TablaDetalle
-                  columnas={[
-                    { header: "Fecha", render: (g: GastoCompraBalance) => formatDateOnly(g.fecha) },
-                    { header: "Categoría", render: (g: GastoCompraBalance) => CATEGORIA_GASTO_LABEL[g.categoria] ?? g.categoria },
-                    { header: "Proveedor", render: (g: GastoCompraBalance) => g.proveedorNombre ?? "—" },
-                    { header: "N° Factura", render: (g: GastoCompraBalance) => g.numeroFactura ?? "—" },
-                    { header: "Monto", render: (g: GastoCompraBalance) => formatMoney(g.monto), alinDerecha: true },
-                  ]}
-                  filas={gastosComprasFiltrados}
-                  clave={(g, i) => `${g.fecha}-${i}`}
-                  vacio="No hay gastos de Compras para este período."
                 />
               </div>
             )}
