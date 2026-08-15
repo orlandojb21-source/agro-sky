@@ -10,6 +10,8 @@ import {
 } from "@/components/forms/BalanceDashboard";
 import type { MovimientoExportable } from "@/lib/exportar";
 import { obtenerCategoriasGasto, obtenerCategoriasCompraConTipo } from "@/lib/categorias";
+import { ReporteBalanceBoton } from "@/components/forms/ReporteBalanceBoton";
+import { hoyEnPanama } from "@/lib/planilla";
 
 export default async function BalancePage() {
   await requireSection("balance");
@@ -125,6 +127,8 @@ export default async function BalancePage() {
     monto: Number(p.monto),
   }));
 
+  const { anio: anioActual, mes: mesActual } = hoyEnPanama();
+
   return (
     <div>
       <PageHeader
@@ -141,6 +145,9 @@ export default async function BalancePage() {
         categoriasCajaMenuda={categoriasCajaMenuda}
         categoriasCompras={categoriasCompras}
       />
+      <div className="mt-6">
+        <ReporteBalanceBoton anioActual={anioActual} mesActual={mesActual + 1} />
+      </div>
     </div>
   );
 }

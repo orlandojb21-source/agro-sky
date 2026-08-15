@@ -7,6 +7,15 @@ import { createClient } from "@/lib/supabase/server";
 import { pagoSchema, pagoEditSchema, parseDetalleCalculo } from "@/lib/validation/planilla";
 import { fechaPermitida, MENSAJE_FECHA_NO_PERMITIDA, MENSAJE_REGISTRO_FECHA_VIEJA } from "@/lib/fechaRestriccion";
 import { esSoporteOJefe } from "@/lib/roles";
+import {
+  acumuladoVacio,
+  sumarAcumulado,
+  redondear,
+  aFila,
+  type AcumuladoPersona,
+  type SeccionReportePlanilla,
+  type ReportePlanilla,
+} from "@/lib/planilla";
 import type { ActionState } from "./types";
 
 export async function crearPagoAction(
@@ -118,73 +127,10 @@ export async function eliminarPagoAction(id: string) {
   revalidatePath("/planilla/pagos");
 }
 
-// Desglose completo, no solo el neto -- para que cada cifra del PDF se
-// pueda verificar a simple vista (Monto + Bonificación + Décimo − CSS −
-// Seguro Educativo − Préstamo = Neto) sin tener que preguntar de dónde
-// salió.
-export type FilaReportePlanilla = {
-  nombre: string;
-  monto: number;
-  bonificacion: number;
-  decimoTercerMes: number;
-  css: number;
-  seguroEducativo: number;
-  montoPrestamo: number;
-  neto: number;
-};
-export type SeccionReportePlanilla = { etiqueta: string; filas: FilaReportePlanilla[]; total: number };
-export type ReportePlanilla = {
-  quincena1: SeccionReportePlanilla;
-  quincena2: SeccionReportePlanilla;
-  mes: SeccionReportePlanilla;
-};
-
 const MESES_REPORTE = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
-
-type AcumuladoPersona = {
-  monto: number;
-  bonificacion: number;
-  decimoTercerMes: number;
-  css: number;
-  seguroEducativo: number;
-  montoPrestamo: number;
-};
-
-function acumuladoVacio(): AcumuladoPersona {
-  return { monto: 0, bonificacion: 0, decimoTercerMes: 0, css: 0, seguroEducativo: 0, montoPrestamo: 0 };
-}
-
-function sumarAcumulado(a: AcumuladoPersona, b: AcumuladoPersona): AcumuladoPersona {
-  return {
-    monto: a.monto + b.monto,
-    bonificacion: a.bonificacion + b.bonificacion,
-    decimoTercerMes: a.decimoTercerMes + b.decimoTercerMes,
-    css: a.css + b.css,
-    seguroEducativo: a.seguroEducativo + b.seguroEducativo,
-    montoPrestamo: a.montoPrestamo + b.montoPrestamo,
-  };
-}
-
-function redondear(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-function aFila(nombre: string, a: AcumuladoPersona): FilaReportePlanilla {
-  const neto = a.monto + a.bonificacion + a.decimoTercerMes - a.css - a.seguroEducativo - a.montoPrestamo;
-  return {
-    nombre,
-    monto: redondear(a.monto),
-    bonificacion: redondear(a.bonificacion),
-    decimoTercerMes: redondear(a.decimoTercerMes),
-    css: redondear(a.css),
-    seguroEducativo: redondear(a.seguroEducativo),
-    montoPrestamo: redondear(a.montoPrestamo),
-    neto: redondear(neto),
-  };
-}
 
 // Detalle de todo lo pagado en Planilla (Fijo y Campo) en un mes elegido,
 // separado por quincena -- "neto" de cada fila es lo que cada persona

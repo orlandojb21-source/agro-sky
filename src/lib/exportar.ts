@@ -996,6 +996,201 @@ export async function exportarReportePlanillaPDF(reporte: ReportePlanillaExporta
   doc.save(`agro-sky-reporte-planilla-${reporte.mes.etiqueta.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`);
 }
 
+// Reporte de TODO Balance (Ventas, Caja Menuda, Compras, Planilla,
+// Préstamos) para un período elegido -- cada sección ya viene calculada
+// de obtenerReporteBalanceCompletoAction (lib/actions/balance.ts), acá
+// solo se dibuja. Mismo formato de fila que el resto de esta librería:
+// Fecha + Descripción + Monto, con su total al pie de cada tabla.
+export type FilaMontoExportable = { fecha: string; descripcion: string; monto: number };
+export type SeccionMontosExportable = { filas: FilaMontoExportable[]; total: number };
+export type FilaCategoriaExportable = { categoria: string; monto: number };
+export type ReporteBalanceCompletoExportable = {
+  etiquetaPeriodo: string;
+  ventas: SeccionMontosExportable;
+  cajaMenudaReposiciones: SeccionMontosExportable;
+  cajaMenudaGastos: SeccionMontosExportable;
+  cajaMenudaPorCategoria: FilaCategoriaExportable[];
+  comprasGastos: SeccionMontosExportable;
+  comprasPorCategoria: FilaCategoriaExportable[];
+  planilla: { filas: FilaReportePlanillaExportable[]; total: number };
+  prestamos: SeccionMontosExportable;
+  resumen: { ingresos: number; egresos: number; neto: number };
+};
+
+export async function exportarReporteBalanceCompletoPDF(reporte: ReporteBalanceCompletoExportable) {
+  const doc = new jsPDF({ orientation: "landscape" });
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const margenDerecho = anchoPagina - 14;
+  const altoPagina = doc.internal.pageSize.getHeight();
+
+  let yEmpresa = 14;
+  const logoBase64 = await cargarLogoBase64();
+  if (logoBase64) {
+    const logoAlto = 16;
+    const logoAncho = logoAlto * LOGO_ASPECTO;
+    doc.addImage(logoBase64, "PNG", margenDerecho - logoAncho, yEmpresa, logoAncho, logoAlto);
+    yEmpresa += logoAlto + 4;
+  }
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(AGRO_SKY_INFO.nombre, margenDerecho, yEmpresa, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  yEmpresa += 5;
+  for (const linea of [
+    `Teléfono: ${AGRO_SKY_INFO.telefono}`,
+    `Correo: ${AGRO_SKY_INFO.correo}`,
+    `Dirección: ${AGRO_SKY_INFO.direccion}`,
+  ]) {
+    doc.text(linea, margenDerecho, yEmpresa, { align: "right" });
+    yEmpresa += 4.5;
+  }
+
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Reporte de Balance — ${reporte.etiquetaPeriodo}`, 14, 20);
+
+  let y = Math.max(30, yEmpresa) + 8;
+
+  // --- Resumen ---
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Resumen", 14, y);
+  y += 7;
+  doc.setFontSize(10);
+  for (const [etiqueta, valor] of [
+    ["Ingresos (Ventas)", formatMoney(reporte.resumen.ingresos)],
+    ["Egresos (Caja Menuda + Compras + Planilla)", formatMoney(reporte.resumen.egresos)],
+    ["Neto del período", formatMoney(reporte.resumen.neto)],
+  ] as [string, string][]) {
+    doc.setFont("helvetica", "normal");
+    doc.text(etiqueta, 14, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(valor, 100, y);
+    y += 6;
+  }
+  y += 4;
+
+  function nuevaPaginaSiHaceFalta(espacioNecesario: number) {
+    if (y > altoPagina - espacioNecesario) {
+      doc.addPage();
+      y = 20;
+    }
+  }
+
+  function tituloSeccion(texto: string) {
+    nuevaPaginaSiHaceFalta(40);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(texto, 14, y);
+    y += 7;
+  }
+
+  function tablaDetalle(filas: FilaMontoExportable[], total: number, sinDatos: string) {
+    if (filas.length === 0) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(sinDatos, 14, y);
+      y += 10;
+      return;
+    }
+    nuevaPaginaSiHaceFalta(30);
+    autoTable(doc, {
+      startY: y,
+      head: [["Fecha", "Descripción", "Monto"]],
+      body: filas.map((f) => [formatDateOnly(f.fecha), f.descripcion, formatMoney(f.monto)]),
+      foot: [["", "total", formatMoney(total)]],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+      footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  }
+
+  function tablaCategorias(filas: FilaCategoriaExportable[]) {
+    if (filas.length === 0) return;
+    nuevaPaginaSiHaceFalta(30);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Por categoría", 14, y);
+    y += 5;
+    autoTable(doc, {
+      startY: y,
+      head: [["Categoría", "Monto"]],
+      body: filas.map((f) => [f.categoria, formatMoney(f.monto)]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+      tableWidth: 100,
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  }
+
+  // --- Ventas ---
+  tituloSeccion("Ventas");
+  tablaDetalle(reporte.ventas.filas, reporte.ventas.total, "Sin ventas registradas en este período.");
+
+  // --- Caja Menuda ---
+  tituloSeccion("Caja Menuda — Reposiciones");
+  tablaDetalle(
+    reporte.cajaMenudaReposiciones.filas,
+    reporte.cajaMenudaReposiciones.total,
+    "Sin reposiciones en este período.",
+  );
+  tituloSeccion("Caja Menuda — Gastos");
+  tablaDetalle(reporte.cajaMenudaGastos.filas, reporte.cajaMenudaGastos.total, "Sin gastos en este período.");
+  tablaCategorias(reporte.cajaMenudaPorCategoria);
+
+  // --- Compras ---
+  tituloSeccion("Compras — Gastos");
+  tablaDetalle(reporte.comprasGastos.filas, reporte.comprasGastos.total, "Sin gastos en este período.");
+  tablaCategorias(reporte.comprasPorCategoria);
+
+  // --- Planilla ---
+  tituloSeccion("Planilla");
+  if (reporte.planilla.filas.length === 0) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Sin pagos registrados en este período.", 14, y);
+    y += 10;
+  } else {
+    nuevaPaginaSiHaceFalta(30);
+    autoTable(doc, {
+      startY: y,
+      head: [["Nombre", "Monto", "Bonificación", "Décimo", "CSS", "Seguro Educ.", "Préstamo", "Neto"]],
+      body: reporte.planilla.filas.map((f) => [
+        f.nombre,
+        formatMoneyOGuion(f.monto),
+        formatMoneyOGuion(f.bonificacion),
+        formatMoneyOGuion(f.decimoTercerMes),
+        formatMoneyOGuion(f.css),
+        formatMoneyOGuion(f.seguroEducativo),
+        formatMoneyOGuion(f.montoPrestamo),
+        formatMoney(f.neto),
+      ]),
+      foot: [["total", "", "", "", "", "", "", formatMoney(reporte.planilla.total)]],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+      footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
+      columnStyles: { 7: { fontStyle: "bold" } },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  }
+
+  // --- Préstamos ---
+  tituloSeccion("Préstamos otorgados");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("No cuentan como Ingreso ni Egreso -- es plata que la empresa ya tenía, no gasto nuevo.", 14, y);
+  y += 6;
+  tablaDetalle(reporte.prestamos.filas, reporte.prestamos.total, "Sin préstamos otorgados en este período.");
+
+  const nombreArchivo = reporte.etiquetaPeriodo.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  doc.save(`agro-sky-reporte-balance-${nombreArchivo}.pdf`);
+}
+
 // Una fila por cada Informe de Campo (o día de Oficina) que entró en el
 // cálculo del pago -- misma forma que DetalleDiaAsistencia en
 // lib/actions/asistencia.ts, pero es una foto guardada con el pago

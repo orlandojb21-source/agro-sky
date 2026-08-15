@@ -9,7 +9,7 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 // que formatDateOnly() en lib/format.ts.
 const OFFSET_PANAMA_MS = 5 * 60 * 60 * 1000;
 
-function hoyEnPanama(): { anio: number; mes: number; dia: number } {
+export function hoyEnPanama(): { anio: number; mes: number; dia: number } {
   const ahora = new Date(Date.now() - OFFSET_PANAMA_MS);
   return { anio: ahora.getUTCFullYear(), mes: ahora.getUTCMonth(), dia: ahora.getUTCDate() };
 }
@@ -113,4 +113,74 @@ export async function calcularTotalesMesActual(
   }
 
   return { fechaDesde, fechaHasta, porColaborador, total };
+}
+
+// Desglose completo, no solo el neto -- para que cada cifra del PDF se
+// pueda verificar a simple vista (Monto + Bonificación + Décimo − CSS −
+// Seguro Educativo − Préstamo = Neto) sin tener que preguntar de dónde
+// salió.
+export type FilaReportePlanilla = {
+  nombre: string;
+  monto: number;
+  bonificacion: number;
+  decimoTercerMes: number;
+  css: number;
+  seguroEducativo: number;
+  montoPrestamo: number;
+  neto: number;
+};
+export type SeccionReportePlanilla = { etiqueta: string; filas: FilaReportePlanilla[]; total: number };
+export type ReportePlanilla = {
+  quincena1: SeccionReportePlanilla;
+  quincena2: SeccionReportePlanilla;
+  mes: SeccionReportePlanilla;
+};
+
+// Usados por obtenerReportePlanillaAction (lib/actions/planilla.ts) y por
+// obtenerReporteBalanceCompletoAction (lib/actions/balance.ts) para armar
+// su propia sección de Planilla con el mismo criterio de acumulado/neto,
+// sin duplicar la lógica. Viven aquí (no en lib/actions/planilla.ts)
+// porque ese archivo tiene "use server" -- Next.js exige que *todo*
+// export de un archivo "use server" sea una función async, y estas son
+// funciones puras y síncronas.
+export type AcumuladoPersona = {
+  monto: number;
+  bonificacion: number;
+  decimoTercerMes: number;
+  css: number;
+  seguroEducativo: number;
+  montoPrestamo: number;
+};
+
+export function acumuladoVacio(): AcumuladoPersona {
+  return { monto: 0, bonificacion: 0, decimoTercerMes: 0, css: 0, seguroEducativo: 0, montoPrestamo: 0 };
+}
+
+export function sumarAcumulado(a: AcumuladoPersona, b: AcumuladoPersona): AcumuladoPersona {
+  return {
+    monto: a.monto + b.monto,
+    bonificacion: a.bonificacion + b.bonificacion,
+    decimoTercerMes: a.decimoTercerMes + b.decimoTercerMes,
+    css: a.css + b.css,
+    seguroEducativo: a.seguroEducativo + b.seguroEducativo,
+    montoPrestamo: a.montoPrestamo + b.montoPrestamo,
+  };
+}
+
+export function redondear(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function aFila(nombre: string, a: AcumuladoPersona): FilaReportePlanilla {
+  const neto = a.monto + a.bonificacion + a.decimoTercerMes - a.css - a.seguroEducativo - a.montoPrestamo;
+  return {
+    nombre,
+    monto: redondear(a.monto),
+    bonificacion: redondear(a.bonificacion),
+    decimoTercerMes: redondear(a.decimoTercerMes),
+    css: redondear(a.css),
+    seguroEducativo: redondear(a.seguroEducativo),
+    montoPrestamo: redondear(a.montoPrestamo),
+    neto: redondear(neto),
+  };
 }
