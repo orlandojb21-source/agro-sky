@@ -17,7 +17,7 @@ export async function obtenerCategoriasGasto(
     .from("categorias_gasto")
     .select("nombre")
     .eq("contexto", contexto)
-    .order("creado_en", { ascending: true });
+    .order("nombre");
   return (data ?? []).map((c) => c.nombre as string);
 }
 
@@ -33,7 +33,7 @@ export async function obtenerCategoriasCompraConTipo(
     .from("categorias_gasto")
     .select("nombre, tipo")
     .eq("contexto", "compras")
-    .order("creado_en", { ascending: true });
+    .order("nombre");
   // "tipo" es nullable en la base (migración 0084) solo para no romper
   // una categoría vieja que por algún motivo no se haya clasificado --
   // en la práctica crearCategoriaGastoAction exige "tipo" para cualquier

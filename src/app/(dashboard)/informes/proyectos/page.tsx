@@ -28,7 +28,7 @@ export default async function ProyectosPage() {
     supabase
       .from("proyectos")
       .select("id, codigo, nombre, tipo_proyecto, estado, clientes ( nombre )")
-      .order("creado_en", { ascending: false }),
+      .order("codigo"),
     // Suma de hectáreas por Proyecto -- se calcula acá (no en la base)
     // sumando las parcelas de todos los Informes de Campo que apuntan a
     // cada proyecto_id, mismo patrón ya usado para el total por informe.

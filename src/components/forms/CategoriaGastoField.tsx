@@ -39,6 +39,16 @@ export function CategoriaGastoField({
   required?: boolean;
 }) {
   const [categorias, setCategorias] = useState(categoriasIniciales);
+
+  // Se reordena tambien aca (no solo en la consulta del servidor) para
+  // que una categoria agregada en caliente con "+ Agregar categoria
+  // nueva" quede en su lugar alfabetico y no solo al final de la lista.
+  // Se ordena por la etiqueta visible (no por el valor guardado), porque
+  // en Compras el valor es distinto de lo que el usuario ve (ej. "otro"
+  // se guarda asi pero se muestra "Otro").
+  const categoriasOrdenadas = [...categorias].sort((a, b) =>
+    (etiquetas?.[a] ?? a).localeCompare(etiquetas?.[b] ?? b, "es"),
+  );
   const [valor, setValor] = useState(valorInicial ?? "");
   const [agregando, setAgregando] = useState(false);
   const [nuevaCategoria, setNuevaCategoria] = useState("");
@@ -88,7 +98,7 @@ export function CategoriaGastoField({
         required={required}
       >
         <option value="">Selecciona...</option>
-        {categorias.map((c) => (
+        {categoriasOrdenadas.map((c) => (
           <option key={c} value={c}>
             {etiquetas?.[c] ?? c}
           </option>
