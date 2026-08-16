@@ -155,6 +155,30 @@ export default async function DetalleInformeProyectoPage({
     }))
     .sort((a, b) => a.colaborador.localeCompare(b.colaborador));
 
+  // Rendimiento por equipo (pedido del usuario, 2026-08-15): % Ganancias y
+  // % Gastos son el margen neto de ESE equipo (no del proyecto completo),
+  // calculado solo con lo que ya está en esta misma pantalla -- Ingresos =
+  // suma de "Total" de sus filas (primer cuadro, agrupadas por operador),
+  // Gastos = el total de su bloque de Gastos Operativos, HA = suma de
+  // hectáreas de esas mismas filas. Se compara por operador.trim() porque
+  // así se guarda en ambos lados (ver claveEquipo en lib/actions/
+  // proyectos.ts).
+  const rendimientoPorEquipo = gastosOperativos.map((bloque) => {
+    const operadorNorm = bloque.operador?.trim() ?? "";
+    const filasEquipo = filas.filter((f) => f.operador.trim() === operadorNorm);
+    const ingresos = filasEquipo.reduce((s, f) => s + f.total, 0);
+    const hectareas = filasEquipo.reduce((s, f) => s + f.hectareas, 0);
+    const gastos = bloque.total;
+    const gananciaNeta = ingresos - gastos;
+    return {
+      id: bloque.id,
+      etiquetaEquipo: textoEquipoDeCampo(bloque.operador, bloque.ayudantes) || "Equipo sin nombre",
+      porcentajeGanancias: ingresos > 0 ? (gananciaNeta / ingresos) * 100 : null,
+      porcentajeGastos: ingresos > 0 ? (gastos / ingresos) * 100 : null,
+      promedioGastosPorHa: hectareas > 0 ? gastos / hectareas : null,
+    };
+  });
+
   const informeExportable: InformeProyectoExportable = {
     proyecto: informe.proyecto as string,
     ubicacion: informe.ubicacion as string | null,
@@ -417,6 +441,46 @@ export default async function DetalleInformeProyectoPage({
                       </td>
                     </tr>
                   </tfoot>
+                </table>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rendimientoPorEquipo.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Rendimiento por equipo</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {rendimientoPorEquipo.map((eq) => (
+              <div
+                key={eq.id}
+                className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
+              >
+                <h3 className="border-b border-green-100 bg-green-50 px-4 py-2 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+                  {eq.etiquetaEquipo}
+                </h3>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                      <th className="px-4 py-2 font-medium">Porcentaje de Ganancias</th>
+                      <th className="px-4 py-2 font-medium">Porcentaje de Gastos</th>
+                      <th className="px-4 py-2 font-medium">Promedio de Gastos por HA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                        {eq.porcentajeGanancias !== null ? `${eq.porcentajeGanancias.toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                        {eq.porcentajeGastos !== null ? `${eq.porcentajeGastos.toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                        {eq.promedioGastosPorHa !== null ? formatMoney(eq.promedioGastosPorHa) : "—"}
+                      </td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             ))}
