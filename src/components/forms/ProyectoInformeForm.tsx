@@ -403,6 +403,8 @@ export function ProyectoInformeForm({
     return {
       key: bloque.key,
       etiquetaEquipo: textoEquipoDeCampo(bloque.operador, bloque.ayudantes) || "Equipo sin nombre",
+      gananciaNeta,
+      gastos,
       porcentajeGanancias: ingresos > 0 ? (gananciaNeta / ingresos) * 100 : null,
       porcentajeGastos: ingresos > 0 ? (gastos / ingresos) * 100 : null,
       promedioGastosPorHa: hectareasEquipo > 0 ? gastos / hectareasEquipo : null,
@@ -765,7 +767,7 @@ export function ProyectoInformeForm({
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
+                    <tr className="border-b border-green-50 dark:border-green-900/30">
                       <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
                         {eq.porcentajeGanancias !== null ? `${eq.porcentajeGanancias.toFixed(1)}%` : "—"}
                       </td>
@@ -775,6 +777,15 @@ export function ProyectoInformeForm({
                       <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
                         {eq.promedioGastosPorHa !== null ? formatMoney(eq.promedioGastosPorHa) : "—"}
                       </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                        {formatMoney(eq.gananciaNeta)}
+                      </td>
+                      <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                        {formatMoney(eq.gastos)}
+                      </td>
+                      <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">—</td>
                     </tr>
                   </tbody>
                 </table>
