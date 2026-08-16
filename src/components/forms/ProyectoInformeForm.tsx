@@ -389,6 +389,26 @@ export function ProyectoInformeForm({
     total: dias.reduce((s, d) => s + (Number(d.monto) || 0), 0),
   }));
 
+  // Mismo cálculo que la pantalla de detalle (informes/proyecto/[id]/
+  // page.tsx), pero en vivo mientras se llena el formulario: % Ganancias y
+  // % Gastos son el margen neto de ESE equipo, Promedio de Gastos por HA
+  // es su gasto entre sus hectáreas.
+  const rendimientoPorEquipo = gastosOperativos.map((bloque) => {
+    const operadorNorm = bloque.operador.trim();
+    const filasEquipo = filas.filter((f) => f.operador.trim() === operadorNorm);
+    const ingresos = filasEquipo.reduce((s, f) => s + f.hectareas * (Number(f.precio) || 0), 0);
+    const hectareasEquipo = filasEquipo.reduce((s, f) => s + f.hectareas, 0);
+    const gastos = bloque.items.reduce((s, it) => s + (Number(it.cantidad) || 0) * (Number(it.precio) || 0), 0);
+    const gananciaNeta = ingresos - gastos;
+    return {
+      key: bloque.key,
+      etiquetaEquipo: textoEquipoDeCampo(bloque.operador, bloque.ayudantes) || "Equipo sin nombre",
+      porcentajeGanancias: ingresos > 0 ? (gananciaNeta / ingresos) * 100 : null,
+      porcentajeGastos: ingresos > 0 ? (gastos / ingresos) * 100 : null,
+      promedioGastosPorHa: hectareasEquipo > 0 ? gastos / hectareasEquipo : null,
+    };
+  });
+
   return (
     <form key={remountKey} action={formAction} className="flex flex-col gap-6">
       <FormError message={state.error} />
@@ -723,6 +743,46 @@ export function ProyectoInformeForm({
           </div>
         )}
       </div>
+
+      {rendimientoPorEquipo.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-green-900 dark:text-green-50">Rendimiento por equipo</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {rendimientoPorEquipo.map((eq) => (
+              <div
+                key={eq.key}
+                className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10"
+              >
+                <h3 className="border-b border-green-100 bg-green-50 px-4 py-2 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+                  {eq.etiquetaEquipo}
+                </h3>
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                      <th className="px-4 py-2 font-medium">Porcentaje de Ganancias</th>
+                      <th className="px-4 py-2 font-medium">Porcentaje de Gastos</th>
+                      <th className="px-4 py-2 font-medium">Promedio de Gastos por HA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                        {eq.porcentajeGanancias !== null ? `${eq.porcentajeGanancias.toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                        {eq.porcentajeGastos !== null ? `${eq.porcentajeGastos.toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                        {eq.promedioGastosPorHa !== null ? formatMoney(eq.promedioGastosPorHa) : "—"}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3">
         <SubmitButton>{esEdicion ? "Guardar cambios" : "Guardar informe"}</SubmitButton>
