@@ -648,6 +648,66 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
     }
   }
 
+  // Mismo cálculo que la pantalla de detalle (informes/proyecto/[id]/
+  // page.tsx) y el formulario, calculado acá con lo que ya trae "informe"
+  // -- % Ganancias/% Gastos son el margen neto de ESE equipo, Promedio de
+  // Gastos por HA es su gasto entre sus hectáreas.
+  const rendimientoPorEquipo = informe.gastosOperativos.map((bloque) => {
+    const operadorNorm = bloque.operador?.trim() ?? "";
+    const filasEquipo = informe.filas.filter((f) => f.operador.trim() === operadorNorm);
+    const ingresos = filasEquipo.reduce((s, f) => s + f.total, 0);
+    const hectareasEquipo = filasEquipo.reduce((s, f) => s + f.hectareas, 0);
+    const gastos = bloque.items.reduce((s, it) => s + it.total, 0);
+    const gananciaNeta = ingresos - gastos;
+    return {
+      etiquetaEquipo: textoEquipoDeCampo(bloque.operador, bloque.ayudantes) || "Equipo sin nombre",
+      gananciaNeta,
+      gastos,
+      porcentajeGanancias: ingresos > 0 ? (gananciaNeta / ingresos) * 100 : null,
+      porcentajeGastos: ingresos > 0 ? (gastos / ingresos) * 100 : null,
+      promedioGastosPorHa: hectareasEquipo > 0 ? gastos / hectareasEquipo : null,
+    };
+  });
+
+  if (rendimientoPorEquipo.length > 0) {
+    if (yGastos > altoPagina - 40) {
+      doc.addPage();
+      yGastos = 15;
+    }
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("Rendimiento por equipo", 14, yGastos);
+    yGastos += 8;
+
+    for (const eq of rendimientoPorEquipo) {
+      if (yGastos > altoPagina - 40) {
+        doc.addPage();
+        yGastos = 15;
+      }
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      const lineasEquipo = doc.splitTextToSize(eq.etiquetaEquipo, anchoPagina - 28) as string[];
+      doc.text(lineasEquipo, 14, yGastos);
+      yGastos += lineasEquipo.length * 5;
+
+      autoTable(doc, {
+        startY: yGastos,
+        head: [["Porcentaje de Ganancias", "Porcentaje de Gastos", "Promedio de Gastos por HA"]],
+        body: [
+          [
+            eq.porcentajeGanancias !== null ? `${eq.porcentajeGanancias.toFixed(1)}%` : "—",
+            eq.porcentajeGastos !== null ? `${eq.porcentajeGastos.toFixed(1)}%` : "—",
+            eq.promedioGastosPorHa !== null ? formatMoney(eq.promedioGastosPorHa) : "—",
+          ],
+          [formatMoney(eq.gananciaNeta), formatMoney(eq.gastos), "—"],
+        ],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [21, 128, 61] },
+      });
+      yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+    }
+  }
+
   doc.save(`${nombreArchivoProyecto(informe.proyecto)}.pdf`);
 }
 
