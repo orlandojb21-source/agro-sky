@@ -833,6 +833,10 @@ export async function exportarMovimientosPDF(
   doc.setFontSize(14);
   doc.text(titulo, anchoPagina / 2, siguienteY, { align: "center" });
 
+  const totalReposiciones = filas.filter((f) => f.tipo === "reposicion").reduce((s, f) => s + f.monto, 0);
+  const totalGastos = filas.filter((f) => f.tipo === "gasto").reduce((s, f) => s + f.monto, 0);
+  const saldo = totalReposiciones - totalGastos;
+
   autoTable(doc, {
     startY: siguienteY + 6,
     head: [
@@ -863,8 +867,19 @@ export async function exportarMovimientosPDF(
       f.vuelto !== null ? formatMoney(f.vuelto) : "",
       (f.tipo === "gasto" ? "-" : "+") + formatMoney(f.monto),
     ]),
+    // Saldo = Reposiciones - Gastos -- lo que en teoría debería quedar en
+    // caja con estos movimientos. Es el dato clave de un reporte "desde la
+    // última reposición" (pedido del usuario, 2026-08-17), así que se
+    // agrega siempre, también beneficia el export de Balance que ya usaba
+    // esta misma función.
+    foot: [
+      ["", "", "", "", "", "", "", "", "", "Total Reposiciones:", formatMoney(totalReposiciones)],
+      ["", "", "", "", "", "", "", "", "", "Total Gastos:", `-${formatMoney(totalGastos)}`],
+      ["", "", "", "", "", "", "", "", "", "Saldo:", `${saldo < 0 ? "-" : ""}${formatMoney(Math.abs(saldo))}`],
+    ],
     styles: { fontSize: 9 },
     headStyles: { fillColor: [21, 128, 61] },
+    footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
   });
 
   doc.save(`${nombreArchivo}.pdf`);
