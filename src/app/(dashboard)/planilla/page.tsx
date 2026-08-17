@@ -32,12 +32,14 @@ export default async function AsistenciaPage() {
   // Vista previa para jefe (Gerente General)/soporte (pedido inicial del
   // usuario, 2026-08-04: "esto solo lo debe ver el jefe" -- corregido el
   // mismo día: soporte es el rol técnico con acceso total, debe ver todo
-  // lo que ve jefe) + administrador (pedido 2026-08-05). Solo Campo tiene
-  // Asistencia (Fijo ya tiene un salario quincenal fijo, no depende de
-  // días trabajados), así que la proyección solo aplica a Campo.
+  // lo que ve jefe) + administrador (pedido 2026-08-05) + gerente (rol de
+  // solo lectura a todo, pedido 2026-08-17 -- se había quedado afuera por
+  // descuido). Solo Campo tiene Asistencia (Fijo ya tiene un salario
+  // quincenal fijo, no depende de días trabajados), así que la proyección
+  // solo aplica a Campo.
   let vistaPreviaQuincena: { colaborador: string; total: number }[] | null = null;
   const quincena = obtenerQuincenaActual();
-  if (esSoporteOJefe(perfil.rol) || perfil.rol === "administrador") {
+  if (esSoporteOJefe(perfil.rol) || perfil.rol === "administrador" || perfil.rol === "gerente") {
     const colaboradoresConAsistencia = [
       ...new Set(
         (data ?? [])

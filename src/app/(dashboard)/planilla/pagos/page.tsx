@@ -58,8 +58,12 @@ export default async function PagosPlanillaPage() {
   // El administrador gestiona pagos de Campo (no de Fijo, eso sigue siendo
   // exclusivo de jefe/soporte) -- reforzado a nivel de RLS (migración
   // 0049), así que la consulta de abajo ya le devuelve solo pagos de Campo
-  // sin necesidad de filtrar nada aquí.
-  const puedeVerFijos = esSoporteOJefe(perfil.rol);
+  // sin necesidad de filtrar nada aquí. Gerente es de solo lectura a todo
+  // (ver SECTION_ACCESS) -- la tabla planilla_pagos ya es 100% legible por
+  // cualquier rol vía RLS (migración 0034: "Todos los roles SIGUEN VIENDO
+  // toda la planilla sin restriccion"), así que esta tarjeta también le
+  // corresponde.
+  const puedeVerFijos = esSoporteOJefe(perfil.rol) || perfil.rol === "gerente";
   const puedeEscribir = canWrite(perfil.rol, "planilla");
 
   const supabase = await createClient();
