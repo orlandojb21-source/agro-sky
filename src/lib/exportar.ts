@@ -329,6 +329,10 @@ export async function exportarFacturaPDF(factura: FacturaExportable) {
     yResumen += 6;
   }
 
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Documento No Fiscal", anchoPagina / 2, yResumen + 10, { align: "center" });
+
   doc.save(`agro-sky-factura-${String(factura.numeroFactura).padStart(10, "0")}.pdf`);
 }
 
