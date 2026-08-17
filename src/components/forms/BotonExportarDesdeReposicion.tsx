@@ -7,9 +7,11 @@ import { formatDateOnly } from "@/lib/format";
 export function BotonExportarDesdeReposicion({
   movimientos,
   fechaUltimaReposicion,
+  saldoActual,
 }: {
   movimientos: MovimientoExportable[];
   fechaUltimaReposicion: string | null;
+  saldoActual: number;
 }) {
   const [generando, setGenerando] = useState(false);
 
@@ -23,6 +25,7 @@ export function BotonExportarDesdeReposicion({
         movimientos,
         "agro-sky-caja-menuda-desde-reposicion",
         `Caja Menuda — Movimientos desde la última reposición (${formatDateOnly(fecha)})`,
+        { saldoActual },
       );
     } finally {
       setGenerando(false);

@@ -2,6 +2,7 @@ import { requireSection } from "@/lib/session";
 import { canWrite } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerCategoriasGasto } from "@/lib/categorias";
+import { calcularSaldoActual } from "@/lib/caja";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LinkButton } from "@/components/ui/Button";
 import { MovimientosTabla, type MovimientoFila } from "@/components/forms/MovimientosTabla";
@@ -13,7 +14,7 @@ export default async function CajaMenudaPage() {
   const puedeEscribir = canWrite(perfil.rol, "gastos-operativos");
 
   const supabase = await createClient();
-  const [{ data: gastos }, { data: reposiciones }, categorias] = await Promise.all([
+  const [{ data: gastos }, { data: reposiciones }, categorias, saldoActual] = await Promise.all([
     supabase
       .from("caja_gastos")
       .select(
@@ -25,6 +26,7 @@ export default async function CajaMenudaPage() {
       .select("id, fecha, monto, nota")
       .order("fecha", { ascending: false }),
     obtenerCategoriasGasto(supabase, "caja_menuda"),
+    calcularSaldoActual(supabase),
   ]);
 
   const movimientos: MovimientoFila[] = [
@@ -112,6 +114,7 @@ export default async function CajaMenudaPage() {
             <BotonExportarDesdeReposicion
               movimientos={movimientosDesdeReposicion}
               fechaUltimaReposicion={ultimaReposicion ? (ultimaReposicion.fecha as string) : null}
+              saldoActual={saldoActual}
             />
             {puedeEscribir && (
               <>

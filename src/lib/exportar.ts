@@ -817,6 +817,7 @@ export async function exportarMovimientosPDF(
   filas: MovimientoExportable[],
   nombreArchivo: string,
   titulo: string,
+  opciones?: { saldoActual?: number },
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
   const anchoPagina = doc.internal.pageSize.getWidth();
@@ -833,9 +834,7 @@ export async function exportarMovimientosPDF(
   doc.setFontSize(14);
   doc.text(titulo, anchoPagina / 2, siguienteY, { align: "center" });
 
-  const totalReposiciones = filas.filter((f) => f.tipo === "reposicion").reduce((s, f) => s + f.monto, 0);
   const totalGastos = filas.filter((f) => f.tipo === "gasto").reduce((s, f) => s + f.monto, 0);
-  const saldo = totalReposiciones - totalGastos;
 
   autoTable(doc, {
     startY: siguienteY + 6,
@@ -867,16 +866,20 @@ export async function exportarMovimientosPDF(
       f.vuelto !== null ? formatMoney(f.vuelto) : "",
       (f.tipo === "gasto" ? "-" : "+") + formatMoney(f.monto),
     ]),
-    // Saldo = Reposiciones - Gastos -- lo que en teoría debería quedar en
-    // caja con estos movimientos. Es el dato clave de un reporte "desde la
-    // última reposición" (pedido del usuario, 2026-08-17), así que se
-    // agrega siempre, también beneficia el export de Balance que ya usaba
-    // esta misma función.
-    foot: [
-      ["", "", "", "", "", "", "", "", "", "Total Reposiciones:", formatMoney(totalReposiciones)],
-      ["", "", "", "", "", "", "", "", "", "Total Gastos:", `-${formatMoney(totalGastos)}`],
-      ["", "", "", "", "", "", "", "", "", "Saldo:", `${saldo < 0 ? "-" : ""}${formatMoney(Math.abs(saldo))}`],
-    ],
+    // Solo se agrega el pie de Total Gastos/Saldo cuando el que llama pasa
+    // saldoActual (hoy, solo el reporte "desde la última reposición" --
+    // pedido del usuario, 2026-08-17). El saldo es el real de toda la caja
+    // (calcularSaldoActual, mismo que "Saldo actual de la caja" en la
+    // pantalla), no una resta local de este reporte -- ese cálculo local
+    // (última reposición menos gastos desde ahí) no coincidía con el saldo
+    // real y confundía. El export de Balance sigue sin pie, como siempre.
+    foot:
+      opciones?.saldoActual !== undefined
+        ? [
+            ["", "", "", "", "", "", "", "", "", "Total Gastos:", `-${formatMoney(totalGastos)}`],
+            ["", "", "", "", "", "", "", "", "", "Saldo actual de la caja:", formatMoney(opciones.saldoActual)],
+          ]
+        : undefined,
     styles: { fontSize: 9 },
     headStyles: { fillColor: [21, 128, 61] },
     footStyles: { fillColor: [220, 252, 231], textColor: [20, 83, 45], fontStyle: "bold" },
