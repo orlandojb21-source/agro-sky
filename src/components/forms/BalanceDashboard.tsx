@@ -452,15 +452,17 @@ export function BalanceDashboard({
     monto: pagosFiltrados.filter((p) => p.colaborador === c).reduce((suma, p) => suma + p.monto, 0),
   }));
 
-  // Gastos por categoria: suma de Caja Menuda (por su propia categoria) +
-  // Planilla (siempre cuenta entero como "Planilla", ya que todo pago de
-  // planilla es esa categoria por definicion).
+  // Gastos por categoria: solo movimientos reales de Caja Menuda -- antes
+  // sumaba también el total de Planilla completo bajo la categoría
+  // "Planilla" aunque ningún gasto real de Caja Menuda tuviera esa
+  // categoría, lo que no cuadraba con el total "GASTOS" de esta misma
+  // tarjeta (ese sí es 100% Caja Menuda). El total de Planilla ya se ve
+  // aparte, en su propia sección y en "Vista mensual de gastos".
   const totalesPorCategoria = categoriasCajaMenuda.map((c, i) => {
     const deCaja = movimientosFiltrados
       .filter((m) => m.tipo === "gasto" && m.categoria === c)
       .reduce((suma, m) => suma + m.monto, 0);
-    const dePlanilla = c === "Planilla" ? totalPlanilla : 0;
-    return { categoria: c, monto: deCaja + dePlanilla, color: COLORES_CATEGORIA[i % COLORES_CATEGORIA.length] };
+    return { categoria: c, monto: deCaja, color: COLORES_CATEGORIA[i % COLORES_CATEGORIA.length] };
   });
   const totalSinCategoria = movimientosFiltrados
     .filter((m) => m.tipo === "gasto" && !m.categoria)
