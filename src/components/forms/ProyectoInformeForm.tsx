@@ -411,6 +411,21 @@ export function ProyectoInformeForm({
     };
   });
 
+  // Consolidado de todos los equipos, en vivo -- mismo criterio que la
+  // pantalla de detalle: Ingresos = suma de HA×Precio de todas las filas
+  // (no el Precio único del encabezado), Gastos = totalGastosOperativos
+  // (ya incluye equipos + gastos registrados al proyecto en general).
+  const totalFilasSuma = filas.reduce((s, f) => s + f.hectareas * (Number(f.precio) || 0), 0);
+  const hectareasFilasSuma = filas.reduce((s, f) => s + f.hectareas, 0);
+  const rendimientoTotal = {
+    gananciaNeta: totalFilasSuma - totalGastosOperativos,
+    gastos: totalGastosOperativos,
+    porcentajeGanancias:
+      totalFilasSuma > 0 ? ((totalFilasSuma - totalGastosOperativos) / totalFilasSuma) * 100 : null,
+    porcentajeGastos: totalFilasSuma > 0 ? (totalGastosOperativos / totalFilasSuma) * 100 : null,
+    promedioGastosPorHa: hectareasFilasSuma > 0 ? totalGastosOperativos / hectareasFilasSuma : null,
+  };
+
   return (
     <form key={remountKey} action={formAction} className="flex flex-col gap-6">
       <FormError message={state.error} />
@@ -791,6 +806,49 @@ export function ProyectoInformeForm({
                 </table>
               </div>
             ))}
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+            <h3 className="border-b border-green-100 bg-green-50 px-4 py-2 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+              Total del Proyecto (todos los equipos)
+            </h3>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-4 py-2 font-medium">Porcentaje de Ganancias</th>
+                  <th className="px-4 py-2 font-medium">Porcentaje de Gastos</th>
+                  <th className="px-4 py-2 font-medium">Promedio de Gastos por HA</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-green-50 dark:border-green-900/30">
+                  <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                    {rendimientoTotal.porcentajeGanancias !== null
+                      ? `${rendimientoTotal.porcentajeGanancias.toFixed(1)}%`
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                    {rendimientoTotal.porcentajeGastos !== null
+                      ? `${rendimientoTotal.porcentajeGastos.toFixed(1)}%`
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                    {rendimientoTotal.promedioGastosPorHa !== null
+                      ? formatMoney(rendimientoTotal.promedioGastosPorHa)
+                      : "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                    {formatMoney(rendimientoTotal.gananciaNeta)}
+                  </td>
+                  <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                    {formatMoney(rendimientoTotal.gastos)}
+                  </td>
+                  <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">—</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       )}

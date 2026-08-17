@@ -181,6 +181,19 @@ export default async function DetalleInformeProyectoPage({
     };
   });
 
+  // Consolidado de todos los equipos (pedido del usuario, 2026-08-16) --
+  // mismo margen neto de arriba pero con Ingresos = totalFilas y Gastos =
+  // totalGastosOperativos (el mismo "Total Gastos Operativos" ya mostrado
+  // en esta pantalla, que sí incluye los gastos de Caja Menuda/Compras
+  // registrados al proyecto en general, no solo los de cada equipo).
+  const rendimientoTotal = {
+    gananciaNeta: totalFilas - totalGastosOperativos,
+    gastos: totalGastosOperativos,
+    porcentajeGanancias: totalFilas > 0 ? ((totalFilas - totalGastosOperativos) / totalFilas) * 100 : null,
+    porcentajeGastos: totalFilas > 0 ? (totalGastosOperativos / totalFilas) * 100 : null,
+    promedioGastosPorHa: hectareasFilas > 0 ? totalGastosOperativos / hectareasFilas : null,
+  };
+
   const informeExportable: InformeProyectoExportable = {
     proyecto: informe.proyecto as string,
     ubicacion: informe.ubicacion as string | null,
@@ -495,6 +508,49 @@ export default async function DetalleInformeProyectoPage({
                 </table>
               </div>
             ))}
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-green-100 bg-white shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+            <h3 className="border-b border-green-100 bg-green-50 px-4 py-2 text-sm font-semibold text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-50">
+              Total del Proyecto (todos los equipos)
+            </h3>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
+                  <th className="px-4 py-2 font-medium">Porcentaje de Ganancias</th>
+                  <th className="px-4 py-2 font-medium">Porcentaje de Gastos</th>
+                  <th className="px-4 py-2 font-medium">Promedio de Gastos por HA</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-green-50 dark:border-green-900/30">
+                  <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                    {rendimientoTotal.porcentajeGanancias !== null
+                      ? `${rendimientoTotal.porcentajeGanancias.toFixed(1)}%`
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                    {rendimientoTotal.porcentajeGastos !== null
+                      ? `${rendimientoTotal.porcentajeGastos.toFixed(1)}%`
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-green-900 dark:text-green-50">
+                    {rendimientoTotal.promedioGastosPorHa !== null
+                      ? formatMoney(rendimientoTotal.promedioGastosPorHa)
+                      : "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                    {formatMoney(rendimientoTotal.gananciaNeta)}
+                  </td>
+                  <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">
+                    {formatMoney(rendimientoTotal.gastos)}
+                  </td>
+                  <td className="px-4 py-3 text-green-800/80 dark:text-green-200/80">—</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       )}

@@ -710,6 +710,45 @@ export async function exportarInformeProyectoPDF(informe: InformeProyectoExporta
       });
       yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
     }
+
+    // Consolidado de todos los equipos -- mismo criterio que la pantalla
+    // de detalle: Ingresos = totalFilas, Gastos = totalGastosEquipos +
+    // totalGastosProyectoRegistrados (el mismo "Total Gastos Operativos"
+    // ya impreso arriba).
+    const totalGastosOperativosTodos = totalGastosEquipos + totalGastosProyectoRegistrados;
+    const rendimientoTotal = {
+      gananciaNeta: totalFilas - totalGastosOperativosTodos,
+      gastos: totalGastosOperativosTodos,
+      porcentajeGanancias:
+        totalFilas > 0 ? ((totalFilas - totalGastosOperativosTodos) / totalFilas) * 100 : null,
+      porcentajeGastos: totalFilas > 0 ? (totalGastosOperativosTodos / totalFilas) * 100 : null,
+      promedioGastosPorHa: hectareasFilas > 0 ? totalGastosOperativosTodos / hectareasFilas : null,
+    };
+
+    if (yGastos > altoPagina - 40) {
+      doc.addPage();
+      yGastos = 15;
+    }
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Total del Proyecto (todos los equipos)", 14, yGastos);
+    yGastos += 5;
+
+    autoTable(doc, {
+      startY: yGastos,
+      head: [["Porcentaje de Ganancias", "Porcentaje de Gastos", "Promedio de Gastos por HA"]],
+      body: [
+        [
+          rendimientoTotal.porcentajeGanancias !== null ? `${rendimientoTotal.porcentajeGanancias.toFixed(1)}%` : "—",
+          rendimientoTotal.porcentajeGastos !== null ? `${rendimientoTotal.porcentajeGastos.toFixed(1)}%` : "—",
+          rendimientoTotal.promedioGastosPorHa !== null ? formatMoney(rendimientoTotal.promedioGastosPorHa) : "—",
+        ],
+        [formatMoney(rendimientoTotal.gananciaNeta), formatMoney(rendimientoTotal.gastos), "—"],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [21, 128, 61] },
+    });
+    yGastos = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
   }
 
   doc.save(`${nombreArchivoProyecto(informe.proyecto)}.pdf`);
