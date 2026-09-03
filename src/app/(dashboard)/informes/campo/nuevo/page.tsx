@@ -17,7 +17,11 @@ export default async function NuevoInformeCampoPage() {
   const supabase = await createClient();
   const [{ data: colaboradoresData }, { data: proyectosData }] = await Promise.all([
     supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
-    supabase.from("proyectos").select("id, codigo, nombre, tipo_proyecto, clientes ( nombre )").order("codigo"),
+    supabase
+      .from("proyectos")
+      .select("id, codigo, nombre, tipo_proyecto, clientes ( nombre )")
+      .eq("estado", "abierto")
+      .order("codigo"),
   ]);
 
   const colaboradoresCampo = (colaboradoresData ?? []).map((c) => c.nombre as string);
