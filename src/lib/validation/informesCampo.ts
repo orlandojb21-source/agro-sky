@@ -10,6 +10,16 @@ export const productoInformeCampoSchema = z.object({
   ltsPorHectarea: z.number().positive("Los litros por hectárea deben ser mayores a cero"),
 });
 
+// "numeroParcela" identifica a cuál parcela pertenece la imagen -- por el
+// texto (igual que numero_parcela en informe_campo_parcelas), no por un id,
+// porque editar_informe_campo borra y vuelve a crear todas las parcelas en
+// cada edición (ver migración 0101). null = imagen general, sin parcela
+// asignada (incluye todas las guardadas antes de este cambio).
+export const imagenInformeCampoSchema = z.object({
+  ruta: z.string().trim().min(1),
+  numeroParcela: z.string().trim().min(1).nullable(),
+});
+
 // Encabezado requerido en su totalidad (es un documento formal que se
 // envía al cliente) + Parcelas con mínimo 1 fila. Productos es opcional
 // -- no siempre se usa (pedido explícito del usuario), puede quedar en
@@ -55,8 +65,9 @@ const informeCampoBaseSchema = z.object({
   parcelas: z.array(parcelaInformeCampoSchema).min(1, "Agrega al menos una parcela"),
   productos: z.array(productoInformeCampoSchema).default([]),
   // Opcional -- no bloquea guardar el informe (pedido explícito del
-  // usuario, 2026-08-05), y se puede adjuntar más de una.
-  imagenes: z.array(z.string().trim().min(1)).default([]),
+  // usuario, 2026-08-05), y se puede adjuntar más de una, cada una
+  // etiquetada con su parcela (pedido del usuario, 2026-11-24).
+  imagenes: z.array(imagenInformeCampoSchema).default([]),
 });
 
 const horaFinValida = (data: { horaInicio: string; horaFin: string }) => data.horaFin >= data.horaInicio;

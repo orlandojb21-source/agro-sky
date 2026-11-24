@@ -237,9 +237,10 @@ export async function editarInformeCampoAction(
   // Cualquier imagen que ya no está en la lista nueva se limpia de
   // Storage (best-effort) para no ir dejando archivos huérfanos
   // acumulándose -- mismo criterio que editarInformeDiarioAction.
+  const rutasNuevas = new Set(parsed.data.imagenes.map((img) => img.ruta));
   const rutasQuitadas = (imagenesAnteriores ?? [])
     .map((r) => r.ruta as string)
-    .filter((ruta) => !parsed.data.imagenes.includes(ruta));
+    .filter((ruta) => !rutasNuevas.has(ruta));
   await Promise.all(rutasQuitadas.map((ruta) => eliminarImagenInformeCampoAction(ruta).catch(() => {})));
 
   revalidatePath("/informes/campo");

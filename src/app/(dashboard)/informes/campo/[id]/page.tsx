@@ -29,7 +29,11 @@ export default async function DetalleInformeCampoPage({
       supabase.from("informes_campo").select("*, proyectos ( codigo, nombre )").eq("id", id).maybeSingle(),
       supabase.from("informe_campo_parcelas").select("id, numero_parcela, hectareas").eq("informe_id", id).order("numero_parcela"),
       supabase.from("informe_campo_productos").select("id, producto_activo, lts_por_hectarea").eq("informe_id", id),
-      supabase.from("informe_campo_imagenes").select("id, ruta").eq("informe_id", id).order("creado_en"),
+      supabase
+        .from("informe_campo_imagenes")
+        .select("id, ruta, numero_parcela")
+        .eq("informe_id", id)
+        .order("creado_en"),
     ]);
 
   if (!informe) notFound();
@@ -62,17 +66,36 @@ export default async function DetalleInformeCampoPage({
       .createSignedUrl(informe.firma_cliente_ruta, DURACION_URL_FIRMADA_SEG);
     firmaClienteUrl = data?.signedUrl ?? null;
   }
-  const imagenes = (imagenesData ?? []).map((img) => ({ id: img.id as string, ruta: img.ruta as string }));
-  const imagenUrls = (
-    await Promise.all(
-      imagenes.map(async (img) => {
-        const { data } = await supabase.storage
-          .from(BUCKET_IMAGENES)
-          .createSignedUrl(img.ruta, DURACION_URL_FIRMADA_SEG);
-        return data?.signedUrl ?? null;
-      }),
-    )
-  ).filter((url): url is string => Boolean(url));
+  const imagenes = (imagenesData ?? []).map((img) => ({
+    id: img.id as string,
+    ruta: img.ruta as string,
+    numeroParcela: img.numero_parcela as string | null,
+  }));
+  const imagenesConUrl = await Promise.all(
+    imagenes.map(async (img) => {
+      const { data } = await supabase.storage
+        .from(BUCKET_IMAGENES)
+        .createSignedUrl(img.ruta, DURACION_URL_FIRMADA_SEG);
+      return { ...img, url: data?.signedUrl ?? null };
+    }),
+  );
+
+  // Agrupa por parcela (mismo texto que numero_parcela en
+  // informe_campo_parcelas) para mostrar/exportar cada imagen junto a la
+  // parcela a la que pertenece -- "generales" son las guardadas antes de
+  // este cambio, o cuya parcela ya no existe en el informe.
+  const numerosDeParcelaValidos = new Set(parcelas.map((p) => p.numeroParcela));
+  const imagenesPorParcela = parcelas
+    .map((p) => ({
+      numeroParcela: p.numeroParcela,
+      urls: imagenesConUrl
+        .filter((img) => img.numeroParcela === p.numeroParcela && img.url)
+        .map((img) => img.url as string),
+    }))
+    .filter((grupo) => grupo.urls.length > 0);
+  const imagenesGenerales = imagenesConUrl
+    .filter((img) => (img.numeroParcela === null || !numerosDeParcelaValidos.has(img.numeroParcela)) && img.url)
+    .map((img) => img.url as string);
 
   const ayudantes = (informe.ayudantes ?? []) as string[];
 
@@ -96,7 +119,8 @@ export default async function DetalleInformeCampoPage({
     firmaClienteUrl,
     parcelas: parcelas.map((p) => ({ numeroParcela: p.numeroParcela, hectareas: p.hectareas })),
     productos: productos.map((p) => ({ productoActivo: p.productoActivo, ltsPorHectarea: p.ltsPorHectarea })),
-    imagenUrls,
+    imagenesPorParcela,
+    imagenesGenerales,
   };
 
   return (
@@ -285,22 +309,44 @@ export default async function DetalleInformeCampoPage({
         </div>
       </div>
 
-      {imagenUrls.length > 0 && (
-        <div className="rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-          <p className="mb-2 text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
-            {imagenUrls.length > 1 ? "Imágenes adjuntas" : "Imagen adjunta"}
-          </p>
-          <div className="flex flex-wrap gap-3">
-            {imagenUrls.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={url}
-                src={url}
-                alt={`Imagen adjunta ${i + 1}`}
-                className="h-40 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
-              />
-            ))}
-          </div>
+      {(imagenesPorParcela.length > 0 || imagenesGenerales.length > 0) && (
+        <div className="flex flex-col gap-4 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          {imagenesPorParcela.map((grupo) => (
+            <div key={grupo.numeroParcela}>
+              <p className="mb-2 text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                Parcela {grupo.numeroParcela} — {grupo.urls.length > 1 ? "Imágenes" : "Imagen"}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {grupo.urls.map((url, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={url}
+                    src={url}
+                    alt={`Parcela ${grupo.numeroParcela} — imagen ${i + 1}`}
+                    className="h-40 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {imagenesGenerales.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-wide text-green-700/70 dark:text-green-300/70">
+                Imágenes generales (sin parcela asignada)
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {imagenesGenerales.map((url, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={url}
+                    src={url}
+                    alt={`Imagen general ${i + 1}`}
+                    className="h-40 w-auto rounded-lg border border-green-200 object-contain dark:border-green-800"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

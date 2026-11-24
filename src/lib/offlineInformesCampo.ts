@@ -37,8 +37,9 @@ export type DatosInformeCampoPendiente = {
   // Rutas ya subidas a Storage (no Blobs) -- solo se guardan offline las
   // que se adjuntaron con éxito ANTES de perder señal (adjuntar una
   // imagen requiere conexión, igual que en Informe Diario). Vacío si no
-  // se adjuntó ninguna.
-  imagenes: string[];
+  // se adjuntó ninguna. Cada una etiquetada con su parcela (numeroParcela,
+  // null = general) -- ver migración 0101.
+  imagenes: { ruta: string; numeroParcela: string | null }[];
 };
 
 export type InformeCampoPendiente = {

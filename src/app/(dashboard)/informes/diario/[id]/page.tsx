@@ -93,9 +93,10 @@ export default async function DetalleInformeDiarioPage({
     })),
     // La copia del Informe de Campo embebida aquí solo dibuja su cuerpo
     // (dibujarCuerpoInformeCampo, en lib/exportar.ts) -- esa función nunca
-    // lee imagenUrls, así que no vale la pena generar URLs firmadas que
+    // lee las imágenes, así que no vale la pena generar URLs firmadas que
     // nunca se usarían.
-    imagenUrls: [],
+    imagenesPorParcela: [],
+    imagenesGenerales: [],
   };
 
   const informeExportable: InformeDiarioExportable = {

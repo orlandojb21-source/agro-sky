@@ -40,7 +40,7 @@ export default async function EditarInformeCampoPage({
     supabase.from("informe_campo_parcelas").select("numero_parcela, hectareas").eq("informe_id", id).order("numero_parcela"),
     supabase.from("informe_campo_productos").select("producto_activo, lts_por_hectarea").eq("informe_id", id),
     supabase.from("colaboradores").select("nombre").eq("tipo", "campo").order("nombre"),
-    supabase.from("informe_campo_imagenes").select("ruta").eq("informe_id", id).order("creado_en"),
+    supabase.from("informe_campo_imagenes").select("ruta, numero_parcela").eq("informe_id", id).order("creado_en"),
     supabase.from("proyectos").select("id, codigo, nombre, tipo_proyecto, clientes ( nombre )").order("codigo"),
   ]);
 
@@ -85,7 +85,11 @@ export default async function EditarInformeCampoPage({
       const { data } = await supabase.storage
         .from(BUCKET_IMAGENES)
         .createSignedUrl(ruta, DURACION_URL_FIRMADA_SEG);
-      return { ruta, url: data?.signedUrl ?? null };
+      return {
+        ruta,
+        numeroParcela: img.numero_parcela as string | null,
+        url: data?.signedUrl ?? null,
+      };
     }),
   );
 

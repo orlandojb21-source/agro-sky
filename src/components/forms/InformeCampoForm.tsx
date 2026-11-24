@@ -45,7 +45,12 @@ function leerConexionServidor() {
   return true;
 }
 
-type ParcelaDraft = { numeroParcela: string; hectareas: string };
+// "localId" identifica la parcela SOLO dentro del formulario (nunca viaja
+// al servidor) -- sirve para que las imágenes adjuntas de una parcela se
+// sigan asociando a ella aunque la persona edite el texto de "Parcela #"
+// después de haber subido fotos; el índice del array no sirve para esto
+// porque cambia si se agrega/quita una parcela antes que esta.
+type ParcelaDraft = { localId: string; numeroParcela: string; hectareas: string };
 type ProductoDraft = { productoActivo: string; ltsPorHectarea: string };
 // "previewUrl" es null cuando se restaura desde un envío fallido (v?.imagenes
 // -- ya no hay una vista previa a mano, solo la ruta ya subida); se sigue
@@ -54,6 +59,55 @@ type ProductoDraft = { productoActivo: string; ltsPorHectarea: string };
 // vuelva a elegir el archivo -- la ruta ya subida de todas formas viaja
 // en el envío.
 type ImagenAdjuntaDraft = { ruta: string; previewUrl: string | null };
+
+function crearLocalId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+}
+
+// Reparte las imágenes ya guardadas (o las que se traen de vuelta tras un
+// error de envío) en "una lista por parcela" + "generales" -- una imagen
+// es general si no tiene parcela asignada (guardada antes de este cambio)
+// o si su parcela ya no existe en el informe (fue borrada). El emparejado
+// es por el TEXTO de "numeroParcela" (ver ParcelaDraft.localId), así que
+// si 2 parcelas comparten el mismo número escrito, la imagen cae en la
+// primera que calce.
+function agruparImagenesIniciales(
+  imagenesErrorJson: string | undefined,
+  imagenesGuardadas: { ruta: string; numeroParcela: string | null; url: string | null }[] | undefined,
+  parcelasActuales: ParcelaDraft[],
+): { porParcela: Record<string, ImagenAdjuntaDraft[]>; generales: ImagenAdjuntaDraft[] } {
+  const porParcela: Record<string, ImagenAdjuntaDraft[]> = {};
+  for (const p of parcelasActuales) porParcela[p.localId] = [];
+  const generales: ImagenAdjuntaDraft[] = [];
+
+  function repartir(ruta: string, numeroParcela: string | null, previewUrl: string | null) {
+    const parcela = numeroParcela
+      ? parcelasActuales.find((p) => p.numeroParcela.trim() === numeroParcela.trim())
+      : undefined;
+    if (parcela) {
+      porParcela[parcela.localId].push({ ruta, previewUrl });
+    } else {
+      generales.push({ ruta, previewUrl });
+    }
+  }
+
+  if (imagenesErrorJson) {
+    try {
+      const parsed = JSON.parse(imagenesErrorJson) as { ruta: string; numeroParcela: string | null }[];
+      for (const img of parsed) repartir(img.ruta, img.numeroParcela, null);
+      return { porParcela, generales };
+    } catch {
+      // sigue abajo con valoresIniciales
+    }
+  }
+
+  for (const img of imagenesGuardadas ?? []) {
+    repartir(img.ruta, img.numeroParcela, img.url);
+  }
+  return { porParcela, generales };
+}
 
 export type ProyectoOpcionInformeCampo = {
   id: string;
@@ -64,7 +118,7 @@ export type ProyectoOpcionInformeCampo = {
 };
 
 function parcelaVacia(): ParcelaDraft {
-  return { numeroParcela: "", hectareas: "" };
+  return { localId: crearLocalId(), numeroParcela: "", hectareas: "" };
 }
 function productoVacio(): ProductoDraft {
   return { productoActivo: "", ltsPorHectarea: "" };
@@ -96,8 +150,10 @@ export type ValoresInformeCampo = {
   productos: { productoActivo: string; ltsPorHectarea: number }[];
   // "url" es la URL firmada (temporal) de cada imagen ya guardada,
   // generada del lado del servidor solo para mostrarla -- nunca se
-  // envía en el formulario, solo "ruta".
-  imagenes: { ruta: string; url: string | null }[];
+  // envía en el formulario, solo "ruta". "numeroParcela" es a cuál
+  // parcela pertenece (null = general, imagen guardada antes de este
+  // cambio).
+  imagenes: { ruta: string; numeroParcela: string | null; url: string | null }[];
 };
 
 export function InformeCampoForm({
@@ -159,7 +215,11 @@ export function InformeCampoForm({
       try {
         const parsed = JSON.parse(v.parcelas) as { numeroParcela: string; hectareas: number }[];
         if (parsed.length > 0) {
-          return parsed.map((p) => ({ numeroParcela: p.numeroParcela, hectareas: String(p.hectareas) }));
+          return parsed.map((p) => ({
+            localId: crearLocalId(),
+            numeroParcela: p.numeroParcela,
+            hectareas: String(p.hectareas),
+          }));
         }
       } catch {
         // sigue abajo
@@ -167,6 +227,7 @@ export function InformeCampoForm({
     }
     if (valoresIniciales?.parcelas && valoresIniciales.parcelas.length > 0) {
       return valoresIniciales.parcelas.map((p) => ({
+        localId: crearLocalId(),
         numeroParcela: p.numeroParcela,
         hectareas: String(p.hectareas),
       }));
@@ -219,25 +280,27 @@ export function InformeCampoForm({
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
   // Imágenes adjuntas -- opcional, no bloquea guardar el informe, y se
-  // puede adjuntar más de una. Cada una se sube al elegirla (igual que
-  // en Informe Diario), no al enviar el formulario; requiere conexión en
-  // ese momento -- si falla (ej. sin señal en campo), se avisa con
-  // errorImagen y el informe se puede guardar igual sin ella.
-  const [imagenes, setImagenes] = useState<ImagenAdjuntaDraft[]>(() => {
-    if (v?.imagenes) {
-      try {
-        const rutas = JSON.parse(v.imagenes) as string[];
-        return rutas.map((ruta) => ({ ruta, previewUrl: null }));
-      } catch {
-        // sigue abajo
-      }
-    }
-    return (valoresIniciales?.imagenes ?? []).map((img) => ({
-      ruta: img.ruta,
-      previewUrl: img.url,
-    }));
-  });
-  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  // puede adjuntar más de una por parcela. Cada una se sube al elegirla
+  // (igual que en Informe Diario), no al enviar el formulario; requiere
+  // conexión en ese momento -- si falla (ej. sin señal en campo), se
+  // avisa con errorImagen y el informe se puede guardar igual sin ella.
+  //
+  // "imagenesPorParcela" vive aparte de "parcelas" (en vez de ser un
+  // campo más de ParcelaDraft) para no tener que re-crear todo el array
+  // de parcelas -- junto con sus localId -- cada vez que se adjunta una
+  // foto; se indexa por localId para sobrevivir a que la persona edite
+  // el texto de "Parcela #" después de haber subido fotos.
+  const [imagenesPorParcela, setImagenesPorParcela] = useState<Record<string, ImagenAdjuntaDraft[]>>(
+    () => agruparImagenesIniciales(v?.imagenes, valoresIniciales?.imagenes, parcelas).porParcela,
+  );
+  // Imágenes guardadas antes de este cambio (sin parcela asignada) o que
+  // ya no calzan con ninguna parcela actual -- se muestran aparte, nunca
+  // se pierden, pero no se puede adjuntar nada nuevo ahí (toda foto
+  // nueva va atada a una parcela concreta).
+  const [imagenesGenerales, setImagenesGenerales] = useState<ImagenAdjuntaDraft[]>(
+    () => agruparImagenesIniciales(v?.imagenes, valoresIniciales?.imagenes, parcelas).generales,
+  );
+  const [subiendoImagenDe, setSubiendoImagenDe] = useState<string | null>(null);
   const [errorImagen, setErrorImagen] = useState<string | null>(null);
 
   if (state !== prevState) {
@@ -259,10 +322,20 @@ export function InformeCampoForm({
     setParcelas((prev) => prev.map((p, idx) => (idx === i ? { ...p, [campo]: valor } : p)));
   }
   function agregarParcela() {
-    setParcelas((prev) => [...prev, parcelaVacia()]);
+    const nueva = parcelaVacia();
+    setParcelas((prev) => [...prev, nueva]);
+    setImagenesPorParcela((prev) => ({ ...prev, [nueva.localId]: [] }));
   }
   function quitarParcela(i: number) {
-    setParcelas((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+    if (parcelas.length === 1) return;
+    const quitada = parcelas[i];
+    setParcelas((prev) => prev.filter((_, idx) => idx !== i));
+    // Sus fotos se van con ella -- mismo criterio que ya aplica a sus
+    // hectáreas, que tampoco sobreviven al quitar la fila.
+    setImagenesPorParcela((prev) => {
+      const { [quitada.localId]: _descartada, ...resto } = prev;
+      return resto;
+    });
   }
 
   function actualizarProducto(i: number, campo: keyof ProductoDraft, valor: string) {
@@ -307,26 +380,37 @@ export function InformeCampoForm({
     }
   }
 
-  async function elegirImagen(archivo: File | undefined) {
+  async function elegirImagenParaParcela(localId: string, archivo: File | undefined) {
     if (!archivo) return;
     setErrorImagen(null);
-    setSubiendoImagen(true);
+    setSubiendoImagenDe(localId);
     try {
       const comprimida = await comprimirImagen(archivo);
       const previewUrl = URL.createObjectURL(comprimida);
       const fd = new FormData();
       fd.append("imagen", comprimida, "imagen.jpg");
       const { ruta } = await subirImagenInformeCampoAction(fd);
-      setImagenes((prev) => [...prev, { ruta, previewUrl }]);
+      setImagenesPorParcela((prev) => ({
+        ...prev,
+        [localId]: [...(prev[localId] ?? []), { ruta, previewUrl }],
+      }));
     } catch (err) {
       setErrorImagen(err instanceof Error ? err.message : "No se pudo subir la imagen. Intenta de nuevo.");
     } finally {
-      setSubiendoImagen(false);
+      setSubiendoImagenDe(null);
     }
   }
 
-  function quitarImagen(i: number) {
-    setImagenes((prev) => prev.filter((_, idx) => idx !== i));
+  function quitarImagenDeParcela(localId: string, i: number) {
+    setImagenesPorParcela((prev) => ({
+      ...prev,
+      [localId]: (prev[localId] ?? []).filter((_, idx) => idx !== i),
+    }));
+    setErrorImagen(null);
+  }
+
+  function quitarImagenGeneral(i: number) {
+    setImagenesGenerales((prev) => prev.filter((_, idx) => idx !== i));
     setErrorImagen(null);
   }
 
@@ -439,13 +523,15 @@ export function InformeCampoForm({
     setRemountKey((k) => k + 1);
     setOperador("");
     setAyudantes([]);
-    setParcelas([parcelaVacia()]);
+    const nueva = parcelaVacia();
+    setParcelas([nueva]);
     setProductos([]);
     setFirmaAgroRuta("");
     setFirmaClienteRuta("");
     firmaAgroBlobRef.current = null;
     firmaClienteBlobRef.current = null;
-    setImagenes([]);
+    setImagenesPorParcela({ [nueva.localId]: [] });
+    setImagenesGenerales([]);
     setErrorImagen(null);
     setGuardadoLocalOk(false);
     setErrorLocal(null);
@@ -460,6 +546,15 @@ export function InformeCampoForm({
     productoActivo: p.productoActivo,
     ltsPorHectarea: Number(p.ltsPorHectarea) || 0,
   }));
+  const imagenesParaEnviar = [
+    ...parcelas.flatMap((p) =>
+      (imagenesPorParcela[p.localId] ?? []).map((img) => ({
+        ruta: img.ruta,
+        numeroParcela: p.numeroParcela.trim() || null,
+      })),
+    ),
+    ...imagenesGenerales.map((img) => ({ ruta: img.ruta, numeroParcela: null })),
+  ];
 
   const faltaAlgunaFirma = !firmaAgroRuta || !firmaClienteRuta;
 
@@ -496,7 +591,7 @@ export function InformeCampoForm({
       <input type="hidden" name="ayudantes" value={JSON.stringify(ayudantesParaEnviar)} />
       <input type="hidden" name="parcelas" value={JSON.stringify(parcelasParaEnviar)} />
       <input type="hidden" name="productos" value={JSON.stringify(productosParaEnviar)} />
-      <input type="hidden" name="imagenes" value={JSON.stringify(imagenes.map((img) => img.ruta))} />
+      <input type="hidden" name="imagenes" value={JSON.stringify(imagenesParaEnviar)} />
       {/* Solo para el modo sin conexión -- ver guardarLocalSinConexion.
           La Server Action real nunca confía en estos 2 valores, siempre
           los vuelve a resolver desde proyectoId en el servidor. */}
@@ -587,26 +682,29 @@ export function InformeCampoForm({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
           Parcelas
         </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[360px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-green-100 text-xs uppercase tracking-wide text-green-700 dark:border-green-900/40 dark:text-green-300">
-                <th className="px-2 py-2 font-medium">Parcela #</th>
-                <th className="px-2 py-2 font-medium">Hectáreas</th>
-                <th className="px-2 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {parcelas.map((p, i) => (
-                <tr key={i} className="border-b border-green-50 last:border-0 dark:border-green-900/30">
-                  <td className="px-2 py-2">
+        <div className="flex flex-col gap-4">
+          {parcelas.map((p, i) => {
+            const imagenesDeParcela = imagenesPorParcela[p.localId] ?? [];
+            return (
+              <div
+                key={p.localId}
+                className="flex flex-col gap-3 rounded-lg border border-green-100 bg-green-50/40 p-3 dark:border-green-900/40 dark:bg-green-950/20"
+              >
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex-1 basis-32">
+                    <label className="mb-1 block text-xs font-medium text-green-700 dark:text-green-300">
+                      Parcela #
+                    </label>
                     <input
                       value={p.numeroParcela}
                       onChange={(e) => actualizarParcela(i, "numeroParcela", e.target.value)}
                       className={CLASE_INPUT}
                     />
-                  </td>
-                  <td className="px-2 py-2">
+                  </div>
+                  <div className="flex-1 basis-32">
+                    <label className="mb-1 block text-xs font-medium text-green-700 dark:text-green-300">
+                      Hectáreas
+                    </label>
                     <input
                       type="number"
                       min={0}
@@ -615,22 +713,69 @@ export function InformeCampoForm({
                       onChange={(e) => actualizarParcela(i, "hectareas", e.target.value)}
                       className={CLASE_INPUT}
                     />
-                  </td>
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => quitarParcela(i)}
-                      disabled={parcelas.length === 1}
-                      className="text-sm text-red-600 hover:underline disabled:opacity-30 dark:text-red-400"
-                    >
-                      Quitar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => quitarParcela(i)}
+                    disabled={parcelas.length === 1}
+                    className="pb-2 text-sm text-red-600 hover:underline disabled:opacity-30 dark:text-red-400"
+                  >
+                    Quitar parcela
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-2 border-t border-green-100 pt-2 dark:border-green-900/40">
+                  <span className="text-xs font-medium text-green-700/80 dark:text-green-300/80">
+                    Imágenes de esta parcela (opcional)
+                  </span>
+                  {imagenesDeParcela.length > 0 && (
+                    <div className="flex flex-wrap gap-3">
+                      {imagenesDeParcela.map((img, imgIdx) => (
+                        <div key={imgIdx} className="flex flex-col items-center gap-1">
+                          {img.previewUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={img.previewUrl}
+                              alt={`Imagen ${imgIdx + 1} de parcela ${p.numeroParcela || i + 1}`}
+                              className="h-28 w-auto max-w-[160px] rounded-lg border border-green-200 object-contain dark:border-green-800"
+                            />
+                          ) : (
+                            <div className="flex h-28 w-28 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-xs text-green-700/60 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300/60">
+                              Imagen {imgIdx + 1}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => quitarImagenDeParcela(p.localId, imgIdx)}
+                            className="text-xs text-red-600 hover:underline dark:text-red-400"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={subiendoImagenDe === p.localId}
+                    onChange={(e) => {
+                      elegirImagenParaParcela(p.localId, e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                    className={CLASE_INPUT_IMAGEN}
+                  />
+                  {subiendoImagenDe === p.localId && (
+                    <span className="text-xs text-green-700/70 dark:text-green-300/70">
+                      Subiendo imagen...
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+        {errorImagen && <span className="text-xs text-red-600 dark:text-red-400">{errorImagen}</span>}
         <button
           type="button"
           onClick={agregarParcela}
@@ -807,29 +952,35 @@ export function InformeCampoForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
-        <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
-          Imágenes adjuntas (opcional)
-        </span>
-        {imagenes.length > 0 && (
+      {imagenesGenerales.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border border-green-100 bg-white p-6 shadow-sm dark:border-green-900/40 dark:bg-green-950/10">
+          <div>
+            <span className="text-sm font-semibold uppercase tracking-wide text-green-700/80 dark:text-green-300/80">
+              Imágenes generales (sin parcela asignada)
+            </span>
+            <p className="mt-1 text-xs text-green-700/60 dark:text-green-300/60">
+              Se guardaron antes de que cada parcela tuviera sus propias imágenes -- se mantienen aquí,
+              pero toda imagen nueva se adjunta desde su parcela correspondiente, arriba.
+            </p>
+          </div>
           <div className="flex flex-wrap gap-3">
-            {imagenes.map((img, i) => (
+            {imagenesGenerales.map((img, i) => (
               <div key={i} className="flex flex-col items-center gap-1">
                 {img.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={img.previewUrl}
-                    alt={`Imagen adjunta ${i + 1}`}
-                    className="h-40 w-auto max-w-[220px] rounded-lg border border-green-200 object-contain dark:border-green-800"
+                    alt={`Imagen general ${i + 1}`}
+                    className="h-32 w-auto max-w-[180px] rounded-lg border border-green-200 object-contain dark:border-green-800"
                   />
                 ) : (
-                  <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-xs text-green-700/60 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300/60">
+                  <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-xs text-green-700/60 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300/60">
                     Imagen {i + 1}
                   </div>
                 )}
                 <button
                   type="button"
-                  onClick={() => quitarImagen(i)}
+                  onClick={() => quitarImagenGeneral(i)}
                   className="text-xs text-red-600 hover:underline dark:text-red-400"
                 >
                   Quitar
@@ -837,24 +988,8 @@ export function InformeCampoForm({
               </div>
             ))}
           </div>
-        )}
-        <div className="flex flex-col gap-1">
-          <input
-            type="file"
-            accept="image/*"
-            disabled={subiendoImagen}
-            onChange={(e) => {
-              elegirImagen(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-            className={CLASE_INPUT_IMAGEN}
-          />
-          {subiendoImagen && (
-            <span className="text-xs text-green-700/70 dark:text-green-300/70">Subiendo imagen...</span>
-          )}
-          {errorImagen && <span className="text-xs text-red-600 dark:text-red-400">{errorImagen}</span>}
         </div>
-      </div>
+      )}
 
       <div className="flex flex-col gap-2">
         {!esEdicion && !enLinea && (

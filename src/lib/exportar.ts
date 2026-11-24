@@ -1468,7 +1468,10 @@ export type InformeCampoExportable = {
   firmaClienteUrl: string | null;
   parcelas: { numeroParcela: string; hectareas: number }[];
   productos: { productoActivo: string; ltsPorHectarea: number }[];
-  imagenUrls: string[];
+  // Cada imagen va bajo la parcela a la que pertenece -- "imagenesGenerales"
+  // son las guardadas antes de este cambio, sin parcela asignada.
+  imagenesPorParcela: { numeroParcela: string; urls: string[] }[];
+  imagenesGenerales: string[];
 };
 
 // Carga cualquier URL (ej. una URL firmada de Storage) como base64 vía un
@@ -1677,23 +1680,39 @@ export async function exportarInformeCampoPDF(informe: InformeCampoExportable) {
 
   await dibujarCuerpoInformeCampo(doc, informe, 30, yEmpresa);
 
-  // Imágenes adjuntas -- opcional, puede haber varias. Cada una en su
-  // propia página, ajustada al ancho conservando su proporción real
-  // para no deformarla (mismo patrón que la captura del control del
-  // drone en Informe Diario).
-  for (let i = 0; i < informe.imagenUrls.length; i++) {
-    const imagen = await cargarImagenBase64ConDimensiones(informe.imagenUrls[i]);
+  // Imágenes adjuntas -- opcional, puede haber varias, cada una bajo la
+  // parcela a la que pertenece (generales = sin parcela asignada, ver
+  // migración 0101). Cada una en su propia página, ajustada al ancho
+  // conservando su proporción real para no deformarla (mismo patrón que
+  // la captura del control del drone en Informe Diario).
+  const paginasDeImagen: { titulo: string; url: string }[] = [
+    ...informe.imagenesPorParcela.flatMap((grupo) =>
+      grupo.urls.map((url, i) => ({
+        titulo:
+          grupo.urls.length > 1
+            ? `Parcela ${grupo.numeroParcela} — Imagen ${i + 1} de ${grupo.urls.length}`
+            : `Parcela ${grupo.numeroParcela}`,
+        url,
+      })),
+    ),
+    ...informe.imagenesGenerales.map((url, i) => ({
+      titulo:
+        informe.imagenesGenerales.length > 1
+          ? `Imagen general ${i + 1} de ${informe.imagenesGenerales.length}`
+          : "Imagen general",
+      url,
+    })),
+  ];
+
+  for (const pagina of paginasDeImagen) {
+    const imagen = await cargarImagenBase64ConDimensiones(pagina.url);
     if (!imagen) continue;
     doc.addPage();
     const anchoPaginaImagen = doc.internal.pageSize.getWidth();
     const altoPagina = doc.internal.pageSize.getHeight();
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text(
-      informe.imagenUrls.length > 1 ? `Imagen adjunta ${i + 1} de ${informe.imagenUrls.length}` : "Imagen adjunta",
-      14,
-      18,
-    );
+    doc.text(pagina.titulo, 14, 18);
 
     const anchoMaximo = anchoPaginaImagen - 28;
     const altoMaximo = altoPagina - 34;
